@@ -13,9 +13,9 @@ Below is the general role distribution:
 | Member | Roles & Responsibilities |
 |:--------|:--------------------------|
 | **Yağmur Geçim** | Scrum Master • Frontend • Backend |
-| **Berkay [Surname]** | Database Design & Management |
-| **Fatih [Surname]** | Frontend Development |
-| **Melih [Surname]** | Frontend Development |
-| **Yiğit [Surname]** | Backend Development |
-| **Arda [Surname]** | Backend Development |
+| **Berkay Bilici** | Database Design & Management |
+| **Fatih Geçkil** | Frontend Development |
+| **Melih Durhasan** | Frontend Development |
+| **Yiğit Narcı** | Backend Development |
+| **Arda Karayel** | Backend Development |
 
