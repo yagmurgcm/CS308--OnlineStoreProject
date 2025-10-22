@@ -19,3 +19,9 @@ Below is the general role distribution:
 | **Yiğit Narcı** | Backend Development |
 | **Arda Karayel** | Backend Development |
 
+
+
+
+<!-- Added from dev branch for first pull request -->
+
+
