@@ -17,6 +17,10 @@ export class UsersService {
     return this.userRepo.findOne({ where: { email } });
   }
 
+  async findById(id: number): Promise<User | null> {
+    return this.userRepo.findOne({ where: { id } });
+  }
+
   async create(user: Pick<User, 'name' | 'email' | 'password'>): Promise<User> {
     const exists = await this.findByEmail(user.email);
     if (exists) throw new ConflictException('Email already registered');
@@ -24,4 +28,3 @@ export class UsersService {
     return this.userRepo.save(entity);
   }
 }
-
