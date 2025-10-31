@@ -1,26 +1,80 @@
 @import "tailwindcss";
 
+/* FATIH light theme */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f7f5; /* off-white */
+  --foreground: #111111; /* ink */
+  --muted: #6b7280;      /* gray-500 */
+  --line: #eaeaea;       /* subtle divider lines */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-sans-serif, system-ui, Inter, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Full-bleed helpers */
+.full-bleed {
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
+@layer components {
+  .container-base {
+    @apply max-w-6xl mx-auto px-4;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg border border-[var(--line)] px-4 py-2 text-sm font-medium hover:bg-white/70 transition;
+  }
+
+  .btn-primary {
+    @apply bg-black text-white border-black hover:bg-neutral-900;
+  }
+
+  .pill {
+    @apply rounded-full border border-[var(--line)] px-3 py-1 text-sm hover:bg-white;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-[var(--line)] bg-white px-4 py-2 outline-none focus:ring-2 focus:ring-black/10;
+  }
+
+  .card {
+    @apply rounded-lg border border-[var(--line)] bg-white;
+  }
+
+  /* Horizontal scroller buttons */
+  .scroller-btn {
+    @apply absolute top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-full bg-white/90 hover:bg-white border border-[var(--line)] text-lg;
+  }
+}
+
+/* Hide horizontal scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Disable selection while dragging */
+.dragging {
+  user-select: none;
+}
+
+/* Subtle fade on scroller edges */
+.mask-horizontal {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+
+/* Mega dropdown elevation */
+@media (min-width: 768px) {
+  .mega-shadow {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  }
 }
