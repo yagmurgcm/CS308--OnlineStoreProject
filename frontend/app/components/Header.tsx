@@ -292,6 +292,9 @@ export default function Header() {
               </Link>
               <MegaDrop items={BEAUTY} />
             </div>
+            <div>
+              <Link href="/products" className="text-sm hover:underline underline-offset-4">Products</Link>
+            </div>
           </nav>
         </div>
       </header>

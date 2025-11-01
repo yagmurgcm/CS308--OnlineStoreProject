@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { api, AuthResponse } from "@/lib/api";
 
 export default function SignUpPage() {
   const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   return (
     <div
@@ -29,7 +32,44 @@ export default function SignUpPage() {
               </p>
             </div>
 
-            <form className="space-y-4">
+            <form
+              className="space-y-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget as HTMLFormElement;
+                const formData = new FormData(form);
+                const name = String(formData.get("name") || "").trim();
+                const email = String(formData.get("email") || "").trim();
+                const password = String(formData.get("password") || "");
+                const password2 = String(formData.get("password2") || "");
+                setMessage("");
+                if (!name || !email || !password) {
+                  setMessage("Please fill all required fields.");
+                  return;
+                }
+                if (password !== password2) {
+                  setMessage("Passwords do not match.");
+                  return;
+                }
+                try {
+                  setLoading(true);
+                  const res = await api.post<AuthResponse>("/auth/signup", {
+                    name,
+                    email,
+                    password,
+                  });
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("token", res.access_token);
+                  }
+                  setMessage("Account created. You are signed in.");
+                } catch (err: unknown) {
+                  const msg = err instanceof Error ? err.message : "Failed to sign up";
+                  setMessage(msg);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
               <div>
                 <label htmlFor="name" className="block text-sm mb-1">
                   Full name
@@ -104,8 +144,8 @@ export default function SignUpPage() {
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-2">
-                Create account
+              <button type="submit" className="btn btn-primary w-full mt-2" disabled={loading}>
+                {loading ? "Creating..." : "Create account"}
               </button>
             </form>
 
@@ -124,6 +164,11 @@ export default function SignUpPage() {
         >
           Tip: Use a strong password (12+ characters, mixed case, numbers & symbols).
         </div>
+        {message && (
+          <div className="mx-auto max-w-md text-center text-[13px] mt-3 px-4 py-2 rounded-lg border border-[var(--line)] bg-white">
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );

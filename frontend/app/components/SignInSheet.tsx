@@ -1,7 +1,8 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { api, AuthResponse } from "@/lib/api";
 
 type Props = {
   open: boolean;
@@ -10,6 +11,10 @@ type Props = {
 
 export default function SignInSheet({ open, onClose }: Props) {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -55,23 +60,52 @@ export default function SignInSheet({ open, onClose }: Props) {
         <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-56px)]">
           <form
             className="space-y-4"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
-              onClose();
+              setMessage("");
+              setLoading(true);
+              try {
+                const res = await api.post<AuthResponse>("/auth/signin", { email, password });
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("token", res.access_token);
+                }
+                setMessage("Signed in successfully.");
+                onClose();
+                router.push("/");
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : "Failed to sign in";
+                setMessage(msg);
+              } finally {
+                setLoading(false);
+              }
             }}
           >
             <label className="block">
               <span className="text-sm text-[var(--muted)]">
                 Email Address <span className="ml-1">*</span>
               </span>
-              <input type="email" required className="input mt-1" placeholder="you@example.com" />
+              <input
+                type="email"
+                required
+                className="input mt-1"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </label>
 
             <label className="block">
               <span className="text-sm text-[var(--muted)]">
                 Password <span className="ml-1">*</span>
               </span>
-              <input type="password" required className="input mt-1" placeholder="********" />
+              <input
+                type="password"
+                required
+                className="input mt-1"
+                placeholder="********"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </label>
 
             <div className="flex items-center justify-between">
@@ -83,9 +117,12 @@ export default function SignInSheet({ open, onClose }: Props) {
               </Link>
             </div>
 
-            <button type="submit" className="btn-primary w-full py-2.5 rounded-lg">
-              SIGN IN
+            <button type="submit" className="btn-primary w-full py-2.5 rounded-lg" disabled={loading}>
+              {loading ? "Signing in..." : "SIGN IN"}
             </button>
+            {message && (
+              <p className="text-sm text-[var(--muted)]">{message}</p>
+            )}
           </form>
 
           <hr className="border-[var(--line)]" />

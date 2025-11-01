@@ -6,6 +6,10 @@ import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ProductModule } from './product/product.module';
+import { AuthToken } from './auth/auth-token.entity';
+import { Cart } from './cart/cart.entity';
+import { CartItem } from './cart/cart-item.entity';
+import { CartModule } from './cart/cart.module';
 
 // Database connection configuration using TypeORM
 
@@ -19,7 +23,7 @@ import { ProductModule } from './product/product.module';
         username: 'root',
         password: '1234',
         database: 'onlinestore',
-        entities: [Product, User],
+        entities: [Product, User, AuthToken, Cart, CartItem],
         synchronize: true,
         logging: true,
       }),
@@ -33,6 +37,7 @@ import { ProductModule } from './product/product.module';
 
     // Importing the Product module (which contains all product CRUD logic)
     ProductModule,
+    CartModule,
     UsersModule,
     AuthModule,
   ],

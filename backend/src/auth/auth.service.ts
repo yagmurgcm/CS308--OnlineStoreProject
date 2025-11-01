@@ -4,6 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
 import * as bcrypt from 'bcrypt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AuthToken } from './auth-token.entity';
 
 
 // Auth logic: hash password, validate user, return JWT
@@ -14,6 +17,8 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    @InjectRepository(AuthToken)
+    private readonly tokenRepo: Repository<AuthToken>,
   ) {}
 
   async signup(dto: SignUpDto) {
@@ -27,6 +32,11 @@ export class AuthService {
       password: hashed,
     });
     const token = await this.signToken(user.id, user.email);
+    try {
+      await this.tokenRepo.save({ userId: user.id, token });
+    } catch (e) {
+      // Token kaydı başarısız olursa signup'ı engellemeyelim
+    }
     return { access_token: token };
   }
 
@@ -36,6 +46,11 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, user.password);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
     const token = await this.signToken(user.id, user.email);
+    try {
+      await this.tokenRepo.save({ userId: user.id, token });
+    } catch (e) {
+      // Token kaydı başarısız olursa girişe engel olmayalım
+    }
     return { access_token: token };
   }
 

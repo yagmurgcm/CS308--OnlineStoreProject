@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export type CategoryProduct = {
   id: string;
@@ -21,7 +24,33 @@ export default function CategoryProductCard({
 }: {
   product: CategoryProduct;
 }) {
+  const router = useRouter();
   const { name, price, image, colors = [], badge } = product;
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function onAdd() {
+    const idNum = Number(product.id);
+    if (!idNum || Number.isNaN(idNum)) {
+      router.push("/products");
+      return;
+    }
+    if (typeof window !== "undefined" && !localStorage.getItem("token")) {
+      router.push("/sign-in");
+      return;
+    }
+    try {
+      setLoading(true);
+      setMessage("");
+      await api.post("/cart/items", { productId: idNum, quantity: 1 });
+      setMessage("Added to cart");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Failed to add");
+    } finally {
+      setLoading(false);
+      setTimeout(() => setMessage(""), 1500);
+    }
+  }
 
   return (
     <article className="group space-y-3">
@@ -65,6 +94,14 @@ export default function CategoryProductCard({
           {currency.format(price)}
         </div>
       </div>
+      <button
+        className="btn btn-primary w-full mt-2"
+        onClick={onAdd}
+        disabled={loading}
+      >
+        {loading ? "Adding…" : "Add to cart"}
+      </button>
+      {message && <div className="mt-1 text-xs text-[var(--muted)]">{message}</div>}
     </article>
   );
 }
