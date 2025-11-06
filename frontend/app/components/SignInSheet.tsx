@@ -1,8 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, AuthResponse } from "@/lib/api";
 
 type Props = {
   open: boolean;
@@ -11,10 +10,12 @@ type Props = {
 
 export default function SignInSheet({ open, onClose }: Props) {
   const router = useRouter();
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -60,21 +61,43 @@ export default function SignInSheet({ open, onClose }: Props) {
         <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-56px)]">
           <form
             className="space-y-4"
-            onSubmit={async (event) => {
+            noValidate
+            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
-              setMessage("");
+              event.stopPropagation();
               setLoading(true);
+              setMessage(null);
+              setError(null);
               try {
-                const res = await api.post<AuthResponse>("/auth/signin", { email, password });
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("token", res.access_token);
+                const response = await fetch(`${backendUrl}/auth/signin`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email, password }),
+                });
+                let payload: unknown = null;
+                const rawBody = await response.text();
+                if (rawBody) {
+                  try {
+                    payload = JSON.parse(rawBody);
+                  } catch (err) {
+                    console.warn("Non-JSON signin response:", rawBody, err);
+                  }
                 }
-                setMessage("Signed in successfully.");
-                onClose();
-                router.push("/");
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : "Failed to sign in";
-                setMessage(msg);
+                console.log("Modal signin response:", payload ?? rawBody);
+                if (!response.ok) {
+                  setError("❌ Email veya şifre hatalı");
+                  return;
+                }
+                setMessage("✅ Giriş başarılı");
+                setEmail("");
+                setPassword("");
+                setTimeout(() => {
+                  onClose();
+                  setMessage(null);
+                }, 1200);
+              } catch (err) {
+                console.error("Modal signin error:", err);
+                setError("❌ Email veya şifre hatalı");
               } finally {
                 setLoading(false);
               }
@@ -90,7 +113,7 @@ export default function SignInSheet({ open, onClose }: Props) {
                 className="input mt-1"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </label>
 
@@ -104,7 +127,7 @@ export default function SignInSheet({ open, onClose }: Props) {
                 className="input mt-1"
                 placeholder="********"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </label>
 
@@ -117,12 +140,12 @@ export default function SignInSheet({ open, onClose }: Props) {
               </Link>
             </div>
 
+            {message && <p className="text-sm font-medium text-green-600">{message}</p>}
+            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+
             <button type="submit" className="btn-primary w-full py-2.5 rounded-lg" disabled={loading}>
               {loading ? "Signing in..." : "SIGN IN"}
             </button>
-            {message && (
-              <p className="text-sm text-[var(--muted)]">{message}</p>
-            )}
           </form>
 
           <hr className="border-[var(--line)]" />

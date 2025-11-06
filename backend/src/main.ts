@@ -12,10 +12,7 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
   });
   await app.listen(process.env.PORT ?? 3001);

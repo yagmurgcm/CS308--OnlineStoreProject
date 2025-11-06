@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthToken } from './auth-token.entity';
+import { LoginLog } from './login-log.entity';
 
 
 // Auth logic: hash password, validate user, return JWT
@@ -19,6 +20,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(AuthToken)
     private readonly tokenRepo: Repository<AuthToken>,
+    @InjectRepository(LoginLog)
+    private readonly loginLogRepo: Repository<LoginLog>,
   ) {}
 
   async signup(dto: SignUpDto) {
@@ -51,7 +54,11 @@ export class AuthService {
     } catch (e) {
       // Token kaydı başarısız olursa girişe engel olmayalım
     }
-    return { access_token: token };
+    await this.loginLogRepo.save({
+      userId: user.id,
+      email: user.email,
+    });
+    return { message: 'login successful', access_token: token };
   }
 
   private async signToken(userId: number, email: string) {

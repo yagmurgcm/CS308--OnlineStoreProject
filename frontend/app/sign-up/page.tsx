@@ -1,12 +1,58 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { api, AuthResponse } from "@/lib/api";
+import { FormEvent, useState } from "react";
 
 export default function SignUpPage() {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [showPwd, setShowPwd] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = await fetch(`${backendUrl}/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const payload = await response.json();
+      console.log("Signup response:", payload);
+
+      if (!response.ok) {
+        setError(payload.message ?? "Signup failed");
+        return;
+      }
+
+      setSuccess("Account created successfully. You can now sign in.");
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      console.error("Signup error:", err);
+      setError("Unexpected error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -32,49 +78,21 @@ export default function SignUpPage() {
               </p>
             </div>
 
-            <form
-              className="space-y-4"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget as HTMLFormElement;
-                const formData = new FormData(form);
-                const name = String(formData.get("name") || "").trim();
-                const email = String(formData.get("email") || "").trim();
-                const password = String(formData.get("password") || "");
-                const password2 = String(formData.get("password2") || "");
-                setMessage("");
-                if (!name || !email || !password) {
-                  setMessage("Please fill all required fields.");
-                  return;
-                }
-                if (password !== password2) {
-                  setMessage("Passwords do not match.");
-                  return;
-                }
-                try {
-                  setLoading(true);
-                  const res = await api.post<AuthResponse>("/auth/signup", {
-                    name,
-                    email,
-                    password,
-                  });
-                  if (typeof window !== "undefined") {
-                    localStorage.setItem("token", res.access_token);
-                  }
-                  setMessage("Account created. You are signed in.");
-                } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : "Failed to sign up";
-                  setMessage(msg);
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            >
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="name" className="block text-sm mb-1">
                   Full name
                 </label>
-                <input id="name" name="name" type="text" className="input" placeholder="Jane Doe" />
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  className="input"
+                  placeholder="Jane Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
 
               <div>
@@ -88,6 +106,9 @@ export default function SignUpPage() {
                   className="input"
                   placeholder="you@example.com"
                   autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
 
@@ -103,6 +124,9 @@ export default function SignUpPage() {
                     className="input pr-10"
                     placeholder="********"
                     autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
                   <button
                     type="button"
@@ -126,6 +150,9 @@ export default function SignUpPage() {
                   className="input"
                   placeholder="********"
                   autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
                 />
               </div>
 
@@ -144,8 +171,14 @@ export default function SignUpPage() {
                 </label>
               </div>
 
-              <button type="submit" className="btn btn-primary w-full mt-2" disabled={loading}>
-                {loading ? "Creating..." : "Create account"}
+              {error ? (
+                <p className="text-red-600 text-sm">{error}</p>
+              ) : success ? (
+                <p className="text-green-600 text-sm">{success}</p>
+              ) : null}
+
+              <button type="submit" className="btn btn-primary w-full mt-2" disabled={isSubmitting}>
+                {isSubmitting ? "Creating account..." : "Create account"}
               </button>
             </form>
 
@@ -164,11 +197,6 @@ export default function SignUpPage() {
         >
           Tip: Use a strong password (12+ characters, mixed case, numbers & symbols).
         </div>
-        {message && (
-          <div className="mx-auto max-w-md text-center text-[13px] mt-3 px-4 py-2 rounded-lg border border-[var(--line)] bg-white">
-            {message}
-          </div>
-        )}
       </div>
     </div>
   );
