@@ -16,28 +16,28 @@ const featured = [
 ];
 
 const newArrivals = [
-  { title: "Wool Blend Coat", price: 179.95, img: "/images/2.jpg" },
-  { title: "Soft Knit Sweater", price: 89.95, img: "/images/6.jpg" },
-  { title: "Sandalwood Candle", price: 29.95, img: "/images/3.jpg" },
-  { title: "Rattan Storage Box", price: 39.95, img: "/images/4.jpg" },
-  { title: "Amber Eau de Toilette", price: 49.95, img: "/images/5.jpg" },
-  { title: "Linen Blend Shirt", price: 69.95, img: "/images/1.jpg" },
-  { title: "Minimal Desk Lamp", price: 120.0, img: "/images/d1.jpg" },
-  { title: "Weekender Tote", price: 95.5, img: "/images/d2.jpg" },
-  { title: "Quilted Duvet Set", price: 149.99, img: "/images/d3.png" },
-  { title: "Calming Diffuser", price: 44.25, img: "/images/d4.jpg" },
-  { title: "Compact Vanity Mirror", price: 58.0, img: "/images/d5.jpg" },
+  { id: "wool-blend-coat", title: "Wool Blend Coat", price: 179.95, img: "/images/2.jpg" },
+  { id: "soft-knit-sweater", title: "Soft Knit Sweater", price: 89.95, img: "/images/6.jpg" },
+  { id: "sandalwood-candle", title: "Sandalwood Candle", price: 29.95, img: "/images/3.jpg" },
+  { id: "rattan-storage-box", title: "Rattan Storage Box", price: 39.95, img: "/images/4.jpg" },
+  { id: "amber-eau-de-toilette", title: "Amber Eau de Toilette", price: 49.95, img: "/images/5.jpg" },
+  { id: "linen-blend-shirt", title: "Linen Blend Shirt", price: 69.95, img: "/images/1.jpg" },
+  { id: "minimal-desk-lamp", title: "Minimal Desk Lamp", price: 120.0, img: "/images/d1.jpg" },
+  { id: "weekender-tote", title: "Weekender Tote", price: 95.5, img: "/images/d2.jpg" },
+  { id: "quilted-duvet-set", title: "Quilted Duvet Set", price: 149.99, img: "/images/d3.png" },
+  { id: "calming-diffuser", title: "Calming Diffuser", price: 44.25, img: "/images/d4.jpg" },
+  { id: "compact-vanity-mirror", title: "Compact Vanity Mirror", price: 58.0, img: "/images/d5.jpg" },
 ];
 
 const bestSellers = [
-  { title: "Minimal Backpack", price: 99.95, img: "/images/4.jpg" },
-  { title: "Cashmere Scarf", price: 59.95, img: "/images/2.jpg" },
-  { title: "Essential Desk Set", price: 45.5, img: "/images/d1.jpg" },
-  { title: "Stoneware Tea Set", price: 74.0, img: "/images/5.jpg" },
-  { title: "Classic Bathrobe", price: 120.0, img: "/images/d3.png" },
-  { title: "Travel Tote", price: 85.75, img: "/images/d2.jpg" },
-  { title: "Warm Throw Blanket", price: 64.5, img: "/images/d4.jpg" },
-  { title: "Scented Oil Set", price: 34.75, img: "/images/d5.jpg" },
+  { id: "minimal-backpack", title: "Minimal Backpack", price: 99.95, img: "/images/4.jpg" },
+  { id: "cashmere-scarf", title: "Cashmere Scarf", price: 59.95, img: "/images/2.jpg" },
+  { id: "essential-desk-set", title: "Essential Desk Set", price: 45.5, img: "/images/d1.jpg" },
+  { id: "stoneware-tea-set", title: "Stoneware Tea Set", price: 74.0, img: "/images/5.jpg" },
+  { id: "classic-bathrobe", title: "Classic Bathrobe", price: 120.0, img: "/images/d3.png" },
+  { id: "travel-tote", title: "Travel Tote", price: 85.75, img: "/images/d2.jpg" },
+  { id: "warm-throw-blanket", title: "Warm Throw Blanket", price: 64.5, img: "/images/d4.jpg" },
+  { id: "scented-oil-set", title: "Scented Oil Set", price: 34.75, img: "/images/d5.jpg" },
 ];
 
 const explore = [
@@ -131,9 +131,10 @@ export default function HomePage() {
             </div>
           </div>
           <Scroller>
-            {newArrivals.map((item, i) => (
+            {newArrivals.map((item) => (
               <ProductCard
-                key={i}
+                key={item.id}
+                id={item.id}
                 title={item.title}
                 price={item.price}
                 img={item.img}
@@ -152,18 +153,15 @@ export default function HomePage() {
             </Link>
           </div>
           <Scroller>
-            {bestSellers.map((item, i) => (
-              <div
-                key={i}
-                className="flex-none rounded-lg border border-[var(--line)] bg-white w-[240px] lg:w-[300px] p-4 snap-start"
-              >
-                <div
-                  className="aspect-[3/4] rounded-md bg-cover bg-center mb-3 border border-[var(--line)]"
-                  style={{ backgroundImage: `url('${item.img}')` }}
-                />
-                <div className="text-sm text-[var(--muted)]">{item.title}</div>
-                <div className="font-medium">{`\u20BA${item.price.toFixed(2)}`}</div>
-              </div>
+            {bestSellers.map((item) => (
+              <ProductCard
+                key={item.id}
+                id={item.id}
+                title={item.title}
+                price={item.price}
+                img={item.img}
+                className="w-[240px] lg:w-[300px]"
+              />
             ))}
           </Scroller>
         </section>

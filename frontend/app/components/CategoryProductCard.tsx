@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import AddToCartButton from "./AddToCartButton";
 
 export type CategoryProduct = {
   id: string;
@@ -65,6 +66,14 @@ export default function CategoryProductCard({
           {currency.format(price)}
         </div>
       </div>
+      <AddToCartButton
+        product={{
+          id: product.id,
+          name,
+          price,
+          image,
+        }}
+      />
     </article>
   );
 }

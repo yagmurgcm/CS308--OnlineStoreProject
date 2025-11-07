@@ -3,6 +3,7 @@ import { useRef } from "react";
 
 export default function Scroller({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const drag = useRef({ isDown: false, startX: 0, scrollStart: 0 });
 
   const by = (dir: 1 | -1) => {
     const el = ref.current;
@@ -11,18 +12,25 @@ export default function Scroller({ children }: { children: React.ReactNode }) {
     el.scrollBy({ left: dir * amount, behavior: "smooth" });
   };
 
-  let isDown = false, startX = 0, scrollStart = 0;
-
   const onMouseDown = (e: React.MouseEvent) => {
-    const el = ref.current; if (!el) return;
-    isDown = true; startX = e.pageX; scrollStart = el.scrollLeft;
+    const el = ref.current;
+    if (!el) return;
+    drag.current.isDown = true;
+    drag.current.startX = e.pageX;
+    drag.current.scrollStart = el.scrollLeft;
     el.classList.add("dragging");
   };
   const onMouseMove = (e: React.MouseEvent) => {
-    const el = ref.current; if (!el || !isDown) return;
-    el.scrollLeft = scrollStart - (e.pageX - startX);
+    const el = ref.current;
+    if (!el || !drag.current.isDown) return;
+    el.scrollLeft = drag.current.scrollStart - (e.pageX - drag.current.startX);
   };
-  const onMouseUp = () => { const el = ref.current; if (!el) return; isDown = false; el.classList.remove("dragging"); };
+  const onMouseUp = () => {
+    const el = ref.current;
+    if (!el) return;
+    drag.current.isDown = false;
+    el.classList.remove("dragging");
+  };
 
   return (
     <div className="relative">
