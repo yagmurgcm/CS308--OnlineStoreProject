@@ -13,4 +13,7 @@ export class LoginLog {
 
   @CreateDateColumn({ type: 'timestamp' })
   loginTime: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  logoutTime: Date | null;
 }

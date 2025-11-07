@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 type Props = {
   open: boolean;
@@ -16,6 +17,7 @@ export default function SignInSheet({ open, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { setAuthenticatedUser } = useAuth();
 
   useEffect(() => {
     if (!open) return;
@@ -84,11 +86,32 @@ export default function SignInSheet({ open, onClose }: Props) {
                   }
                 }
                 console.log("Modal signin response:", payload ?? rawBody);
+                const payloadName =
+                  payload && typeof payload === "object" && payload !== null && "name" in payload
+                    ? String((payload as { name: unknown }).name ?? "")
+                    : null;
+                const payloadEmail =
+                  payload && typeof payload === "object" && payload !== null && "email" in payload
+                    ? String((payload as { email: unknown }).email ?? "")
+                    : null;
+                const payloadToken =
+                  payload && typeof payload === "object" && payload !== null && "access_token" in payload
+                    ? String((payload as { access_token: unknown }).access_token ?? "")
+                    : null;
+
                 if (!response.ok) {
-                  setError("❌ Email veya şifre hatalı");
+                  setError("❌ Email or password is wrong");
                   return;
                 }
-                setMessage("✅ Giriş başarılı");
+                const resolvedEmail = payloadEmail || email;
+                if (resolvedEmail) {
+                  setAuthenticatedUser({
+                    name: payloadName || resolvedEmail,
+                    email: resolvedEmail,
+                    accessToken: payloadToken || undefined,
+                  });
+                }
+                setMessage("✅ Sign in successful");
                 setEmail("");
                 setPassword("");
                 setTimeout(() => {
@@ -97,7 +120,7 @@ export default function SignInSheet({ open, onClose }: Props) {
                 }, 1200);
               } catch (err) {
                 console.error("Modal signin error:", err);
-                setError("❌ Email veya şifre hatalı");
+                setError("❌ Email or password is wrong");
               } finally {
                 setLoading(false);
               }
@@ -109,7 +132,6 @@ export default function SignInSheet({ open, onClose }: Props) {
               </span>
               <input
                 type="email"
-                required
                 className="input mt-1"
                 placeholder="you@example.com"
                 value={email}
@@ -123,7 +145,6 @@ export default function SignInSheet({ open, onClose }: Props) {
               </span>
               <input
                 type="password"
-                required
                 className="input mt-1"
                 placeholder="********"
                 value={password}
@@ -140,12 +161,12 @@ export default function SignInSheet({ open, onClose }: Props) {
               </Link>
             </div>
 
-            {message && <p className="text-sm font-medium text-green-600">{message}</p>}
-            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-
             <button type="submit" className="btn-primary w-full py-2.5 rounded-lg" disabled={loading}>
               {loading ? "Signing in..." : "SIGN IN"}
             </button>
+
+            {error && <p className="text-sm font-medium text-red-600 mt-2">{error}</p>}
+            {message && <p className="text-sm font-medium text-green-600 mt-2">{message}</p>}
           </form>
 
           <hr className="border-[var(--line)]" />

@@ -57,8 +57,29 @@ export class AuthService {
     await this.loginLogRepo.save({
       userId: user.id,
       email: user.email,
+      logoutTime: null,
     });
     return { message: 'login successful', access_token: token };
+  }
+
+  async logout(userId: number) {
+    const latestLog = await this.loginLogRepo.findOne({
+      where: { userId },
+      order: { loginTime: 'DESC' },
+    });
+
+    let logoutTime: Date | null = null;
+
+    if (latestLog) {
+      logoutTime = new Date();
+      latestLog.logoutTime = logoutTime;
+      await this.loginLogRepo.save(latestLog);
+    }
+
+    return {
+      message: 'Logout successful',
+      logoutTime,
+    };
   }
 
   private async signToken(userId: number, email: string) {

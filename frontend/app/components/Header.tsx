@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import UserStatus from "./UserStatus";
 
 // Sign-in sheet import
 const SignInSheet = dynamic(() => import("./SignInSheet"), { ssr: false });
@@ -252,13 +254,16 @@ function CartPreview({ items }: { items: CartItem[] }) {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <>
       <header className="bg-white/90 backdrop-blur border-b border-[var(--line)] sticky top-0 z-40">
         {/* Üst kısım */}
         <div className="container-base h-16 grid grid-cols-3 items-center">
-          <div />
+          <div className="flex h-full items-center">
+            <UserStatus />
+          </div>
           <div className="text-center">
             <Link href="/" className="inline-block text-xl font-semibold tracking-[0.2em]">
               FATIH
@@ -266,8 +271,16 @@ export default function Header() {
           </div>
           <div className="flex items-center justify-end gap-3">
             <CartPreview items={CART_ITEMS} />
-            <button onClick={() => setOpen(true)} className="pill">Sign in</button>
-            <Link href="/sign-up" className="pill">Sign up</Link>
+            {user ? (
+              <button type="button" onClick={logout} className="pill">
+                Log Out
+              </button>
+            ) : (
+              <>
+                <button onClick={() => setOpen(true)} className="pill">Sign in</button>
+                <Link href="/sign-up" className="pill">Sign up</Link>
+              </>
+            )}
           </div>
         </div>
 
