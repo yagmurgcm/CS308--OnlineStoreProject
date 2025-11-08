@@ -241,6 +241,26 @@ export default function Header() {
             </Link>
           </div>
           <div className="flex items-center justify-end gap-3">
+            <Link
+              href="/admin"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[var(--foreground)] transition hover:bg-white"
+              aria-label="Admin panel"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 22c4.8-2 8-5.3 8-10.3V5l-8-3-8 3v6.7C4 16.7 7.2 20 12 22z" />
+                <path d="M9.5 11a2.5 2.5 0 0 1 5 0c0 2.1-2.5 4-2.5 4S9.5 13.1 9.5 11z" />
+              </svg>
+            </Link>
             <CartPreview />
             {user ? (
               <div className="flex items-center gap-2">

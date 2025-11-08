@@ -2,21 +2,33 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class Product {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid') // <--- benzersiz otomatik ID
+  id: string;
 
   @Column()
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
+  @Column()
+  category: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ nullable: true })
+  subcategory?: string;
+
+  @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column()
   stock: number;
 
-  @Column({ default: true })
-  isActive: boolean;
+  @Column()
+  imageUrl: string;
+
+  @Column({ nullable: true, type: 'text' })
+  description?: string;
+
+  @Column({ nullable: true })
+  color?: string;
+
+  @Column({ nullable: true })
+  size?: string;
 }

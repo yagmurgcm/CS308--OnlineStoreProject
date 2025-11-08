@@ -29,16 +29,17 @@ export class CartService {
     return cart;
   }
 
-  async addItem(userId: number, productId: number, quantity: number): Promise<Cart> {
+  async addItem(userId: number, productId: string, quantity: number): Promise<Cart> {
     if (quantity < 1) throw new BadRequestException('Quantity must be >= 1');
+    const normalizedProductId = String(productId);
 
     const [cart, product] = await Promise.all([
       this.getOrCreateCart(userId),
-      this.productRepo.findOne({ where: { id: productId } }),
+      this.productRepo.findOne({ where: { id: normalizedProductId } }),
     ]);
     if (!product) throw new NotFoundException('Product not found');
 
-    const existing = (cart.items || []).find((i) => i.product.id === productId);
+    const existing = (cart.items || []).find((i) => i.product.id === normalizedProductId);
     if (existing) {
       existing.quantity += quantity;
       await this.itemRepo.save(existing);
