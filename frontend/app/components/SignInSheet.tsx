@@ -111,6 +111,7 @@ export default function SignInSheet({ open, onClose }: Props) {
                     accessToken: payloadToken || undefined,
                   });
                 }
+                router.push("/");
                 setMessage("✅ Sign in successful");
                 setEmail("");
                 setPassword("");

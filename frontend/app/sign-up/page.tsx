@@ -1,8 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [showPwd, setShowPwd] = useState(false);
   const [name, setName] = useState("");
@@ -46,6 +48,7 @@ export default function SignUpPage() {
       setEmail("");
       setPassword("");
       setConfirmPassword("");
+      router.push("/?auth=signin");
     } catch (err) {
       console.error("Signup error:", err);
       setError("Unexpected error. Please try again.");

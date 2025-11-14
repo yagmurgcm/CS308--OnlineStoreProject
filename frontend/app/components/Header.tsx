@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import UserStatus from "./UserStatus";
@@ -223,9 +223,24 @@ function CartPreview() {
 }
 
 export default function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const displayName = user?.name || user?.email || "User";
+
+  useEffect(() => {
+    if (open) return;
+    const shouldOpen = searchParams.get("auth") === "signin";
+    if (!shouldOpen) return;
+    setOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("auth");
+    const nextQuery = params.toString();
+    const target = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(target, { scroll: false });
+  }, [open, pathname, router, searchParams]);
 
   return (
     <>
