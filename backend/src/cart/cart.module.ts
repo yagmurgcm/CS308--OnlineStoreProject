@@ -10,6 +10,6 @@ import { Product } from '../product/product.entity';
   imports: [TypeOrmModule.forFeature([Cart, CartItem, Product])],
   controllers: [CartController],
   providers: [CartService],
+  exports: [CartService],  // 🔥🔥 ÖNEMLİ — OrderModule bunu görsün diye
 })
 export class CartModule {}
-

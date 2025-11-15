@@ -1,7 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, Unique, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  Unique,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany
+} from 'typeorm';
 
-
-// Defines User table (id, name, email, password)
+import { Order } from 'src/order/order.entity';
 
 @Entity()
 @Unique(['email'])
@@ -12,7 +19,7 @@ export class User {
   @Column({ length: 120 })
   name: string;
 
-  @Column({ unique: true ,length: 255 })
+  @Column({ unique: true, length: 255 })
   email: string;
 
   @Column({ length: 255 })
@@ -23,5 +30,7 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
-}
 
+  @OneToMany(() => Order, (order) => order.user)
+  orders: Order[];
+}

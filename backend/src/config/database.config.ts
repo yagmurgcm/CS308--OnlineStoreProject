@@ -1,11 +1,23 @@
 import { join } from 'path';
 import type { MysqlConnectionOptions } from 'typeorm/driver/mysql/MysqlConnectionOptions';
+
+// Auth
 import { AuthToken } from '../auth/auth-token.entity';
 import { LoginLog } from '../auth/login-log.entity';
+
+// Cart
 import { Cart } from '../cart/cart.entity';
 import { CartItem } from '../cart/cart-item.entity';
+
+// Product
 import { Product } from '../product/product.entity';
+
+// Users
 import { User } from '../users/user.entity';
+
+// Order
+import { Order } from '../order/order.entity';
+import { OrderDetail } from '../order/order-detail.entity';
 
 type Overrides = Partial<MysqlConnectionOptions>;
 
@@ -16,6 +28,8 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   Cart,
   CartItem,
   LoginLog,
+  Order,         // 💥 EKLENDİ
+  OrderDetail,   // 💥 EKLENDİ
 ];
 
 const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [
@@ -38,9 +52,9 @@ export const getDatabaseConfig = (overrides: Overrides = {}): MysqlConnectionOpt
     host: process.env.DB_HOST ?? 'localhost',
     port: Number.isNaN(portValue) ? 3306 : portValue,
     username: process.env.DB_USERNAME ?? 'root',
-    password: process.env.DB_PASSWORD ?? '1234',
+    password: process.env.DB_PASSWORD ?? 'Yagmur123.',
     database: process.env.DB_NAME ?? 'onlinestore',
-    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, true),
+    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, true), // tabloyu otomatik oluşturur
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, true),
     entities: entities ?? DEFAULT_ENTITIES,
     migrations: migrations ?? DEFAULT_MIGRATIONS,
