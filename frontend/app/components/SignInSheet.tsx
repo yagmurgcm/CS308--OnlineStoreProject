@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, AuthResponse } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 type Props = {
   open: boolean;
@@ -11,10 +11,13 @@ type Props = {
 
 export default function SignInSheet({ open, onClose }: Props) {
   const router = useRouter();
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { setAuthenticatedUser } = useAuth();
 
   useEffect(() => {
     if (!open) return;
@@ -60,21 +63,65 @@ export default function SignInSheet({ open, onClose }: Props) {
         <div className="p-5 space-y-6 overflow-y-auto h-[calc(100%-56px)]">
           <form
             className="space-y-4"
-            onSubmit={async (event) => {
+            noValidate
+            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
-              setMessage("");
+              event.stopPropagation();
               setLoading(true);
+              setMessage(null);
+              setError(null);
               try {
-                const res = await api.post<AuthResponse>("/auth/signin", { email, password });
-                if (typeof window !== "undefined") {
-                  localStorage.setItem("token", res.access_token);
+                const response = await fetch(`${backendUrl}/auth/signin`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email, password }),
+                });
+                let payload: unknown = null;
+                const rawBody = await response.text();
+                if (rawBody) {
+                  try {
+                    payload = JSON.parse(rawBody);
+                  } catch (err) {
+                    console.warn("Non-JSON signin response:", rawBody, err);
+                  }
                 }
-                setMessage("Signed in successfully.");
-                onClose();
+                console.log("Modal signin response:", payload ?? rawBody);
+                const payloadName =
+                  payload && typeof payload === "object" && payload !== null && "name" in payload
+                    ? String((payload as { name: unknown }).name ?? "")
+                    : null;
+                const payloadEmail =
+                  payload && typeof payload === "object" && payload !== null && "email" in payload
+                    ? String((payload as { email: unknown }).email ?? "")
+                    : null;
+                const payloadToken =
+                  payload && typeof payload === "object" && payload !== null && "access_token" in payload
+                    ? String((payload as { access_token: unknown }).access_token ?? "")
+                    : null;
+
+                if (!response.ok) {
+                  setError("❌ Email or password is wrong");
+                  return;
+                }
+                const resolvedEmail = payloadEmail || email;
+                if (resolvedEmail) {
+                  setAuthenticatedUser({
+                    name: payloadName || resolvedEmail,
+                    email: resolvedEmail,
+                    accessToken: payloadToken || undefined,
+                  });
+                }
                 router.push("/");
-              } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : "Failed to sign in";
-                setMessage(msg);
+                setMessage("✅ Sign in successful");
+                setEmail("");
+                setPassword("");
+                setTimeout(() => {
+                  onClose();
+                  setMessage(null);
+                }, 1200);
+              } catch (err) {
+                console.error("Modal signin error:", err);
+                setError("❌ Email or password is wrong");
               } finally {
                 setLoading(false);
               }
@@ -86,11 +133,10 @@ export default function SignInSheet({ open, onClose }: Props) {
               </span>
               <input
                 type="email"
-                required
                 className="input mt-1"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
               />
             </label>
 
@@ -100,11 +146,10 @@ export default function SignInSheet({ open, onClose }: Props) {
               </span>
               <input
                 type="password"
-                required
                 className="input mt-1"
                 placeholder="********"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </label>
 
@@ -120,9 +165,9 @@ export default function SignInSheet({ open, onClose }: Props) {
             <button type="submit" className="btn-primary w-full py-2.5 rounded-lg" disabled={loading}>
               {loading ? "Signing in..." : "SIGN IN"}
             </button>
-            {message && (
-              <p className="text-sm text-[var(--muted)]">{message}</p>
-            )}
+
+            {error && <p className="text-sm font-medium text-red-600 mt-2">{error}</p>}
+            {message && <p className="text-sm font-medium text-green-600 mt-2">{message}</p>}
           </form>
 
           <hr className="border-[var(--line)]" />

@@ -9,6 +9,6 @@ import { CartController } from './cart.controller';
   imports: [TypeOrmModule.forFeature([Cart, CartItem])],
   controllers: [CartController],
   providers: [CartService],
-  exports: [CartService],
+  exports: [CartService],  // 🔥🔥 ÖNEMLİ — OrderModule bunu görsün diye
 })
 export class CartModule {}

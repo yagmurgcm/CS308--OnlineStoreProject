@@ -1,61 +1,44 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import AddToCartButton from "./AddToCartButton";
 
 type ProductCardProps = {
+  id: string;
   title: string;
   price: number;
   img?: string;
   className?: string;
-  productId?: number; // varsa gerçek ürüne sepete ekleme yapılır
+  color?: string;
+  size?: string;
 };
 
 export default function ProductCard({
+  id,
   title,
   price,
   img,
   className = "",
-  productId,
+  color,
+  size,
 }: ProductCardProps) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-
-  async function onAdd() {
-    if (!productId) return;
-    if (typeof window !== "undefined" && !localStorage.getItem("token")) {
-      router.push("/sign-in");
-      return;
-    }
-    try {
-      setLoading(true);
-      setMessage("");
-      await api.post("/cart/items", { productId, quantity: 1 });
-      setMessage("Added to cart");
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Failed to add");
-    } finally {
-      setLoading(false);
-      setTimeout(() => setMessage(""), 1500);
-    }
-  }
+  const image = img ?? "/images/1.jpg";
 
   return (
-    <div className={`flex-none border border-[var(--line)] rounded-lg p-4 bg-white snap-start ${className}`}>
+    <div className={`flex-none border border-[var(--line)] rounded-lg p-4 bg-white snap-start space-y-3 ${className}`}>
       <div
-        className="aspect-[3/4] rounded-md mb-3 border border-[var(--line)] bg-cover bg-center"
-        style={{ backgroundImage: `url('${img ?? "/images/1.jpg"}')` }}
+        className="aspect-[3/4] rounded-md border border-[var(--line)] bg-cover bg-center"
+        style={{ backgroundImage: `url('${image}')` }}
       />
       <div className="text-sm text-[var(--muted)]">{title}</div>
       <div className="font-medium">{`\u20BA${price.toFixed(2)}`}</div>
-      {productId ? (
-        <button className="btn btn-primary w-full mt-3" onClick={onAdd} disabled={loading}>
-          {loading ? "Adding…" : "Add to cart"}
-        </button>
-      ) : null}
-      {message && <div className="mt-2 text-xs text-[var(--muted)]">{message}</div>}
+      <AddToCartButton
+        product={{
+          id,
+          name: title,
+          price,
+          image,
+          color,
+          size,
+        }}
+      />
     </div>
   );
 }

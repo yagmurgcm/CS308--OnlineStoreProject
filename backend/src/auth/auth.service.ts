@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthToken } from './auth-token.entity';
+import { LoginLog } from './login-log.entity';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +16,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(AuthToken)
     private readonly tokenRepo: Repository<AuthToken>,
+    @InjectRepository(LoginLog)
+    private readonly loginLogRepo: Repository<LoginLog>,
   ) {}
 
   async signup(dto: SignUpDto) {
@@ -59,7 +62,32 @@ export class AuthService {
     } catch (e) {
       // token kaydı başarısızsa girişe engel olma
     }
-    return { access_token: token };
+    await this.loginLogRepo.save({
+      userId: user.id,
+      email: user.email,
+      logoutTime: null,
+    });
+    return { message: 'login successful', access_token: token };
+  }
+
+  async logout(userId: number) {
+    const latestLog = await this.loginLogRepo.findOne({
+      where: { userId },
+      order: { loginTime: 'DESC' },
+    });
+
+    let logoutTime: Date | null = null;
+
+    if (latestLog) {
+      logoutTime = new Date();
+      latestLog.logoutTime = logoutTime;
+      await this.loginLogRepo.save(latestLog);
+    }
+
+    return {
+      message: 'Logout successful',
+      logoutTime,
+    };
   }
 
   private async signToken(userId: number, email: string) {

@@ -1,23 +1,17 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
+import UserStatus from "./UserStatus";
 
 // Sign-in sheet import
 const SignInSheet = dynamic(() => import("./SignInSheet"), { ssr: false });
 
 type Cat = { label: string; href?: string };
-type CartItem = {
-  id: string;
-  name: string;
-  color: string;
-  size: string;
-  quantity: number;
-  price: number;
-  image: string;
-};
 
 const WOMEN: Cat[] = [
   { label: "New In" },
@@ -45,36 +39,6 @@ const BEAUTY: Cat[] = [
   { label: "Hair Care" },
   { label: "Fragrance" },
   { label: "Tools & Accessories" },
-];
-
-const CART_ITEMS: CartItem[] = [
-  {
-    id: "kapok-chore-jacket",
-    name: "Men's Kapok Blend Corduroy Chore Jacket",
-    color: "Dark Brown",
-    size: "XL",
-    quantity: 1,
-    price: 79.95,
-    image: "/images/d1.jpg",
-  },
-  {
-    id: "washed-denim",
-    name: "Relaxed Washed Denim Jacket",
-    color: "Indigo",
-    size: "L",
-    quantity: 1,
-    price: 59.95,
-    image: "/images/d2.jpg",
-  },
-  {
-    id: "wool-knit",
-    name: "Soft Wool Crewneck Knit",
-    color: "Olive",
-    size: "M",
-    quantity: 1,
-    price: 49.95,
-    image: "/images/d4.jpg",
-  },
 ];
 
 const priceFormatter = new Intl.NumberFormat("en-GB", {
@@ -148,16 +112,13 @@ function MegaDrop({ items }: { items: Cat[] }) {
   );
 }
 
-function CartPreview({ items }: { items: CartItem[] }) {
+function CartPreview() {
   const router = useRouter();
-  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  const subtotal = items.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0
-  );
+  const { items, subtotal, totalItems } = useCart();
+  const hasItems = items.length > 0;
 
   const handleOpenCart = () => {
-    router.push("/cart");
+    router.push(hasItems ? "/cart" : "/");
   };
 
   return (
@@ -166,7 +127,7 @@ function CartPreview({ items }: { items: CartItem[] }) {
         className="relative flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[var(--foreground)] transition hover:bg-white"
         aria-haspopup="dialog"
         aria-expanded="false"
-        aria-label={`Shopping cart, ${totalItems} item${totalItems > 1 ? "s" : ""}`}
+        aria-label={`Shopping cart, ${totalItems} item${totalItems === 1 ? "" : "s"}`}
         type="button"
         onClick={handleOpenCart}
       >
@@ -206,31 +167,39 @@ function CartPreview({ items }: { items: CartItem[] }) {
           </div>
 
           <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.id} className="flex gap-3">
-                <div className="h-16 w-16 overflow-hidden rounded-md border border-[var(--line)] bg-[var(--background)]">
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    width={64}
-                    height={64}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium leading-tight text-neutral-900">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    Colour: {item.color}
-                  </p>
-                  <p className="text-xs text-neutral-500">Size: {item.size}</p>
-                  <div className="mt-1 text-sm font-medium">
-                    {item.quantity} x {priceFormatter.format(item.price)}
+            {hasItems ? (
+              items.map((item) => (
+                <div key={item.id} className="flex gap-3">
+                  <div className="h-16 w-16 overflow-hidden rounded-md border border-[var(--line)] bg-[var(--background)]">
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      width={64}
+                      height={64}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium leading-tight text-neutral-900">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      Colour: {item.color ?? "-"}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      Size: {item.size ?? "-"}
+                    </p>
+                    <div className="mt-1 text-sm font-medium">
+                      {item.quantity} x {priceFormatter.format(item.price)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-neutral-500">
+                Your cart is empty. Add a product to get started.
+              </p>
+            )}
           </div>
 
           <div className="space-y-3 border-t border-[var(--line)] pt-4">
@@ -240,8 +209,11 @@ function CartPreview({ items }: { items: CartItem[] }) {
                 {priceFormatter.format(subtotal)}
               </span>
             </div>
-            <Link href="/cart" className="btn btn-primary w-full text-center">
-              View cart
+            <Link
+              href={hasItems ? "/cart" : "/"}
+              className="btn btn-primary w-full text-center"
+            >
+              {hasItems ? "View cart" : "Start shopping"}
             </Link>
           </div>
         </div>
@@ -251,23 +223,59 @@ function CartPreview({ items }: { items: CartItem[] }) {
 }
 
 export default function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const displayName = user?.name || user?.email || "User";
+
+  useEffect(() => {
+    if (open) return;
+    const shouldOpen = searchParams.get("auth") === "signin";
+    if (!shouldOpen) return;
+    setOpen(true);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("auth");
+    const nextQuery = params.toString();
+    const target = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    router.replace(target, { scroll: false });
+  }, [open, pathname, router, searchParams]);
 
   return (
     <>
       <header className="bg-white/90 backdrop-blur border-b border-[var(--line)] sticky top-0 z-40">
         {/* Üst kısım */}
         <div className="container-base h-16 grid grid-cols-3 items-center">
-          <div />
+          <div className="flex h-full items-center">
+            <UserStatus />
+          </div>
           <div className="text-center">
             <Link href="/" className="inline-block text-xl font-semibold tracking-[0.2em]">
               FATIH
             </Link>
           </div>
           <div className="flex items-center justify-end gap-3">
-            <CartPreview items={CART_ITEMS} />
-            <button onClick={() => setOpen(true)} className="pill">Sign in</button>
-            <Link href="/sign-up" className="pill">Sign up</Link>
+            <CartPreview />
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-neutral-900">
+                  {displayName}
+                </span>
+                <button type="button" onClick={logout} className="pill">
+                  Log out
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => setOpen(true)} className="pill">
+                  Sign in
+                </button>
+                <Link href="/sign-up" className="pill">
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -291,9 +299,6 @@ export default function Header() {
                 Beauty
               </Link>
               <MegaDrop items={BEAUTY} />
-            </div>
-            <div>
-              <Link href="/products" className="text-sm hover:underline underline-offset-4">Products</Link>
             </div>
           </nav>
         </div>

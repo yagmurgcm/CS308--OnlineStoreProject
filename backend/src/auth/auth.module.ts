@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthToken } from './auth-token.entity';
+import { LoginLog } from './login-log.entity';
 
 // Groups all auth components (controller, service, jwt)
 //  To bring together, to arrange, to organise.
@@ -20,7 +21,7 @@ import { AuthToken } from './auth-token.entity';
         expiresIn: Number(process.env.JWT_EXPIRES_IN) || 60 * 60 * 24, // seconds
       },
     }),
-    TypeOrmModule.forFeature([AuthToken]),
+    TypeOrmModule.forFeature([AuthToken, LoginLog]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

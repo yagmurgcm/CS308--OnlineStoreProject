@@ -1,7 +1,9 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Request } from 'express';
 
 //  Handles user signup & signin endpoints
 // it just meets the request and directs it to service.
@@ -17,6 +19,12 @@ export class AuthController {
   @Post('signin')
   signin(@Body() dto: SignInDto) {
     return this.authService.signin(dto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  logout(@Req() req: Request & { user: { sub: number } }) {
+    return this.authService.logout(req.user.sub);
   }
 }
 
