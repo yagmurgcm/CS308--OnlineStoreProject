@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { Product } from './product.entity';
+import { Product } from './entities/product.entity';
 
 
 // Product Endpoints

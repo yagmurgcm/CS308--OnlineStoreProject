@@ -9,10 +9,6 @@ import { Repository } from 'typeorm';
 import { AuthToken } from './auth-token.entity';
 import { LoginLog } from './login-log.entity';
 
-
-// Auth logic: hash password, validate user, return JWT
-//Functions that perform the main operations related to the user are defined
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -28,31 +24,43 @@ export class AuthService {
     const exists = await this.usersService.findByEmail(dto.email);
     if (exists) throw new ConflictException('Email already registered');
 
-    const hashed = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    // UsersService.create, User entity alanlarıyla birebir eşleşmeli
     const user = await this.usersService.create({
       name: dto.name,
       email: dto.email,
-      password: hashed,
+      passwordHash,                // <-- düzeltildi
     });
+
     const token = await this.signToken(user.id, user.email);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
     } catch (e) {
-      // Token kaydı başarısız olursa signup'ı engellemeyelim
+      // token kaydı başarısızsa akışı bozma
     }
     return { access_token: token };
   }
 
   async signin(dto: SignInDto) {
-    const user = await this.usersService.findByEmail(dto.email);
+    // Şifre hash'ini de çekmemiz lazım
+    // 1) Eğer UsersService'te "findByEmailWithHash" gibi bir metod varsa onu kullan:
+    // const user = await this.usersService.findByEmailWithHash(dto.email);
+
+    // 2) Yoksa UsersService.findByEmail'i şunun gibi yazdığından emin ol:
+    // findOne({ where: { email }, select: ['id','email','passwordHash','name', ...] })
+
+    const user = await this.usersService.findByEmail(dto.email, { withHash: true });
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    const ok = await bcrypt.compare(dto.password, user.password);
+
+    const ok = await bcrypt.compare(dto.password, user.passwordHash); // <-- düzeltildi
     if (!ok) throw new UnauthorizedException('Invalid credentials');
+
     const token = await this.signToken(user.id, user.email);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
     } catch (e) {
-      // Token kaydı başarısız olursa girişe engel olmayalım
+      // token kaydı başarısızsa girişe engel olma
     }
     await this.loginLogRepo.save({
       userId: user.id,
@@ -87,4 +95,3 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 }
-

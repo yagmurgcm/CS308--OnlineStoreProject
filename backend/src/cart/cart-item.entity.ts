@@ -5,7 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Cart } from './cart.entity';
+import { Cart } from './entities/cart.entity';
 import { ProductVariant } from '../product/product-variant.entity';
 
 @Entity()

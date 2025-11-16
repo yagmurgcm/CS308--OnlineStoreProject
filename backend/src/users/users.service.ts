@@ -1,30 +1,39 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './user.entity';
-
-
-// Exports UsersService and User entity
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    @InjectRepository(User) private readonly repo: Repository<User>,
   ) {}
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { email } });
+  findById(id: number): Promise<User | null> {
+    return this.repo.findOne({ where: { id } });
   }
 
-  async findById(id: number): Promise<User | null> {
-    return this.userRepo.findOne({ where: { id } });
+  async findByEmail(email: string, opts?: { withHash?: boolean }): Promise<User | null> {
+    if (opts?.withHash) {
+      return this.repo.findOne({
+        where: { email },
+        select: [
+          'id',
+          'email',
+          'name',
+          'role',
+          'isEmailVerified',
+          'createdAt',
+          'updatedAt',
+          'passwordHash', // kritik: hash'i explicit seç
+        ],
+      });
+    }
+    return this.repo.findOne({ where: { email } });
   }
 
-  async create(user: Pick<User, 'name' | 'email' | 'password'>): Promise<User> {
-    const exists = await this.findByEmail(user.email);
-    if (exists) throw new ConflictException('Email already registered');
-    const entity = this.userRepo.create(user);
-    return this.userRepo.save(entity);
+  create(data: Partial<User>): Promise<User> {
+    const u = this.repo.create(data);
+    return this.repo.save(u);
   }
 }

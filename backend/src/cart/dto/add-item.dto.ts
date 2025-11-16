@@ -8,4 +8,3 @@ export class AddItemDto {
   @Min(1)
   quantity: number;
 }
-
