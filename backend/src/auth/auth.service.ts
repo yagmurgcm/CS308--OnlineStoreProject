@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from './dto/signup.dto';
@@ -12,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthToken } from './auth-token.entity';
 import { LoginLog } from './login-log.entity';
+
 
 // Auth logic: hash password, validate user, return JWT
 //Functions that perform the main operations related to the user are defined
@@ -40,7 +37,7 @@ export class AuthService {
     const token = await this.signToken(user.id, user.email);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
-    } catch {
+    } catch (e) {
       // Token kaydı başarısız olursa signup'ı engellemeyelim
     }
     return { access_token: token };
@@ -54,7 +51,7 @@ export class AuthService {
     const token = await this.signToken(user.id, user.email);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
-    } catch {
+    } catch (e) {
       // Token kaydı başarısız olursa girişe engel olmayalım
     }
     await this.loginLogRepo.save({
@@ -90,3 +87,4 @@ export class AuthService {
     return this.jwtService.signAsync(payload);
   }
 }
+

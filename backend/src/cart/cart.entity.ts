@@ -1,11 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  OneToMany,
-  OneToOne,
-  JoinColumn,
-  Unique,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, OneToMany, OneToOne, JoinColumn, Unique } from 'typeorm';
 import { CartItem } from './cart-item.entity';
 import { User } from '../users/user.entity';
 
@@ -25,3 +18,4 @@ export class Cart {
   })
   items: CartItem[];
 }
+

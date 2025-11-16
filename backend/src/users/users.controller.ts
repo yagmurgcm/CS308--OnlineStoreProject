@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, ParseIntPipe } from '@nestjs/common';
 import { UsersService } from './users.service';
 
 // Exposes user-related HTTP endpoints
@@ -16,8 +10,7 @@ export class UsersController {
   async getProfile(@Param('id', ParseIntPipe) id: number) {
     const user = await this.usersService.findById(id);
     if (!user) throw new NotFoundException('User not found');
-    const { password: _password, ...profile } = user;
-    void _password;
+    const { password, ...profile } = user;
     return profile;
   }
 }

@@ -2,13 +2,16 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
+  Unique,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany
 } from 'typeorm';
 
-// Defines User table (id, name, email, password)
+import { Order } from 'src/order/order.entity';
 
 @Entity()
+@Unique(['email'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -27,4 +30,7 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => Order, (order) => order.user)
+  orders: Order[];
 }

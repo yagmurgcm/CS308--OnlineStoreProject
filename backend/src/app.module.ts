@@ -6,31 +6,27 @@ import { CartModule } from './cart/cart.module';
 import { getDatabaseConfig } from './config/database.config';
 import { ProductModule } from './product/product.module';
 import { UsersModule } from './users/users.module';
-
-// Database connection configuration using TypeORM
+import { OrderModule } from './order/order.module';   // <-- BUNU EKLEMELİSİN
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
-      useFactory: () => getDatabaseConfig(),
+      useFactory: async () => getDatabaseConfig(),
 
-      //Custom DataSource initialization for better control over connection
       dataSourceFactory: async (options) => {
         if (!options) {
-          throw new Error(
-            'Failed to initialize database: TypeORM options are missing',
-          );
+          throw new Error('Failed to initialize database: TypeORM options are missing');
         }
         const dataSource = new DataSource(options);
         return dataSource.initialize();
       },
     }),
 
-    // Importing the Product module (which contains all product CRUD logic)
     ProductModule,
     CartModule,
     UsersModule,
     AuthModule,
+    OrderModule,  // <-- BURASI ARTIK DOĞRU
   ],
 })
 export class AppModule {}

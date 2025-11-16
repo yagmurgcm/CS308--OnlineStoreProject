@@ -1,64 +1,35 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Product } from './product.entity';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { CreateProductVariantDto } from './dto/create-product-variant.dto';
+
+
+// Product Endpoints
 
 @Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+// GET endpoint (all products)
   @Get()
   findAll(): Promise<Product[]> {
     return this.productService.findAll();
   }
 
+  // GET endpoint (get one product by id)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<Product> {
-    return this.productService.findOne(id);
+    findOne(@Param('id') id: string): Promise<Product | null> {
+    return this.productService.findOne(Number(id));
   }
-
+  
+  // POST endpoint (add new product)
   @Post()
-  create(@Body() dto: CreateProductDto): Promise<Product> {
-    return this.productService.create(dto);
+  create(@Body() product: Product): Promise<Product> {
+    return this.productService.create(product);
   }
 
-  @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateProductDto,
-  ): Promise<Product> {
-    return this.productService.update(id, dto);
-  }
-
-  @Post(':id/variants')
-  addVariant(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: CreateProductVariantDto,
-  ): Promise<Product> {
-    return this.productService.addVariant(id, dto);
-  }
-
-  @Delete(':productId/variants/:variantId')
-  removeVariant(
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('variantId', ParseIntPipe) variantId: number,
-  ): Promise<Product> {
-    return this.productService.removeVariant(productId, variantId);
-  }
-
+  // DELETE endpoint (delete product by id)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.productService.remove(id);
+  remove(@Param('id') id: string): Promise<void> {
+    return this.productService.remove(Number(id));
   }
 }
