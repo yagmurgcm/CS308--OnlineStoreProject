@@ -9,10 +9,11 @@ import { OrderController } from './order.controller';
 import { CartModule } from '../cart/cart.module';
 import { UsersModule } from '../users/users.module';
 import { ProductModule } from '../product/product.module';
+import { Product } from '../product/entities/product.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderDetail]),
+    TypeOrmModule.forFeature([Order, OrderDetail, Product]),
     CartModule,   // ✔ CartService buradan geliyor
     UsersModule,
     ProductModule,

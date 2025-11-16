@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
-import { Product } from './product.entity';
+import { Product } from './entities/product.entity';
 
 @Entity({ name: 'product_variants' })
 @Unique(['product', 'color', 'size'])
@@ -14,9 +14,7 @@ export class ProductVariant {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Product, (product) => product.variants, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
   product: Product;
 
   @Column({ length: 60 })

@@ -6,6 +6,7 @@ import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
 import { CartService } from '../cart/cart.service';
 import { UsersService } from '../users/users.service';
+import { Product } from '../product/entities/product.entity';
 
 @Injectable()
 export class OrderService {
@@ -16,12 +17,15 @@ export class OrderService {
     @InjectRepository(OrderDetail)
     private readonly detailRepo: Repository<OrderDetail>,
 
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+
     private readonly cartService: CartService,
     private readonly usersService: UsersService,
   ) {}
 
   // ---------------------------------------
-  // ✔ CHECKOUT (Creates Order + Details)
+  // ✔ CHECKOUT
   // ---------------------------------------
   async checkout(userId: number) {
     const user = await this.usersService.findById(userId);
@@ -32,58 +36,59 @@ export class OrderService {
       throw new Error('Cart is empty');
     }
 
-    // 👉 Total price is calculated manually because Cart has no totalPrice field
-    const totalPrice = cart.items.reduce(
-      (sum, item) => sum + Number(item.product.price) * item.quantity,
-      0
-    );
-
-    // Create main order
     const order = this.orderRepo.create({
       user,
       cart,
-      totalPrice,
       status: 'pending',
+      totalPrice: 0,
     });
 
-    await this.orderRepo.save(order);
+    const details: OrderDetail[] = [];
 
-    // Create order details
     for (const item of cart.items) {
-      const detail = this.detailRepo.create({
-        order,
-        product: item.product,
-        quantity: item.quantity,
-        price: item.product.price,
+      const product = await this.productRepo.findOne({
+        where: { id: item.productId },
       });
 
-      await this.detailRepo.save(detail);
+      if (!product) {
+        throw new NotFoundException(`Product ${item.productId} not found`);
+      }
+
+      const price = Number(product.price);
+      order.totalPrice += price * item.quantity;
+
+      const detail = this.detailRepo.create({
+        order,
+        product,
+        quantity: item.quantity,
+        price,
+      });
+
+      details.push(detail);
     }
 
-    // Clear cart after ordering
-    await this.cartService.clearCart(userId);
+    await this.orderRepo.save(order);
+    if (details.length) {
+      await this.detailRepo.save(details);
+    }
+
+    await this.cartService.clear(userId);
 
     return order;
   }
 
-  // ---------------------------------------
-  // ✔ Get all orders for a user
-  // ---------------------------------------
   async getOrdersByUser(userId: number) {
     return this.orderRepo.find({
       where: { user: { id: userId } },
-      relations: ['items', 'items.product'],
       order: { createdAt: 'DESC' },
+      relations: ['details', 'details.product'],
     });
   }
 
-  // ---------------------------------------
-  // ✔ Get a single order by ID
-  // ---------------------------------------
   async getOrderById(id: number) {
     return this.orderRepo.findOne({
       where: { id },
-      relations: ['items', 'items.product'],
+      relations: ['details', 'details.product'],
     });
   }
 }

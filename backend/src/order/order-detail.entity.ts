@@ -6,14 +6,14 @@ import {
 } from 'typeorm';
 
 import { Order } from './order.entity';
-import { Product } from 'src/product/product.entity';
+import { Product } from '../product/entities/product.entity';
 
 @Entity()
 export class OrderDetail {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, order => order.items, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Order, order => order.details, { onDelete: 'CASCADE' })
   order: Order;
 
   @ManyToOne(() => Product, { eager: true })

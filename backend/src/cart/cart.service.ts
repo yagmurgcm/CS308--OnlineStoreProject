@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { Cart } from './entities/cart.entity';
 import { CartItem } from './entities/cart-item.entity';
 import { AddItemDto } from './dto/add-item.dto';
@@ -9,71 +10,89 @@ import { UpdateItemDto } from './dto/update-item.dto';
 @Injectable()
 export class CartService {
   constructor(
-    @InjectRepository(Cart) private readonly cartRepo: Repository<Cart>,
-    @InjectRepository(CartItem) private readonly itemRepo: Repository<CartItem>,
+    @InjectRepository(Cart)
+    private readonly cartRepo: Repository<Cart>,
+    @InjectRepository(CartItem)
+    private readonly cartItemRepo: Repository<CartItem>,
   ) {}
 
-  private async getOrCreateCart(userId: number): Promise<Cart> {
-    let cart = await this.cartRepo.findOne({
+  private findCart(userId: number): Promise<Cart | null> {
+    return this.cartRepo.findOne({
       where: { userId },
       relations: ['items'],
     });
-    if (!cart) {
-      cart = this.cartRepo.create({ userId, items: [] });
-      cart = await this.cartRepo.save(cart);
-    }
-    // items dolu halde dön
-    if (!cart.items) {
-      cart = await this.cartRepo.findOne({ where: { userId }, relations: ['items'] }) as Cart;
-    }
-    return cart;
   }
 
-  async getCart(userId: number): Promise<Cart> {
-    const cart = await this.getOrCreateCart(userId);
-    return cart;
+  private async ensureCart(userId: number): Promise<Cart> {
+    const existing = await this.findCart(userId);
+    if (existing) return existing;
+
+    const created = this.cartRepo.create({ userId, items: [] });
+    await this.cartRepo.save(created);
+    // Reload with relations to return consistent shape
+    return (await this.findCart(userId)) as Cart;
+  }
+
+  async getCart(userId: number): Promise<Cart | null> {
+    return this.findCart(userId);
   }
 
   async addItem(userId: number, dto: AddItemDto): Promise<Cart> {
-    const cart = await this.getOrCreateCart(userId);
+    const cart = await this.ensureCart(userId);
 
-    // Aynı üründen varsa miktarı arttır
-    const existing = cart.items?.find((i) => i.productId === dto.productId);
-    if (existing) {
-      existing.quantity += dto.quantity;
-      await this.itemRepo.save(existing);
-      return this.getCart(userId);
+    let item = await this.cartItemRepo.findOne({
+      where: { cart: { id: cart.id }, productId: dto.productId },
+    });
+
+    if (item) {
+      item.quantity += dto.quantity;
+    } else {
+      item = this.cartItemRepo.create({
+        cart,
+        productId: dto.productId,
+        quantity: dto.quantity,
+      });
     }
 
-    const item = this.itemRepo.create({
-      productId: dto.productId,
-      quantity: dto.quantity,
-      cart,
-    });
-    await this.itemRepo.save(item);
-    return this.getCart(userId);
+    await this.cartItemRepo.save(item);
+    return (await this.findCart(userId)) as Cart;
   }
 
   async updateItem(userId: number, dto: UpdateItemDto): Promise<Cart> {
-    const cart = await this.getOrCreateCart(userId);
-    const item = cart.items?.find((i) => i.id === dto.itemId);
-    if (!item) throw new NotFoundException('Item not found');
+    const cart = await this.ensureCart(userId);
+
+    const item = await this.cartItemRepo.findOne({
+      where: { id: dto.itemId, cart: { id: cart.id } },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
     item.quantity = dto.quantity;
-    await this.itemRepo.save(item);
-    return this.getCart(userId);
+    await this.cartItemRepo.save(item);
+
+    return (await this.findCart(userId)) as Cart;
   }
 
   async removeItem(userId: number, itemId: number): Promise<Cart> {
-    const cart = await this.getOrCreateCart(userId);
-    const item = cart.items?.find((i) => i.id === itemId);
-    if (!item) throw new NotFoundException('Item not found');
-    await this.itemRepo.delete(item.id);
-    return this.getCart(userId);
+    const item = await this.cartItemRepo.findOne({
+      where: { id: itemId },
+      relations: ['cart'],
+    });
+
+    if (!item || item.cart.userId !== userId) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    await this.cartItemRepo.delete(item.id);
+    return (await this.findCart(userId)) as Cart;
   }
 
-  async clear(userId: number): Promise<Cart> {
-    const cart = await this.getOrCreateCart(userId);
-    await this.itemRepo.delete({ cart: { id: cart.id } as any });
-    return this.getCart(userId);
+  async clear(userId: number): Promise<void> {
+    const cart = await this.cartRepo.findOne({ where: { userId } });
+    if (!cart) return;
+
+    await this.cartItemRepo.delete({ cart: { id: cart.id } });
   }
 }

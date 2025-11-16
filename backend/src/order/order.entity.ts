@@ -10,7 +10,7 @@ import {
 
 import { User } from '../users/user.entity';
 import { OrderDetail } from './order-detail.entity';
-import { Cart } from '../cart/cart.entity';
+import { Cart } from '../cart/entities/cart.entity';
 
 @Entity()
 export class Order {
@@ -24,11 +24,7 @@ export class Order {
   cart: Cart;
 
   @OneToMany(() => OrderDetail, detail => detail.order, { cascade: true })
-  items: OrderDetail[];
-
-  @OneToMany(() => Order, order => order.user)
-  orders: Order[];
-
+  details: OrderDetail[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   totalPrice: number;
