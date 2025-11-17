@@ -7,7 +7,7 @@ const testConnection = new DataSource({
     host: "localhost",
     port: 3306,
     username: "root",
-    password: "Yagmur123.", // MySQL kurarken verdiğin şifre
+    password: "1234", // MySQL kurarken verdiğin şifre
     database: "onlinestore",
     entities: [Product],
     synchronize: true, // tabloyu oluşturmayı denesin

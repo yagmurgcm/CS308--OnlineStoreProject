@@ -234,6 +234,7 @@ export default function Header() {
     if (open) return;
     const shouldOpen = searchParams.get("auth") === "signin";
     if (!shouldOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(true);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("auth");

@@ -1,7 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Hero from "./components/Hero";
 import Scroller from "./components/Scroller";
 import ProductCard from "./components/ProductCard";
+import { fetchProducts } from "@/lib/products";
 
 const featured = [
   { title: "Women's Coats", img: "/images/1.jpg" },
@@ -13,31 +17,6 @@ const featured = [
   { title: "Travel Organisers", img: "/images/d2.jpg" },
   { title: "Soft Bedding", img: "/images/d3.png" },
   { title: "Minimal Decor", img: "/images/d4.jpg" },
-];
-
-const newArrivals = [
-  { id: "wool-blend-coat", title: "Wool Blend Coat", price: 179.95, img: "/images/2.jpg" },
-  { id: "soft-knit-sweater", title: "Soft Knit Sweater", price: 89.95, img: "/images/6.jpg" },
-  { id: "sandalwood-candle", title: "Sandalwood Candle", price: 29.95, img: "/images/3.jpg" },
-  { id: "rattan-storage-box", title: "Rattan Storage Box", price: 39.95, img: "/images/4.jpg" },
-  { id: "amber-eau-de-toilette", title: "Amber Eau de Toilette", price: 49.95, img: "/images/5.jpg" },
-  { id: "linen-blend-shirt", title: "Linen Blend Shirt", price: 69.95, img: "/images/1.jpg" },
-  { id: "minimal-desk-lamp", title: "Minimal Desk Lamp", price: 120.0, img: "/images/d1.jpg" },
-  { id: "weekender-tote", title: "Weekender Tote", price: 95.5, img: "/images/d2.jpg" },
-  { id: "quilted-duvet-set", title: "Quilted Duvet Set", price: 149.99, img: "/images/d3.png" },
-  { id: "calming-diffuser", title: "Calming Diffuser", price: 44.25, img: "/images/d4.jpg" },
-  { id: "compact-vanity-mirror", title: "Compact Vanity Mirror", price: 58.0, img: "/images/d5.jpg" },
-];
-
-const bestSellers = [
-  { id: "minimal-backpack", title: "Minimal Backpack", price: 99.95, img: "/images/4.jpg" },
-  { id: "cashmere-scarf", title: "Cashmere Scarf", price: 59.95, img: "/images/2.jpg" },
-  { id: "essential-desk-set", title: "Essential Desk Set", price: 45.5, img: "/images/d1.jpg" },
-  { id: "stoneware-tea-set", title: "Stoneware Tea Set", price: 74.0, img: "/images/5.jpg" },
-  { id: "classic-bathrobe", title: "Classic Bathrobe", price: 120.0, img: "/images/d3.png" },
-  { id: "travel-tote", title: "Travel Tote", price: 85.75, img: "/images/d2.jpg" },
-  { id: "warm-throw-blanket", title: "Warm Throw Blanket", price: 64.5, img: "/images/d4.jpg" },
-  { id: "scented-oil-set", title: "Scented Oil Set", price: 34.75, img: "/images/d5.jpg" },
 ];
 
 const explore = [
@@ -71,7 +50,45 @@ const stories = [
   },
 ];
 
+type SectionProduct = {
+  productId: number;
+  title: string;
+  price: number;
+  img: string;
+};
+
 export default function HomePage() {
+  const [newArrivals, setNewArrivals] = useState<SectionProduct[]>([]);
+  const [bestSellers, setBestSellers] = useState<SectionProduct[]>([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setCatalogLoading(true);
+      setCatalogError(null);
+      try {
+        const data = await fetchProducts();
+        const mapped = data.map((item) => ({
+          productId: item.id,
+          title: item.name,
+          price: item.price,
+          img: item.image,
+        }));
+        setNewArrivals(mapped.slice(0, 8));
+        const best = mapped.slice(8, 16);
+        setBestSellers(best.length ? best : mapped.slice(0, 8));
+      } catch (err) {
+        setCatalogError(
+          err instanceof Error ? err.message : "Failed to load catalog",
+        );
+      } finally {
+        setCatalogLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <>
       <Hero />
@@ -130,18 +147,24 @@ export default function HomePage() {
               <button className="pill">Home</button>
             </div>
           </div>
-          <Scroller>
-            {newArrivals.map((item) => (
-              <ProductCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                price={item.price}
-                img={item.img}
-                className="w-[260px] lg:w-[300px]"
-              />
-            ))}
-          </Scroller>
+          {catalogError ? (
+            <p className="text-sm text-red-600">{catalogError}</p>
+          ) : catalogLoading ? (
+            <p className="text-sm text-neutral-500">Loading products...</p>
+          ) : (
+            <Scroller>
+              {newArrivals.map((item) => (
+                <ProductCard
+                  key={item.productId}
+                  productId={item.productId}
+                  title={item.title}
+                  price={item.price}
+                  img={item.img}
+                  className="w-[260px] lg:w-[300px]"
+                />
+              ))}
+            </Scroller>
+          )}
         </section>
 
         {/* Best Sellers */}
@@ -152,18 +175,24 @@ export default function HomePage() {
               Shop all
             </Link>
           </div>
-          <Scroller>
-            {bestSellers.map((item) => (
-              <ProductCard
-                key={item.id}
-                id={item.id}
-                title={item.title}
-                price={item.price}
-                img={item.img}
-                className="w-[240px] lg:w-[300px]"
-              />
-            ))}
-          </Scroller>
+          {catalogError ? (
+            <p className="text-sm text-red-600">{catalogError}</p>
+          ) : catalogLoading ? (
+            <p className="text-sm text-neutral-500">Loading products...</p>
+          ) : (
+            <Scroller>
+              {bestSellers.map((item) => (
+                <ProductCard
+                  key={item.productId}
+                  productId={item.productId}
+                  title={item.title}
+                  price={item.price}
+                  img={item.img}
+                  className="w-[240px] lg:w-[300px]"
+                />
+              ))}
+            </Scroller>
+          )}
         </section>
 
         {/* Explore Our Selection */}

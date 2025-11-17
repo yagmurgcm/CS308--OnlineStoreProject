@@ -5,6 +5,7 @@ import AddToCartButton from "./AddToCartButton";
 
 export type CategoryProduct = {
   id: string;
+  productId: number;
   name: string;
   price: number;
   image: string;
@@ -68,7 +69,8 @@ export default function CategoryProductCard({
       </div>
       <AddToCartButton
         product={{
-          id: product.id,
+          productId: product.productId,
+          quantity: 1,
           name,
           price,
           image,

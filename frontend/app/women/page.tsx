@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import CategoryProductCard, {
   CategoryProduct,
 } from "../components/CategoryProductCard";
+import { fetchProducts, getPalette, pickBadge } from "@/lib/products";
 
 const SUB_CATEGORIES = [
   "New In",
@@ -15,97 +17,41 @@ const SUB_CATEGORIES = [
   "Accessories",
 ];
 
-const PRODUCTS: CategoryProduct[] = [
-  {
-    id: "womens-cashmere-blend-coat",
-    name: "Women's Cashmere Blend Coat",
-    price: 199.0,
-    image: "/images/d4.jpg",
-    colors: ["#E3D9CF", "#443C37", "#111111"],
-    badge: "New in",
-  },
-  {
-    id: "womens-double-face-wool-coat",
-    name: "Women's Double Face Wool Coat",
-    price: 189.95,
-    image: "/images/1.jpg",
-    colors: ["#B8B2AA", "#382E2E"],
-    badge: "New in",
-  },
-  {
-    id: "womens-long-padded-parka",
-    name: "Women's Long Padded Parka",
-    price: 149.95,
-    image: "/images/2.jpg",
-    colors: ["#565C5B", "#D7D4CD"],
-  },
-  {
-    id: "womens-wool-tweed-jacket",
-    name: "Women's Wool Tweed Jacket",
-    price: 129.95,
-    image: "/images/3.jpg",
-    colors: ["#3D3733", "#CFC5B9"],
-  },
-  {
-    id: "womens-light-down-vest",
-    name: "Women's Light Down Vest",
-    price: 89.95,
-    image: "/images/4.jpg",
-    colors: ["#45403D", "#ADA79B"],
-  },
-  {
-    id: "womens-oversized-flannel-shirt",
-    name: "Women's Oversized Flannel Shirt Jacket",
-    price: 79.95,
-    image: "/images/5.jpg",
-    colors: ["#6B625C", "#E6DED5"],
-  },
-  {
-    id: "womens-ribbed-knit-cardigan",
-    name: "Women's Ribbed Knit Cardigan",
-    price: 64.5,
-    image: "/images/6.jpg",
-    colors: ["#F2ECE5", "#8B7C6A"],
-  },
-  {
-    id: "womens-utility-field-jacket",
-    name: "Women's Utility Field Jacket",
-    price: 109.95,
-    image: "/images/d1.jpg",
-    colors: ["#343934", "#9DA48E"],
-  },
-  {
-    id: "womens-water-repellent-trench",
-    name: "Women's Water Repellent Trench",
-    price: 139.95,
-    image: "/images/d2.jpg",
-    colors: ["#CFBDA3", "#4A4031"],
-  },
-  {
-    id: "womens-linen-blend-blazer",
-    name: "Women's Linen Blend Blazer",
-    price: 119.0,
-    image: "/images/d3.png",
-    colors: ["#F1E7D4", "#34312B"],
-  },
-  {
-    id: "womens-textured-short-coat",
-    name: "Women's Textured Short Coat",
-    price: 129.95,
-    image: "/images/d5.jpg",
-    colors: ["#4D4B47", "#B7B3AB"],
-  },
-  {
-    id: "womens-brushed-wool-jacket",
-    name: "Women's Brushed Wool Jacket",
-    price: 124.95,
-    image: "/images/d4.jpg",
-    colors: ["#2C2826", "#C5B7AC"],
-  },
-];
-
 export default function WomenCategoryPage() {
-  const totalItems = PRODUCTS.length;
+  const [products, setProducts] = useState<CategoryProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await fetchProducts();
+        const filtered = data.filter(
+          (item) => item.category?.toLowerCase() === "women",
+        );
+        setProducts(
+          filtered.slice(0, 12).map((item, index) => ({
+            id: `women-${item.id}`,
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            colors: getPalette(item.id),
+            badge: pickBadge(index),
+          })),
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load products");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const totalItems = products.length;
 
   return (
     <main className="container-base space-y-10 py-12">
@@ -142,7 +88,9 @@ export default function WomenCategoryPage() {
       </section>
 
       <section className="flex flex-wrap items-center justify-between gap-4 text-sm text-neutral-600">
-        <span className="text-neutral-500">{totalItems} items</span>
+        <span className="text-neutral-500">
+          {loading ? "Loading..." : `${totalItems} items`}
+        </span>
         <div className="flex gap-2">
           <button className="btn h-10 px-5">Filter</button>
           <button className="btn h-10 px-5">Sort by</button>
@@ -150,11 +98,15 @@ export default function WomenCategoryPage() {
       </section>
 
       <section>
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {PRODUCTS.map((product) => (
-            <CategoryProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {error ? (
+          <p className="text-sm text-red-600">{error}</p>
+        ) : (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product) => (
+              <CategoryProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

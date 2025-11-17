@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCart } from "@/lib/cart-context";
+import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
+import { useAuth } from "@/lib/auth-context";
 
 const formatter = new Intl.NumberFormat("en-GB", {
   style: "currency",
@@ -10,15 +12,54 @@ const formatter = new Intl.NumberFormat("en-GB", {
 });
 
 export default function CartPage() {
+  const { user } = useAuth();
   const { items, subtotal, updateQuantity, removeItem } = useCart();
   const hasItems = items.length > 0;
+  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [cartError, setCartError] = useState<string | null>(null);
 
-  const decrease = (id: string, quantity: number) => {
-    updateQuantity(id, quantity - 1);
+  const decrease = (id: number, quantity: number) => {
+    handleQuantityChange(id, quantity - 1);
   };
 
-  const increase = (id: string, quantity: number) => {
-    updateQuantity(id, quantity + 1);
+  const increase = (id: number, quantity: number) => {
+    handleQuantityChange(id, quantity + 1);
+  };
+
+  const handleQuantityChange = async (id: number, quantity: number) => {
+    setCartError(null);
+    setPendingId(id);
+    try {
+      await updateQuantity(id, quantity);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to update item";
+      setCartError(
+        message === CART_AUTH_ERROR
+          ? "Please sign in to manage your cart."
+          : message,
+      );
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const handleRemove = async (id: number) => {
+    setCartError(null);
+    setPendingId(id);
+    try {
+      await removeItem(id);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to remove item";
+      setCartError(
+        message === CART_AUTH_ERROR
+          ? "Please sign in to manage your cart."
+          : message,
+      );
+    } finally {
+      setPendingId(null);
+    }
   };
 
   return (
@@ -28,6 +69,12 @@ export default function CartPage() {
         <p className="text-sm text-neutral-600">
           Review your items below before heading to checkout.
         </p>
+        {!user && (
+          <p className="text-sm text-neutral-500">
+            Sign in to sync your cart across devices and keep items saved.
+          </p>
+        )}
+        {cartError && <p className="text-sm text-red-600">{cartError}</p>}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -66,7 +113,7 @@ export default function CartPage() {
                     <button
                       className="h-8 w-8 rounded-full border border-[var(--line)] text-lg leading-none disabled:opacity-50"
                       onClick={() => decrease(item.id, item.quantity)}
-                      disabled={item.quantity <= 1}
+                      disabled={item.quantity <= 1 || pendingId === item.id}
                       aria-label={`Decrease quantity for ${item.name}`}
                     >
                       -
@@ -77,6 +124,7 @@ export default function CartPage() {
                     <button
                       className="h-8 w-8 rounded-full border border-[var(--line)] text-lg leading-none"
                       onClick={() => increase(item.id, item.quantity)}
+                      disabled={pendingId === item.id}
                       aria-label={`Increase quantity for ${item.name}`}
                     >
                       +
@@ -90,8 +138,9 @@ export default function CartPage() {
                   </div>
                   <button
                     className="text-xs text-neutral-500 underline"
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => handleRemove(item.id)}
                     type="button"
+                    disabled={pendingId === item.id}
                   >
                     Remove
                   </button>
@@ -102,10 +151,12 @@ export default function CartPage() {
             <div className="rounded-xl border border-dashed border-[var(--line)] bg-white p-10 text-center">
               <p className="text-lg font-medium text-neutral-900">Your cart is empty</p>
               <p className="mt-2 text-sm text-neutral-500">
-                Browse the catalog and add items to build your order.
+                {user
+                  ? "Browse the catalog and add items to build your order."
+                  : "Sign in to start building your cart and keep it saved."}
               </p>
-              <Link href="/" className="btn btn-primary mt-4 inline-flex">
-                Discover products
+              <Link href={user ? "/" : "/sign-in"} className="btn btn-primary mt-4 inline-flex">
+                {user ? "Discover products" : "Sign in"}
               </Link>
             </div>
           )}

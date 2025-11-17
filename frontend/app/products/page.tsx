@@ -1,41 +1,45 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
+import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 
 type Product = {
   id: number;
   name: string;
   price: number | string;
   description?: string | null;
+  image?: string | null;
   imageUrl?: string | null;
 };
 
-const fmt = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
+const fmt = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+});
 
 export default function ProductsPage() {
   const router = useRouter();
+  const { addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
+  const [loadError, setLoadError] = useState<string>("");
+  const [actionError, setActionError] = useState<string>("");
   const [addingId, setAddingId] = useState<number | null>(null);
-  const signedIn = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return !!localStorage.getItem("token");
-  }, []);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setError("");
+      setLoadError("");
+      setActionError("");
       try {
         const data = await api.get<Product[]>("/products");
         setProducts(data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load products");
+        setLoadError(e instanceof Error ? e.message : "Failed to load products");
       } finally {
         setLoading(false);
       }
@@ -44,15 +48,17 @@ export default function ProductsPage() {
   }, []);
 
   async function addToCart(productId: number) {
-    if (!signedIn) {
-      router.push("/sign-in");
-      return;
-    }
     try {
+      setActionError("");
       setAddingId(productId);
-      await api.post("/cart/items", { productId, quantity: 1 });
+      await addItem({ productId, quantity: 1 });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to add to cart");
+      const message = e instanceof Error ? e.message : "Failed to add to cart";
+      if (message === CART_AUTH_ERROR) {
+        router.push("/sign-in");
+        return;
+      }
+      setActionError(message);
     } finally {
       setAddingId(null);
     }
@@ -61,16 +67,16 @@ export default function ProductsPage() {
   if (loading) {
     return (
       <main className="container-base py-10">
-        <p>Loading products…</p>
+        <p>Loading products...</p>
       </main>
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <main className="container-base py-10 space-y-4">
         <h1 className="text-2xl font-semibold">Products</h1>
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-red-600">{loadError}</p>
       </main>
     );
   }
@@ -79,40 +85,48 @@ export default function ProductsPage() {
     <main className="container-base py-10 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Products</h1>
-        <Link href="/cart" className="underline">Go to cart</Link>
+        <Link href="/cart" className="underline">
+          Go to cart
+        </Link>
       </div>
 
       {products.length === 0 ? (
         <p>No products found.</p>
       ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => {
-            const price = typeof p.price === "string" ? parseFloat(p.price) : p.price;
-            return (
-              <article key={p.id} className="rounded-lg border border-[var(--line)] bg-white p-4 space-y-3">
-                <div className="relative aspect-[3/2] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
-                  <Image
-                    src={p.imageUrl || "/images/1.jpg"}
-                    alt={p.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="text-sm text-neutral-500">{p.name}</div>
-                <div className="font-semibold">{fmt.format(price || 0)}</div>
-                <button
-                  className="btn btn-primary w-full"
-                  onClick={() => addToCart(p.id)}
-                  disabled={addingId === p.id}
+        <>
+          {actionError && (
+            <p className="text-sm text-red-600" role="alert">
+              {actionError}
+            </p>
+          )}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((p) => {
+              const price =
+                typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
+              const image = p.image || p.imageUrl || "/images/1.jpg";
+              return (
+                <article
+                  key={p.id}
+                  className="rounded-lg border border-[var(--line)] bg-white p-4 space-y-3"
                 >
-                  {addingId === p.id ? "Adding…" : "Add to cart"}
-                </button>
-              </article>
-            );
-          })}
-        </div>
+                  <div className="relative aspect-[3/2] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
+                    <Image src={image} alt={p.name} fill className="object-cover" />
+                  </div>
+                  <div className="text-sm text-neutral-500">{p.name}</div>
+                  <div className="font-semibold">{fmt.format(price)}</div>
+                  <button
+                    className="btn btn-primary w-full"
+                    onClick={() => addToCart(p.id)}
+                    disabled={addingId === p.id}
+                  >
+                    {addingId === p.id ? "Adding..." : "Add to cart"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
     </main>
   );
 }
-

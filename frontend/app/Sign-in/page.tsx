@@ -59,16 +59,19 @@ export default function SignInPage() {
         return;
       }
 
+      const resolvedEmail = payloadEmail || email;
+      if (!payloadToken || !resolvedEmail) {
+        setError("Authentication failed. Please try again.");
+        return;
+      }
+
       setError(null);
       setMessage("Sign in successful");
-      const resolvedEmail = payloadEmail || email;
-      if (resolvedEmail) {
-        setAuthenticatedUser({
-          name: payloadName || resolvedEmail,
-          email: resolvedEmail,
-          accessToken: payloadToken || undefined,
-        });
-      }
+      setAuthenticatedUser({
+        name: payloadName || resolvedEmail,
+        email: resolvedEmail,
+        accessToken: payloadToken,
+      });
       setEmail("");
       setPassword("");
       router.push("/");

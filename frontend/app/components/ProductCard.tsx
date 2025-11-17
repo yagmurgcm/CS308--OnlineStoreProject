@@ -1,7 +1,7 @@
 import AddToCartButton from "./AddToCartButton";
 
 type ProductCardProps = {
-  id: string;
+  productId: number;
   title: string;
   price: number;
   img?: string;
@@ -11,7 +11,7 @@ type ProductCardProps = {
 };
 
 export default function ProductCard({
-  id,
+  productId,
   title,
   price,
   img,
@@ -31,7 +31,8 @@ export default function ProductCard({
       <div className="font-medium">{`\u20BA${price.toFixed(2)}`}</div>
       <AddToCartButton
         product={{
-          id,
+          productId,
+          quantity: 1,
           name: title,
           price,
           image,

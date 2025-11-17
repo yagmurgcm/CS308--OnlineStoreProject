@@ -24,13 +24,13 @@ export class AuthService {
     const exists = await this.usersService.findByEmail(dto.email);
     if (exists) throw new ConflictException('Email already registered');
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     // UsersService.create, User entity alanlarıyla birebir eşleşmeli
     const user = await this.usersService.create({
       name: dto.name,
       email: dto.email,
-      passwordHash,                // <-- düzeltildi
+      password: hashedPassword,
     });
 
     const token = await this.signToken(user.id, user.email);
@@ -48,12 +48,12 @@ export class AuthService {
     // const user = await this.usersService.findByEmailWithHash(dto.email);
 
     // 2) Yoksa UsersService.findByEmail'i şunun gibi yazdığından emin ol:
-    // findOne({ where: { email }, select: ['id','email','passwordHash','name', ...] })
+    // findOne({ where: { email }, select: ['id','email','password','name', ...] })
 
     const user = await this.usersService.findByEmail(dto.email, { withHash: true });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const ok = await bcrypt.compare(dto.password, user.passwordHash); // <-- düzeltildi
+    const ok = await bcrypt.compare(dto.password, user.password); // <-- düzeltildi
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
     const token = await this.signToken(user.id, user.email);

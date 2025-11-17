@@ -100,19 +100,21 @@ export default function SignInSheet({ open, onClose }: Props) {
                     : null;
 
                 if (!response.ok) {
-                  setError("❌ Email or password is wrong");
+                  setError("Email or password is wrong");
                   return;
                 }
                 const resolvedEmail = payloadEmail || email;
-                if (resolvedEmail) {
-                  setAuthenticatedUser({
-                    name: payloadName || resolvedEmail,
-                    email: resolvedEmail,
-                    accessToken: payloadToken || undefined,
-                  });
+                if (!payloadToken || !resolvedEmail) {
+                  setError("Authentication failed. Please try again.");
+                  return;
                 }
+                setAuthenticatedUser({
+                  name: payloadName || resolvedEmail,
+                  email: resolvedEmail,
+                  accessToken: payloadToken,
+                });
                 router.push("/");
-                setMessage("✅ Sign in successful");
+                setMessage("Sign in successful");
                 setEmail("");
                 setPassword("");
                 setTimeout(() => {
@@ -121,7 +123,7 @@ export default function SignInSheet({ open, onClose }: Props) {
                 }, 1200);
               } catch (err) {
                 console.error("Modal signin error:", err);
-                setError("❌ Email or password is wrong");
+                setError("Email or password is wrong");
               } finally {
                 setLoading(false);
               }
@@ -192,3 +194,9 @@ export default function SignInSheet({ open, onClose }: Props) {
     </div>
   );
 }
+
+
+
+
+
+

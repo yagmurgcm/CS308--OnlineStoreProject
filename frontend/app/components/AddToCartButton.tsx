@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CartItemInput, useCart } from "@/lib/cart-context";
+import { useRouter } from "next/navigation";
+import { CART_AUTH_ERROR, CartItemInput, useCart } from "@/lib/cart-context";
 
 type AddToCartButtonProps = {
   product: CartItemInput;
@@ -12,13 +13,26 @@ export default function AddToCartButton({
   product,
   className = "",
 }: AddToCartButtonProps) {
+  const router = useRouter();
   const { addItem } = useCart();
   const [justAdded, setJustAdded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleClick = () => {
-    addItem(product);
-    setJustAdded(true);
-    window.setTimeout(() => setJustAdded(false), 1000);
+  const handleClick = async () => {
+    setLoading(true);
+    try {
+      await addItem(product);
+      setJustAdded(true);
+      window.setTimeout(() => setJustAdded(false), 1000);
+    } catch (error) {
+      if (error instanceof Error && error.message === CART_AUTH_ERROR) {
+        router.push("/sign-in");
+        return;
+      }
+      console.error("Add to cart failed", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,8 +41,9 @@ export default function AddToCartButton({
       onClick={handleClick}
       className={`btn btn-primary w-full text-sm ${className}`}
       aria-live="polite"
+      disabled={loading}
     >
-      {justAdded ? "Added!" : "Add to cart"}
+      {loading ? "Adding..." : justAdded ? "Added!" : "Add to cart"}
     </button>
   );
 }
