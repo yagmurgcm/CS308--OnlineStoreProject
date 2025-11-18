@@ -11,6 +11,7 @@ import { CartItem } from '../cart/entities/cart-item.entity';
 
 // Product
 import { Product } from '../product/entities/product.entity';
+import { ProductVariant } from '../product/product-variant.entity';
 
 // Users
 import { User } from '../users/user.entity';
@@ -23,6 +24,7 @@ type Overrides = Partial<MysqlConnectionOptions>;
 
 const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   Product,
+  ProductVariant,
   User,
   AuthToken,
   Cart,

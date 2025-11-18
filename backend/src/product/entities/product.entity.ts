@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { ProductVariant } from '../product-variant.entity';
 
 @Entity()
 export class Product {
@@ -19,4 +20,7 @@ export class Product {
 
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => ProductVariant, (variant) => variant.product)
+  variants: ProductVariant[];
 }
