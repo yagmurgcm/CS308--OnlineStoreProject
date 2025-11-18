@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
+
 import { CartService } from './cart.service';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
@@ -7,7 +17,6 @@ import { UpdateItemDto } from './dto/update-item.dto';
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  // Demo: userId route paramdan; prod'da auth'dan alırsın
   @Get(':userId')
   getCart(@Param('userId', ParseIntPipe) userId: number) {
     return this.cartService.getCart(userId);
@@ -29,12 +38,12 @@ export class CartController {
     return this.cartService.updateItem(userId, dto);
   }
 
-  @Delete(':userId/items/:itemId')
+  @Delete(':userId/items/:productId')
   removeItem(
     @Param('userId', ParseIntPipe) userId: number,
-    @Param('itemId', ParseIntPipe) itemId: number,
+    @Param('productId', ParseIntPipe) productId: number,
   ) {
-    return this.cartService.removeItem(userId, itemId);
+    return this.cartService.removeItem(userId, productId);
   }
 
   @Delete(':userId/clear')

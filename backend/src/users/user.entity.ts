@@ -1,34 +1,39 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
-  OneToMany,
-} from 'typeorm';
+  import {
+    Entity,
+    Column,
+    PrimaryGeneratedColumn,
+    CreateDateColumn,
+    UpdateDateColumn,
+    OneToMany,
+    OneToOne,
+  } from 'typeorm';
 
-import { Order } from 'src/order/order.entity';
+  import { Cart } from '../cart/entities/cart.entity';
+  import { Order } from 'src/order/order.entity';
 
-@Entity()
-export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @Entity('user')
+  export class User {
+    @PrimaryGeneratedColumn()
+    id: number;
 
-  @Column({ length: 120 })
-  name: string;
+    @Column({ length: 120 })
+    name: string;
 
-  @Column({ unique: true, length: 255 })
-  email: string;
+    @Column({ unique: true, length: 255 })
+    email: string;
 
-  @Column({ length: 255 })
-  password: string; // hashed
+    @Column({ length: 255 })
+    password: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+    @CreateDateColumn()
+    createdAt: Date;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+    @UpdateDateColumn()
+    updatedAt: Date;
 
-  @OneToMany(() => Order, (order) => order.user)
-  orders: Order[];
-}
+    @OneToMany(() => Order, (order) => order.user)
+    orders: Order[];
+
+    @OneToOne(() => Cart, (cart) => cart.user)
+    cart: Cart[];
+  }

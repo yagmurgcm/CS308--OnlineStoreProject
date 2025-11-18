@@ -16,6 +16,7 @@ export class CartService {
     private readonly cartItemRepo: Repository<CartItem>,
   ) {}
 
+  // 🔥 Kullanıcının sepetini getirir
   private findCart(userId: number): Promise<Cart | null> {
     return this.cartRepo.findOne({
       where: { userId },
@@ -23,72 +24,89 @@ export class CartService {
     });
   }
 
+  // 🔥 Sepeti yoksa otomatik oluşturur
   private async ensureCart(userId: number): Promise<Cart> {
-    const existing = await this.findCart(userId);
-    if (existing) return existing;
+    let cart = await this.findCart(userId);
+    if (cart) return cart;
 
-    const created = this.cartRepo.create({ userId, items: [] });
-    await this.cartRepo.save(created);
-    // Reload with relations to return consistent shape
-    return (await this.findCart(userId)) as Cart;
+    cart = this.cartRepo.create({ userId });
+    await this.cartRepo.save(cart);
+
+    return (await this.findCart(userId))!;
   }
 
-  async getCart(userId: number): Promise<Cart | null> {
-    return this.findCart(userId);
+  // 🔥 PUBLIC: sepeti getir
+  async getCart(userId: number): Promise<Cart> {
+    return this.ensureCart(userId);
   }
 
+  // 🔥 ÜRÜN EKLEME
   async addItem(userId: number, dto: AddItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
 
     let item = await this.cartItemRepo.findOne({
-      where: { cart: { id: cart.id }, productId: dto.productId },
+      where: {
+        productId: dto.productId,
+        cart: { id: cart.id },
+      },
     });
 
     if (item) {
+      // ürün zaten sepette → quantity artır
       item.quantity += dto.quantity;
     } else {
+      // yeni ürün satırı oluştur
       item = this.cartItemRepo.create({
-        cart,
         productId: dto.productId,
         quantity: dto.quantity,
+        cart,
       });
     }
 
     await this.cartItemRepo.save(item);
-    return (await this.findCart(userId)) as Cart;
+
+    return (await this.findCart(userId))!;
   }
 
+  // 🔥 ÜRÜN ADETİNİ GÜNCELLEME
   async updateItem(userId: number, dto: UpdateItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
 
     const item = await this.cartItemRepo.findOne({
-      where: { id: dto.itemId, cart: { id: cart.id } },
+      where: {
+        productId: dto.productId,
+        cart: { id: cart.id },
+      },
     });
 
-    if (!item) {
-      throw new NotFoundException('Cart item not found');
-    }
+    if (!item) throw new NotFoundException('Ürün sepette bulunamadı');
 
     item.quantity = dto.quantity;
+
     await this.cartItemRepo.save(item);
 
-    return (await this.findCart(userId)) as Cart;
+    return (await this.findCart(userId))!;
   }
 
-  async removeItem(userId: number, itemId: number): Promise<Cart> {
+  // 🔥 ÜRÜN SİLME
+  async removeItem(userId: number, productId: number): Promise<Cart> {
+    const cart = await this.ensureCart(userId);
+
     const item = await this.cartItemRepo.findOne({
-      where: { id: itemId },
+      where: { productId, cart: { id: cart.id } },
       relations: ['cart'],
     });
 
     if (!item || item.cart.userId !== userId) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException('Ürün sepette yok veya erişim izni yok');
     }
 
     await this.cartItemRepo.delete(item.id);
-    return (await this.findCart(userId)) as Cart;
+
+    return (await this.findCart(userId))!;
   }
 
+  // 🔥 SEPETİ TEMİZLEME
   async clear(userId: number): Promise<void> {
     const cart = await this.cartRepo.findOne({ where: { userId } });
     if (!cart) return;
