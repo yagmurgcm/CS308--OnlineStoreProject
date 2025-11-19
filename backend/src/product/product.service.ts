@@ -13,50 +13,51 @@ export class ProductService {
     private productRepository: Repository<Product>,
   ) {}
 
-  // Get all products, GET
-  async findAll(query: GetProductsQueryDto): Promise<Product[]> {
-    const { minPrice, maxPrice, size, sort } = query;
-    const qb = this.productRepository
-      .createQueryBuilder('product')
-      .where('product.isActive = :active', { active: true });
+async findAll(query: GetProductsQueryDto): Promise<Product[]> {
+  const { minPrice, maxPrice, size, sort, category, subcategory } = query;
+  console.log("🔥 USING UPDATED SERVICE");
 
-    let useVariantPrice = false;
 
-    if (size) {
-      qb.innerJoin('product.variants', 'variant', 'variant.size = :size', {
-        size,
-      });
-      useVariantPrice = true;
-    }
+  const qb = this.productRepository
+    .createQueryBuilder('product')
+    .leftJoinAndSelect('product.variants', 'variant');
 
-    if (minPrice !== undefined) {
-      qb.andWhere(
-        useVariantPrice
-          ? 'variant.price >= :minPrice'
-          : 'product.price >= :minPrice',
-        { minPrice },
-      );
-    }
-
-    if (maxPrice !== undefined) {
-      qb.andWhere(
-        useVariantPrice
-          ? 'variant.price <= :maxPrice'
-          : 'product.price <= :maxPrice',
-        { maxPrice },
-      );
-    }
-
-    if (sort === 'price_asc') {
-      qb.orderBy(useVariantPrice ? 'variant.price' : 'product.price', 'ASC');
-    } else if (sort === 'price_desc') {
-      qb.orderBy(useVariantPrice ? 'variant.price' : 'product.price', 'DESC');
-    } else {
-      qb.orderBy('product.id', 'ASC');
-    }
-
-    return qb.getMany();
+  if (category) {
+    qb.andWhere('product.category = :category', { category });
   }
+
+  if (size) {
+    qb.andWhere('variant.size = :size', { size });
+  }
+
+  if (minPrice !== undefined) {
+    qb.andWhere('variant.price >= :minPrice', { minPrice });
+  }
+
+  if (maxPrice !== undefined) {
+    qb.andWhere('variant.price <= :maxPrice', { maxPrice });
+  }
+
+  if (sort === 'price_asc') {
+    qb.orderBy('variant.price', 'ASC');
+  } else if (sort === 'price_desc') {
+    qb.orderBy('variant.price', 'DESC');
+  } else {
+    qb.orderBy('product.id', 'ASC');
+  }
+
+  if (subcategory) {
+  qb.andWhere("product.subcategory = :subcategory", { subcategory });
+}
+
+
+  return qb.getMany();
+}
+
+
+
+
+
   
   // Get product by id, GET
   findOne(id: number): Promise<Product | null> {

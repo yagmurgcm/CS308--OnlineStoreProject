@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -6,6 +6,7 @@ import { Cart } from './entities/cart.entity';
 import { CartItem } from './entities/cart-item.entity';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { ProductVariant } from '../product/product-variant.entity';
 
 @Injectable()
 export class CartService {
@@ -20,8 +21,17 @@ export class CartService {
   private findCart(userId: number): Promise<Cart | null> {
     return this.cartRepo.findOne({
       where: { userId },
-      relations: ['items'],
+      relations: ['items', 'items.variant'],
     });
+  }
+
+  private resolveVariantId(payload: { variantId?: number; productId?: number }): number {
+    const variantId = payload.variantId ?? payload.productId;
+    if (!variantId) {
+      throw new BadRequestException('variantId is required');
+    }
+
+    return variantId;
   }
 
   // 🔥 Sepeti yoksa otomatik oluşturur
@@ -43,11 +53,12 @@ export class CartService {
   // 🔥 ÜRÜN EKLEME
   async addItem(userId: number, dto: AddItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
+    const variantId = this.resolveVariantId(dto);
 
     let item = await this.cartItemRepo.findOne({
       where: {
-        productId: dto.productId,
         cart: { id: cart.id },
+        variant: { id: variantId },
       },
     });
 
@@ -57,7 +68,7 @@ export class CartService {
     } else {
       // yeni ürün satırı oluştur
       item = this.cartItemRepo.create({
-        productId: dto.productId,
+        variant: { id: variantId } as ProductVariant,
         quantity: dto.quantity,
         cart,
       });
@@ -71,11 +82,12 @@ export class CartService {
   // 🔥 ÜRÜN ADETİNİ GÜNCELLEME
   async updateItem(userId: number, dto: UpdateItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
+    const variantId = this.resolveVariantId(dto);
 
     const item = await this.cartItemRepo.findOne({
       where: {
-        productId: dto.productId,
         cart: { id: cart.id },
+        variant: { id: variantId },
       },
     });
 
@@ -89,15 +101,17 @@ export class CartService {
   }
 
   // 🔥 ÜRÜN SİLME
-  async removeItem(userId: number, productId: number): Promise<Cart> {
+  async removeItem(userId: number, variantId: number): Promise<Cart> {
     const cart = await this.ensureCart(userId);
 
     const item = await this.cartItemRepo.findOne({
-      where: { productId, cart: { id: cart.id } },
-      relations: ['cart'],
+      where: {
+        cart: { id: cart.id },
+        variant: { id: variantId },
+      },
     });
 
-    if (!item || item.cart.userId !== userId) {
+    if (!item) {
       throw new NotFoundException('Ürün sepette yok veya erişim izni yok');
     }
 

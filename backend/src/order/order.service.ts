@@ -6,7 +6,9 @@ import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
 import { CartService } from '../cart/cart.service';
 import { UsersService } from '../users/users.service';
-import { Product } from '../product/entities/product.entity';
+import { ProductVariant } from '../product/product-variant.entity';
+
+
 
 @Injectable()
 export class OrderService {
@@ -17,8 +19,8 @@ export class OrderService {
     @InjectRepository(OrderDetail)
     private readonly detailRepo: Repository<OrderDetail>,
 
-    @InjectRepository(Product)
-    private readonly productRepo: Repository<Product>,
+    @InjectRepository(ProductVariant)
+    private readonly variantRepo: Repository<ProductVariant>,
 
     private readonly cartService: CartService,
     private readonly usersService: UsersService,
@@ -38,7 +40,6 @@ export class OrderService {
 
     const order = this.orderRepo.create({
       user,
-      cart,
       status: 'pending',
       totalPrice: 0,
     });
@@ -46,20 +47,22 @@ export class OrderService {
     const details: OrderDetail[] = [];
 
     for (const item of cart.items) {
-      const product = await this.productRepo.findOne({
-        where: { id: item.productId },
+      // 🔥 artık productId yok → variant üzerinden gidiyoruz
+      const variant = await this.variantRepo.findOne({
+        where: { id: item.variant.id },
+        relations: ['product'],
       });
 
-      if (!product) {
-        throw new NotFoundException(`Product ${item.productId} not found`);
+      if (!variant) {
+        throw new NotFoundException(`Variant ${item.variant.id} not found`);
       }
 
-      const price = Number(product.price);
+      const price = Number(variant.price);
       order.totalPrice += price * item.quantity;
 
       const detail = this.detailRepo.create({
         order,
-        product,
+        product: variant.product, // 🔥 ürün = variant.product
         quantity: item.quantity,
         price,
       });

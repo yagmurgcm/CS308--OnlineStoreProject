@@ -22,7 +22,7 @@ export class CartController {
     return this.cartService.getCart(userId);
   }
 
-  @Post(':userId/items')
+  @Post(':userId/add')
   addItem(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() dto: AddItemDto,
@@ -30,7 +30,7 @@ export class CartController {
     return this.cartService.addItem(userId, dto);
   }
 
-  @Patch(':userId/items')
+  @Patch(':userId/update')
   updateItem(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() dto: UpdateItemDto,
@@ -38,16 +38,11 @@ export class CartController {
     return this.cartService.updateItem(userId, dto);
   }
 
-  @Delete(':userId/items/:productId')
+  @Delete(':userId/remove/:variantId')
   removeItem(
     @Param('userId', ParseIntPipe) userId: number,
-    @Param('productId', ParseIntPipe) productId: number,
+    @Param('variantId', ParseIntPipe) variantId: number,
   ) {
-    return this.cartService.removeItem(userId, productId);
-  }
-
-  @Delete(':userId/clear')
-  clear(@Param('userId', ParseIntPipe) userId: number) {
-    return this.cartService.clear(userId);
+    return this.cartService.removeItem(userId, variantId);
   }
 }

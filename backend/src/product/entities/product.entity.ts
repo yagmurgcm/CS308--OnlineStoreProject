@@ -1,13 +1,19 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { ProductVariant } from '../product-variant.entity';
 
-@Entity()
+@Entity('products')
 export class Product {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
   name: string;
+
+  @Column()
+  category: string;
+
+  @Column({ nullable: true })
+  subcategory: string;
 
   @Column({ type: 'text', nullable: true })
   description: string;

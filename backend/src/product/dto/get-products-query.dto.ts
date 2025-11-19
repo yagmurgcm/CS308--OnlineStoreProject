@@ -24,5 +24,23 @@ export class GetProductsQueryDto {
   @IsOptional()
   @IsIn(['price_asc', 'price_desc'])
   sort?: 'price_asc' | 'price_desc';
+
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+
+
+
+  
+
+  @IsOptional()
+  @IsString()
+  subcategory?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
 }
 
