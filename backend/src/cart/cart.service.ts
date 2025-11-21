@@ -7,6 +7,7 @@ import { CartItem } from './entities/cart-item.entity';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { ProductVariant } from '../product/product-variant.entity';
+import { Product } from '../product/entities/product.entity';
 
 @Injectable()
 export class CartService {
@@ -15,23 +16,54 @@ export class CartService {
     private readonly cartRepo: Repository<Cart>,
     @InjectRepository(CartItem)
     private readonly cartItemRepo: Repository<CartItem>,
+    @InjectRepository(ProductVariant)
+    private readonly variantRepo: Repository<ProductVariant>,
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
   ) {}
 
   // 🔥 Kullanıcının sepetini getirir
   private findCart(userId: number): Promise<Cart | null> {
     return this.cartRepo.findOne({
       where: { userId },
-      relations: ['items', 'items.variant'],
+      relations: ['items', 'items.variant', 'items.variant.product'],
     });
   }
 
-  private resolveVariantId(payload: { variantId?: number; productId?: number }): number {
-    const variantId = payload.variantId ?? payload.productId;
-    if (!variantId) {
-      throw new BadRequestException('variantId is required');
+  private async resolveVariantId(payload: {
+    variantId?: number;
+    productId?: number;
+  }): Promise<number> {
+    if (payload.variantId) {
+      return payload.variantId;
     }
 
-    return variantId;
+    if (payload.productId) {
+      const variant = await this.variantRepo.findOne({
+        where: { product: { id: payload.productId } },
+        order: { id: 'ASC' },
+      });
+      if (!variant) {
+        const product = await this.productRepo.findOne({
+          where: { id: payload.productId },
+        });
+        if (!product) {
+          throw new NotFoundException('Product not found');
+        }
+        const fallbackVariant = this.variantRepo.create({
+          product,
+          color: 'Standard',
+          size: 'Standard',
+          price: product.price ?? 0,
+          stock: product.stock ?? 0,
+        });
+        const saved = await this.variantRepo.save(fallbackVariant);
+        return saved.id;
+      }
+      return variant.id;
+    }
+
+    throw new BadRequestException('variantId or productId is required');
   }
 
   // 🔥 Sepeti yoksa otomatik oluşturur
@@ -53,7 +85,7 @@ export class CartService {
   // 🔥 ÜRÜN EKLEME
   async addItem(userId: number, dto: AddItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
-    const variantId = this.resolveVariantId(dto);
+    const variantId = await this.resolveVariantId(dto);
 
     let item = await this.cartItemRepo.findOne({
       where: {
@@ -82,14 +114,24 @@ export class CartService {
   // 🔥 ÜRÜN ADETİNİ GÜNCELLEME
   async updateItem(userId: number, dto: UpdateItemDto): Promise<Cart> {
     const cart = await this.ensureCart(userId);
-    const variantId = this.resolveVariantId(dto);
+    let item: CartItem | null = null;
 
-    const item = await this.cartItemRepo.findOne({
-      where: {
-        cart: { id: cart.id },
-        variant: { id: variantId },
-      },
-    });
+    if (dto.itemId) {
+      item = await this.cartItemRepo.findOne({
+        where: {
+          id: dto.itemId,
+          cart: { id: cart.id },
+        },
+      });
+    } else {
+      const variantId = await this.resolveVariantId(dto);
+      item = await this.cartItemRepo.findOne({
+        where: {
+          cart: { id: cart.id },
+          variant: { id: variantId },
+        },
+      });
+    }
 
     if (!item) throw new NotFoundException('Ürün sepette bulunamadı');
 
@@ -101,13 +143,13 @@ export class CartService {
   }
 
   // 🔥 ÜRÜN SİLME
-  async removeItem(userId: number, variantId: number): Promise<Cart> {
+  async removeItem(userId: number, itemId: number): Promise<Cart> {
     const cart = await this.ensureCart(userId);
 
     const item = await this.cartItemRepo.findOne({
       where: {
+        id: itemId,
         cart: { id: cart.id },
-        variant: { id: variantId },
       },
     });
 

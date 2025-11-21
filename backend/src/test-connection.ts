@@ -8,7 +8,7 @@ const testConnection = new DataSource({
     port: 3306,
     username: "root",
     password: "1234", // MySQL kurarken verdiğin şifre
-    database: "projectstore", // buraya onlinestore yazın (ben kendimde projectstore diye yapmışım siz yapmayın)
+    database: "onlinestore", // buraya onlinestore yazın (ben kendimde projectstore diye yapmışım siz yapmayın)
     entities: [Product],
     synchronize: true, // tabloyu oluşturmayı denesin
 });

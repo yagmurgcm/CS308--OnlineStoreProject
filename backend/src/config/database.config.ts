@@ -55,7 +55,7 @@ export const getDatabaseConfig = (overrides: Overrides = {}): MysqlConnectionOpt
     port: Number.isNaN(portValue) ? 3306 : portValue,
     username: process.env.DB_USERNAME ?? 'root',
     password: process.env.DB_PASSWORD ?? '1234', // buraya kendi şifrenizi gireceksiniz .
-    database: process.env.DB_NAME ?? 'projectstore', // buraya onlinestore yazın (ben kendimde projectstore diye yapmışım siz yapmayın)
+    database: process.env.DB_NAME ?? 'onlinestore', // buraya onlinestore yazın (ben kendimde projectstore diye yapmışım siz yapmayın)
     synchronize: coerceBoolean(process.env.TYPEORM_SYNC, false),
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, false),
     entities: entities ?? DEFAULT_ENTITIES,

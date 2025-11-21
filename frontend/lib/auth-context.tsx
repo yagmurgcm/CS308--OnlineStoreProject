@@ -111,19 +111,15 @@ const resolveUser = (input: AuthUserInput): AuthUser => {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() =>
-    typeof window === "undefined" ? null : readStoredUser(),
-  );
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    if (user === null) {
-      const stored = readStoredUser();
-      if (stored) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser(stored);
-      }
+    const stored = readStoredUser();
+    if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUser(stored);
     }
-  }, [user]);
+  }, []);
 
   const setAuthenticatedUser = useCallback((nextUser: AuthUserInput) => {
     const resolved = resolveUser(nextUser);
