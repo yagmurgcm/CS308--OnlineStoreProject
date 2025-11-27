@@ -14,8 +14,10 @@ export class ProductVariant {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Product, { onDelete: 'CASCADE' })
-  product: Product;
+ @ManyToOne(() => Product, (product) => product.variants, {
+  onDelete: 'CASCADE',
+    })
+    product: Product;
 
   @Column({ length: 60 })
   color: string;

@@ -9,6 +9,10 @@ export class Product {
   @Column()
   name: string;
 
+  @Column({ nullable: true })
+  image: string;
+
+
   @Column()
   category: string;
 
