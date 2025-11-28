@@ -172,7 +172,7 @@ function CartPreview() {
                 <div key={item.id} className="flex gap-3">
                   <div className="h-16 w-16 overflow-hidden rounded-md border border-[var(--line)] bg-[var(--background)]">
                     <Image
-                      src={item.image}
+                      src={item.image ?? "/fallback.png"}
                       alt={item.name}
                       width={64}
                       height={64}
@@ -228,6 +228,11 @@ export default function Header() {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
+  const handleLogout = async () => {
+  await logout();        // backend logout, token silme
+  router.push("/");      // 🔥 logout sonrası ana sayfaya yönlendir
+};
+
   const displayName = user?.name || user?.email || "User";
 
   useEffect(() => {
@@ -263,9 +268,10 @@ export default function Header() {
                 <span className="text-sm font-semibold text-neutral-900">
                   {displayName}
                 </span>
-                <button type="button" onClick={logout} className="pill">
-                  Log out
-                </button>
+                <button type="button" onClick={handleLogout} className="pill">
+  Log out
+</button>
+
               </div>
             ) : (
               <>
