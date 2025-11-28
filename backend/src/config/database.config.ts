@@ -46,20 +46,29 @@ const coerceBoolean = (value: string | undefined, defaultValue: boolean): boolea
 };
 
 export const getDatabaseConfig = (overrides: Overrides = {}): MysqlConnectionOptions => {
-  const portValue = Number(process.env.DB_PORT ?? 3306);
+  // Portu number'a çeviriyoruz (Senin Railway portun)
+  const portValue = 39112; 
   const { entities, migrations, ...restOverrides } = overrides;
 
   return {
     type: 'mysql',
-    host: process.env.DB_HOST ?? 'localhost',
-    port: Number.isNaN(portValue) ? 3306 : portValue,
-    username: process.env.DB_USERNAME ?? 'root',
-    password: process.env.DB_PASSWORD ?? '1234', // buraya kendi şifrenizi gireceksiniz .
-    database: process.env.DB_NAME ?? 'projectstore', // buraya onlinestore yazın (ben kendimde projectstore diye yapmışım siz yapmayın)
-    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, false),
+    // --- BURAYI SENİN RAILWAY BİLGİLERİNLE DOLDURDUM ---
+    host: 'switchyard.proxy.rlwy.net',
+    port: portValue,
+    username: 'root',
+    password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp', // Senin o uzun şifren
+    database: 'railway', // Import ederken seçtiğimiz isim
+    // ---------------------------------------------------
+
+    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, true), // Tabloları otomatik güncellesin diye true yaptım
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, false),
     entities: entities ?? DEFAULT_ENTITIES,
     migrations: migrations ?? DEFAULT_MIGRATIONS,
     ...restOverrides,
+    
+    // DİKKAT: Railway gibi bulut sistemleri için bu SSL ayarı ŞARTTIR.
+    ssl: {
+        rejectUnauthorized: false
+    }
   };
 };
