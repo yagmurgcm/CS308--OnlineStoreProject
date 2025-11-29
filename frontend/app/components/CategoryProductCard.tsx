@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react"; // 1. EKLENDİ: State için
 import Image from "next/image";
 import AddToCartButton from "./AddToCartButton";
+import { useWishlist } from "@/store/wishlistContext"; // 2. EKLENDİ: Context için
 
 export type CategoryProduct = {
   id: string;
@@ -13,9 +15,9 @@ export type CategoryProduct = {
   badge?: string;
 };
 
-const currency = new Intl.NumberFormat("en-GB", {
+const currency = new Intl.NumberFormat("tr-TR", { // İstersen en-GB kalabilir, TL yaptım
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function CategoryProductCard({
@@ -23,12 +25,53 @@ export default function CategoryProductCard({
 }: {
   product: CategoryProduct;
 }) {
-  const { name, price, image, colors = [], badge } = product;
+  const { name, price, image, colors = [], badge, productId } = product;
+
+  // 3. EKLENDİ: Wishlist kancaları (Hook)
+  const { addItemToWishlist } = useWishlist();
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // 4. EKLENDİ: Ekleme Fonksiyonu
+  const handleAddToWishlist = () => {
+    setIsInWishlist(true);
+
+    // Animasyon için kısa süre sonra state'i kapatıyoruz
+    setTimeout(() => setIsInWishlist(false), 400);
+
+    addItemToWishlist({
+      id: String(productId),
+      productId,
+      name,
+      price,
+      image,
+      // Kategori sayfasında renk/beden seçilmediği için boş gönderiyoruz
+      // İstersen varsayılanı gönderebilirsin
+      color: colors.length > 0 ? colors[0] : undefined, 
+    });
+  };
 
   return (
     <article className="group space-y-3">
       <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+        {/* 'relative' olduğu için butonu buraya koyuyoruz, resmin üzerine oturuyor */}
         <div className="relative aspect-[3/4]">
+          
+          {/* 5. EKLENDİ: Kalp Butonu (ProductCard'dan alındı) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation(); // Tıklayınca ürün detayına gitmesin diye
+              handleAddToWishlist();
+            }}
+            className={`absolute z-20 right-2 top-2 flex h-9 w-9 items-center justify-center
+                      rounded-full bg-white shadow-md cursor-pointer
+                      transition-all duration-300 
+                      opacity-0 group-hover:opacity-100
+                      ${isInWishlist ? "scale-150 text-red-500" : "scale-100 text-gray-700"}`}
+          >
+            {isInWishlist ? "💖" : "🤍"}
+          </button>
+
           <Image
             src={image}
             alt={name}
