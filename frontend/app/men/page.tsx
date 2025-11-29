@@ -3,6 +3,8 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
+    "All",
+
   "Coats & Jackets",
   "Hoodies & Sweatshirts",
   "Jumpers & Cardigans",

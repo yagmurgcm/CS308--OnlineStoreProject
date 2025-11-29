@@ -3,6 +3,7 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
+  "All",
   "Skincare",
   "Body Care",
   "Hair Care",
