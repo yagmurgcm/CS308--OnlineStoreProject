@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react"; // 1. EKLENDİ: State için
+import { useState } from "react";
 import Image from "next/image";
-import AddToCartButton from "./AddToCartButton";
-import { useWishlist } from "@/store/wishlistContext"; // 2. EKLENDİ: Context için
+import Link from "next/link"; // <--- 1. BUNU MUTLAKA EKLE
+import AddToCartButton from "./AddToCartButton"; // Yolunu düzelttik
+import { useWishlist } from "@/store/wishlistContext";
 
 export type CategoryProduct = {
   id: string;
@@ -15,7 +16,7 @@ export type CategoryProduct = {
   badge?: string;
 };
 
-const currency = new Intl.NumberFormat("tr-TR", { // İstersen en-GB kalabilir, TL yaptım
+const currency = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
 });
@@ -27,40 +28,33 @@ export default function CategoryProductCard({
 }) {
   const { name, price, image, colors = [], badge, productId } = product;
 
-  // 3. EKLENDİ: Wishlist kancaları (Hook)
   const { addItemToWishlist } = useWishlist();
   const [isInWishlist, setIsInWishlist] = useState(false);
 
-  // 4. EKLENDİ: Ekleme Fonksiyonu
   const handleAddToWishlist = () => {
     setIsInWishlist(true);
-
-    // Animasyon için kısa süre sonra state'i kapatıyoruz
     setTimeout(() => setIsInWishlist(false), 400);
-
     addItemToWishlist({
       id: String(productId),
       productId,
       name,
       price,
       image,
-      // Kategori sayfasında renk/beden seçilmediği için boş gönderiyoruz
-      // İstersen varsayılanı gönderebilirsin
-      color: colors.length > 0 ? colors[0] : undefined, 
+      color: colors.length > 0 ? colors[0] : undefined,
     });
   };
 
   return (
     <article className="group space-y-3">
       <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
-        {/* 'relative' olduğu için butonu buraya koyuyoruz, resmin üzerine oturuyor */}
         <div className="relative aspect-[3/4]">
           
-          {/* 5. EKLENDİ: Kalp Butonu (ProductCard'dan alındı) */}
+          {/* Kalp Butonu (Linkin dışında, üstte kalmalı) */}
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation(); // Tıklayınca ürün detayına gitmesin diye
+              e.preventDefault(); // Linke tıklamayı engeller
+              e.stopPropagation(); // Olayın yukarı taşmasını engeller
               handleAddToWishlist();
             }}
             className={`absolute z-20 right-2 top-2 flex h-9 w-9 items-center justify-center
@@ -72,14 +66,18 @@ export default function CategoryProductCard({
             {isInWishlist ? "💖" : "🤍"}
           </button>
 
-          <Image
-            src={image}
-            alt={name}
-            fill
-            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 28vw, (min-width: 768px) 45vw, 85vw"
-            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-            priority={false}
-          />
+          {/* 2. RESMİ LİNKE ALIYORUZ */}
+          {/* Kullanıcı resme tıklarsa detay sayfasına gider */}
+          <Link href={`/products/${productId}`} className="block w-full h-full">
+            <Image
+              src={image}
+              alt={name}
+              fill
+              sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 28vw, (min-width: 768px) 45vw, 85vw"
+              className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+              priority={false}
+            />
+          </Link>
         </div>
       </div>
 
@@ -98,7 +96,13 @@ export default function CategoryProductCard({
         )}
 
         <div className="space-y-1">
-          <h3 className="text-sm font-medium text-neutral-900">{name}</h3>
+          {/* 3. BAŞLIĞI DA LİNKE ALIYORUZ */}
+          <Link href={`/products/${productId}`}>
+             <h3 className="text-sm font-medium text-neutral-900 hover:underline cursor-pointer">
+               {name}
+             </h3>
+          </Link>
+          
           {badge && (
             <span className="inline-flex items-center rounded-full border border-[#b70038]/20 bg-[#b70038]/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-[#7a0025]">
               {badge}
@@ -110,6 +114,8 @@ export default function CategoryProductCard({
           {currency.format(price)}
         </div>
       </div>
+      
+      {/* Sepete Ekle Butonu (Linkin dışında kalmalı) */}
       <AddToCartButton
         product={{
           productId: product.productId,

@@ -6,7 +6,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${backendUrl}/:path*`, // <-- TIRNAK ZORUNLU
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },
@@ -15,23 +15,11 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.unsplash.com",
+        hostname: "**", // 🔥 KRAL HAREKET: Tüm HTTPS sitelerine izin ver
       },
       {
-        protocol: "https",
-        hostname: "plus.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.pexels.com",
-      },
-      {
-        protocol: "https",
-        hostname: "media.istockphoto.com",
-      },
-      {
-        protocol: "https",
-        hostname: "img.freepik.com",
+        protocol: "http",
+        hostname: "**", // Tüm HTTP sitelerine izin ver
       },
     ],
   },

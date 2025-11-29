@@ -100,30 +100,47 @@ export default function ProductsPage() {
             </p>
           )}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((p) => {
-              const price =
-                typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
-              const image = p.image || p.imageUrl || "/images/1.jpg";
-              return (
-                <article
-                  key={p.id}
-                  className="rounded-lg border border-[var(--line)] bg-white p-4 space-y-3"
-                >
-                  <div className="relative aspect-[3/2] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
-                    <Image src={image} alt={p.name} fill className="object-cover" />
-                  </div>
-                  <div className="text-sm text-neutral-500">{p.name}</div>
-                  <div className="font-semibold">{fmt.format(price)}</div>
-                  <button
-                    className="btn btn-primary w-full"
-                    onClick={() => addToCart(p.id)}
-                    disabled={addingId === p.id}
-                  >
-                    {addingId === p.id ? "Adding..." : "Add to cart"}
-                  </button>
-                </article>
-              );
-            })}
+          // app/products/page.tsx İÇİNDEKİ return kısmı:
+
+// ... önceki kodlar ...
+
+<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+  {products.map((p) => {
+    const price = typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
+    const image = p.image || p.imageUrl || "/images/1.jpg";
+    
+    return (
+      <article
+        key={p.id}
+        className="rounded-lg border border-[var(--line)] bg-white p-4 space-y-3 group" // group ekledim hover için
+      >
+        {/* RESME TIKLAYINCA GİTSİN */}
+        <Link href={`/products/${p.id}`} className="block">
+            <div className="relative aspect-[3/2] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
+              <Image src={image} alt={p.name} fill className="object-cover transition-transform group-hover:scale-105" />
+            </div>
+        </Link>
+
+        {/* İSME TIKLAYINCA GİTSİN */}
+        <Link href={`/products/${p.id}`} className="block">
+             <div className="text-sm text-neutral-500 hover:underline">{p.name}</div>
+        </Link>
+        
+        <div className="font-semibold">{fmt.format(price)}</div>
+        
+        <button
+          className="btn btn-primary w-full"
+          onClick={() => addToCart(p.id)}
+          disabled={addingId === p.id}
+        >
+          {addingId === p.id ? "Adding..." : "Add to cart"}
+        </button>
+      </article>
+    );
+  })}
+</div>
+
+// ... sonraki kodlar ...
           </div>
         </>
       )}

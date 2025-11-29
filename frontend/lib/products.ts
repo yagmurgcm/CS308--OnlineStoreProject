@@ -66,3 +66,16 @@ export function pickBadge(index: number): string | undefined {
   if (index % 5 === 0) return "Best seller";
   return undefined;
 }
+
+
+// lib/products.ts dosyanın sonuna ekle:
+
+export async function fetchProductById(id: string | number) {
+  const allProducts = await fetchProducts(); // Var olan fonksiyonunu kullanıyoruz
+  
+  // ID'si eşleşen ürünü bul
+  // (Hem string hem number gelebilir diye ikisini de stringe çevirip karşılaştırıyoruz)
+  const product = allProducts.find((p) => String(p.id) === String(id));
+  
+  return product || null;
+}
