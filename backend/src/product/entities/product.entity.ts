@@ -1,5 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { ProductVariant } from '../product-variant.entity';
+// Dosya yoluna dikkat: Eğer product-variant aynı klasördeyse ./ kullan
+// Üst klasördeyse ../ kullan. Senin koduna göre ../ olarak bıraktım.
+import { ProductVariant } from '../product-variant.entity'; 
 
 @Entity('products')
 export class Product {
@@ -11,7 +13,6 @@ export class Product {
 
   @Column({ nullable: true })
   image: string;
-
 
   @Column()
   category: string;

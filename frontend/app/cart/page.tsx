@@ -6,9 +6,10 @@ import Link from "next/link";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 
-const formatter = new Intl.NumberFormat("en-GB", {
+// DÜZELTME: Değişken adı 'fmt' yerine 'formatter' yapıldı
+const formatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function CartPage() {
@@ -87,7 +88,7 @@ export default function CartPage() {
               >
                 <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
                   <Image
-                    src={item.image}
+                    src={item.image || "/images/1.jpg"}
                     alt={item.name}
                     width={112}
                     height={112}

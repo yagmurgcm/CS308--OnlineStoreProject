@@ -16,9 +16,10 @@ type ProductCardProps = {
   size?: string;
 };
 
-const currency = new Intl.NumberFormat("en-GB", {
+// Hata veren dosyanın en üstüne ekle:
+const priceFormatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function ProductCard({
@@ -97,8 +98,7 @@ export default function ProductCard({
             </div>
          </Link>
          
-         <div className="font-medium">{currency.format(price)}</div>
-      </div>
+          <div className="font-medium">{priceFormatter.format(price)}</div>      </div>
 
       {/* SEPETE EKLE (Link dışı) */}
       <AddToCartButton product={product} />

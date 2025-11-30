@@ -11,9 +11,10 @@ import UserStatus from "./UserStatus";
 // Sign-in sheet import
 const SignInSheet = dynamic(() => import("./SignInSheet"), { ssr: false });
 
-const priceFormatter = new Intl.NumberFormat("en-GB", {
+// Hata veren dosyanın en üstüne ekle:
+const priceFormatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 // CART DROPDOWN

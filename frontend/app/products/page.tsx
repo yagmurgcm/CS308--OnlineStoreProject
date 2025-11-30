@@ -16,9 +16,9 @@ type Product = {
   imageUrl?: string | null;
 };
 
-const fmt = new Intl.NumberFormat("en-GB", {
+const fmt = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function ProductsPage() {
