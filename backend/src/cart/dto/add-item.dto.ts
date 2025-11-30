@@ -1,4 +1,4 @@
-import { IsInt, Min, IsOptional } from 'class-validator';
+import { IsInt, Min, IsOptional , IsString} from 'class-validator';
 
 export class AddItemDto {
   @IsOptional()
@@ -12,4 +12,13 @@ export class AddItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
+
+  // --- BU İKİSİNİ EKLE ---
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  size?: string;
 }

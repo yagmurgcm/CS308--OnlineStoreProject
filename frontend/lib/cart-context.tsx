@@ -20,8 +20,8 @@ export type CartItem = {
   price: number;
   image?: string | null;
   quantity: number;
-  color?: string | null;
-  size?: string | null;
+  color?: string | null; // <-- Bu alanların dolması lazım
+  size?: string | null;  // <-- Bu alanların dolması lazım
 };
 
 export type CartItemInput = {
@@ -48,7 +48,26 @@ type CartContextValue = {
 
 export const CART_AUTH_ERROR = "CART_AUTH_REQUIRED";
 
-type ServerCartItem = { id: number; productId: number; quantity: number };
+// --- BACKEND'DEN GELEN YENİ YAPI ---
+// Backend artık 'variant' objesi gönderiyor, onu burada karşılıyoruz.
+type ServerCartItem = {
+  id: number;
+  quantity: number;
+  productId?: number;
+  variant?: {
+    id: number;
+    color: string;
+    size: string;
+    price: number | string;
+    product: {
+      id: number;
+      name: string;
+      price: number | string;
+      image?: string | null;
+    };
+  };
+};
+
 type CartResponse = { id: number; userId: number; items: ServerCartItem[] };
 
 type ProductSummary = {
@@ -92,26 +111,67 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return product;
   }, []);
 
+  // 🔥 SİHİR BURADA: Backend verisini Frontend formatına çevirme
   const hydrateItems = useCallback(
     async (serverItems: ServerCartItem[]): Promise<CartItem[]> => {
       const hydrated = await Promise.all(
         serverItems.map(async (line) => {
+          console.log("🔥 BACKEND'DEN GELEN SATIR:", line);
+          if (line.variant) {
+             console.log("🎨 VARYANT DETAYI:", line.variant);
+          } else {
+             console.log("⚠️ VARYANT YOK, ESKİ SİSTEM!");
+          }
           try {
-            const product = await fetchProductSummary(line.productId);
+            // DURUM 1: Backend 'variant' detayı gönderdiyse (Yeni Sistem)
+            if (line.variant) {
+              const product = line.variant.product;
+              return {
+                id: line.id,
+                productId: product.id,
+                name: product.name,
+                // Varyant fiyatı varsa onu, yoksa ana fiyatı al
+                price: coercePrice(line.variant.price || product.price),
+                image: product.image ?? null,
+                quantity: line.quantity,
+                // İŞTE BURASI: Rengi ve Bedeni çekiyoruz
+                color: line.variant.color, 
+                size: line.variant.size,   
+              };
+            }
+
+            // DURUM 2: Sadece Product ID varsa (Eski Sistem / Fallback)
+            const pid = line.productId;
+            if (pid) {
+              const product = await fetchProductSummary(pid);
+              return {
+                id: line.id,
+                productId: product.id,
+                name: product.name,
+                price: coercePrice(product.price),
+                image: product.image ?? null,
+                quantity: line.quantity,
+                color: null, // Bilgi yok
+                size: null,  // Bilgi yok
+              };
+            }
+
+            // DURUM 3: Hiçbir şey yoksa (Hata Önleyici)
             return {
               id: line.id,
-              productId: product.id,
-              name: product.name,
-              price: coercePrice(product.price),
-              image: product.image ?? null,
+              productId: 0,
+              name: "Unknown Product",
+              price: 0,
+              image: null,
               quantity: line.quantity,
             };
+
           } catch (error) {
             console.warn("Missing product info for cart item", error);
             return {
               id: line.id,
-              productId: line.productId,
-              name: "Product",
+              productId: 0,
+              name: "Product Error",
               price: 0,
               image: null,
               quantity: line.quantity,
@@ -207,14 +267,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [ensureAuthenticated, userId, loadCart, removeItem],
   );
 
+  // Renk ve Beden parametrelerini API'ye gönderen fonksiyon
   const addItem = useCallback(
-    async ({ productId, quantity = 1 }: CartItemInput) => {
+    async ({ productId, quantity = 1, color, size }: CartItemInput) => {
       ensureAuthenticated();
       const normalizedQty = Math.max(1, quantity);
       try {
         await api.post<CartResponse>(`/cart/${userId}/items`, {
           productId,
           quantity: normalizedQty,
+          color, 
+          size,
         });
         await loadCart({ silent: false });
       } catch (error) {

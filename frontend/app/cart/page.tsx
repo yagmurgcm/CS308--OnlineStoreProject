@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "next/link"; // Tıklama özelliği için gerekli
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 
-// DÜZELTME: Değişken adı 'fmt' yerine 'formatter' yapıldı
+// 1. DÜZELTME: Değişken adını 'formatter' yaptık ve TRY (TL) ayarladık
 const formatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
@@ -86,7 +86,12 @@ export default function CartPage() {
                 key={item.id}
                 className="flex flex-col gap-4 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm md:flex-row md:items-center"
               >
-                <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                {/* 2. DÜZELTME: Resmi Link içine aldık */}
+                <Link 
+                  href={`/products/${item.productId || item.id}`} 
+                  className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)] cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  {/* 3. DÜZELTME: Resim yoksa çökmesin diye fallback ekledik */}
                   <Image
                     src={item.image || "/images/1.jpg"}
                     alt={item.name}
@@ -94,16 +99,24 @@ export default function CartPage() {
                     height={112}
                     className="h-full w-full object-cover"
                   />
-                </div>
+                </Link>
 
                 <div className="flex-1 space-y-1">
-                  <h2 className="text-lg font-medium leading-tight">{item.name}</h2>
+                  {/* 4. DÜZELTME: Başlığı Link içine aldık */}
+                  <Link href={`/products/${item.productId || item.id}`}>
+                    <h2 className="text-lg font-medium leading-tight hover:underline cursor-pointer">
+                        {item.name}
+                    </h2>
+                  </Link>
+
+                  {/* Backend'den renk/beden gelince burası otomatik çalışacak */}
                   {item.color && (
                     <p className="text-sm text-neutral-600">Colour: {item.color}</p>
                   )}
                   {item.size && (
                     <p className="text-sm text-neutral-600">Size: {item.size}</p>
                   )}
+                  
                   <span className="inline-flex items-center rounded-full border border-[var(--line)] px-2 py-0.5 text-xs font-medium text-emerald-600">
                     In Stock
                   </span>
@@ -176,12 +189,7 @@ export default function CartPage() {
               <span>Shipping</span>
               <span>Add info at checkout</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Promo code</span>
-              <button className="text-xs font-medium uppercase tracking-wide text-neutral-900">
-                Add
-              </button>
-            </div>
+            {/* Promo code kaldırıldı veya opsiyonel */}
           </div>
 
           <div className="border-t border-[var(--line)] pt-4">

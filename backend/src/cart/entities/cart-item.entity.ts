@@ -11,10 +11,13 @@ export class CartItem {
   quantity: number;
 
   @ManyToOne(() => Cart, (cart) => cart.items, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'cartId' })
+  // Eğer veritabanında bu da alt tireliyse 'cart_id' yapman gerekebilir.
+  // Ama şimdilik variant'a odaklanalım, cart çalışıyorsa elleme.
+  @JoinColumn({ name: 'cartId' }) 
   cart: Cart;
 
   @ManyToOne(() => ProductVariant, { eager: true, onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'variantId' })
+  // 🔥 DÜZELTME BURADA YAPILDI:
+  @JoinColumn({ name: 'variantId' }) 
   variant: ProductVariant;
 }
