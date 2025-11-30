@@ -100,8 +100,6 @@ export default function ProductCard({
          
           <div className="font-medium">{priceFormatter.format(price)}</div>      </div>
 
-      {/* SEPETE EKLE (Link dışı) */}
-      <AddToCartButton product={product} />
     </div>
   );
 }

@@ -115,16 +115,7 @@ export default function CategoryProductCard({
         </div>
       </div>
       
-      {/* Sepete Ekle Butonu (Linkin dışında kalmalı) */}
-      <AddToCartButton
-        product={{
-          productId: product.productId,
-          quantity: 1,
-          name,
-          price,
-          image,
-        }}
-      />
+     
     </article>
   );
 }

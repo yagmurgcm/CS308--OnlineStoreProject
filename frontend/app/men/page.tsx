@@ -3,7 +3,7 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
-    "All",
+  "All",
 
   "Coats & Jackets",
   "Hoodies & Sweatshirts",
@@ -21,7 +21,7 @@ export default function MenCategoryPage() {
       categoryKey="men"
       label="Men"
       heroTitle="Coats & Jackets"
-      heroSubtitle="Weather-ready layers designed with MUJI simplicity."
+      heroSubtitle="Weather-ready layers designed with FATIH simplicity."
       subCategories={SUB_CATEGORIES}
       defaultSubcategory={SUB_CATEGORIES[0]}
     />
