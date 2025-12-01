@@ -61,6 +61,13 @@ export default function ProductReviews({ productId }: { productId: number }) {
     if (userRating === 0) return;
 
     setIsSubmitting(true);
+    try {
+      // 👇 İŞTE SİHİRLİ DOKUNUŞ BURASI
+      await api.post("/reviews", {
+        productId: Number(productId), // String geliyorsa Number'a çeviriyoruz
+        rating: Number(userRating),   // Bunu da garantiye alalım
+        comment: userComment
+      });
 
     // Backend isteği simülasyonu
     setTimeout(() => {
