@@ -20,6 +20,8 @@ import { User } from '../users/user.entity';
 import { Order } from '../order/order.entity';
 import { OrderDetail } from '../order/order-detail.entity';
 
+// Reviews
+import { Review } from '../reviews/review.entity'; // 👈 1. IMPORTU UNUTMA
 type Overrides = Partial<MysqlConnectionOptions>;
 
 const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
@@ -32,6 +34,7 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   LoginLog,
   Order,
   OrderDetail,
+  Review,
 ];
 
 const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [

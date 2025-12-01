@@ -1,88 +1,72 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Star, User, Lock, CheckCircle, AlertCircle } from "lucide-react"; // İkonlar için (yoksa npm install lucide-react)
+import { useState, useEffect, useCallback } from "react";
+import { Star, User, Lock, CheckCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 
-// --- TİP TANIMLARI ---
 type Review = {
   id: number;
-  userName: string;
-  rating: number; // 1-5 arası
+  rating: number;
   comment: string;
-  date: string;
+  createdAt: string;
+  user: {
+    name: string;
+  };
 };
-
-// --- MOCK DATA (Veritabanından gelmiş gibi) ---
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: 1,
-    userName: "Ahmet Y.",
-    rating: 5,
-    comment: "Harika bir ürün, kumaşı çok kaliteli. Kesinlikle tavsiye ederim.",
-    date: "2023-11-20",
-  },
-  {
-    id: 2,
-    userName: "Ayşe K.",
-    rating: 4,
-    comment: "Rengi fotoğraftakinden biraz daha koyu ama kalıbı güzel.",
-    date: "2023-11-25",
-  },
-];
 
 export default function ProductReviews({ productId }: { productId: number }) {
   const { user } = useAuth();
   
-  // --- STATE ---
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState("");
   const [hoveredStar, setHoveredStar] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
-
-  // --- KRİTİK KONTROL (Feature 5) ---
-  // Gerçekte burası Backend API'ye sorulacak: 
-  // "GET /orders/check-purchased?userId=...&productId=..."
-  // Cevap true dönerse ve orderStatus === 'DELIVERED' ise yorum yapabilir.
   const [canReview, setCanReview] = useState(false);
 
-  useEffect(() => {
-    // SİMÜLASYON: Eğer kullanıcı giriş yapmışsa yorum yapabilir gibi davranıyoruz.
-    // DEMO İÇİN: Burayı true yaparak hocaya formu gösterebilirsin.
-    if (user) {
-      setCanReview(true); 
+  // 1. Yorumları Backend'den Çek
+  const fetchReviews = useCallback(async () => {
+    try {
+      const data = await api.get<Review[]>(`/reviews/${productId}`);
+      setReviews(data || []);
+    } catch (error) {
+      console.error("Yorumlar çekilemedi:", error);
     }
-  }, [user]);
+  }, [productId]);
 
+  useEffect(() => {
+    fetchReviews();
+    if (user) setCanReview(true); 
+  }, [user, fetchReviews]);
+
+  // 2. Yorum Gönder
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (userRating === 0) return;
 
     setIsSubmitting(true);
     try {
-      // 👇 İŞTE SİHİRLİ DOKUNUŞ BURASI
       await api.post("/reviews", {
-        productId: Number(productId), // String geliyorsa Number'a çeviriyoruz
-        rating: Number(userRating),   // Bunu da garantiye alalım
+        productId: Number(productId), 
+        rating: Number(userRating),
         comment: userComment
       });
-
-    // Backend isteği simülasyonu
-    setTimeout(() => {
-      // 1. Puan (Rating) direkt kaydedilir.
-      // 2. Yorum (Comment) 'isApproved: false' olarak kaydedilir.
       
       setSubmitStatus("success");
-      setIsSubmitting(false);
       setUserComment("");
       setUserRating(0);
-      
-      // Not: Yorumu hemen listeye eklemiyoruz çünkü onaylanması lazım!
-    }, 1500);
+      // Yorum gönderdikten sonra listeyi yenilemeyelim çünkü onay bekliyor olacak
+    } catch (error) {
+      console.error("Yorum gönderilemedi:", error);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  // --- 🔥 KRİTİK KISIM: RETURN BURADA BAŞLIYOR ---
   return (
     <section className="mt-16 border-t border-neutral-200 pt-10">
       <h2 className="text-2xl font-semibold mb-6">Müşteri Değerlendirmeleri</h2>
@@ -97,8 +81,10 @@ export default function ProductReviews({ productId }: { productId: number }) {
                   <div className="h-8 w-8 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500">
                     <User size={16} />
                   </div>
-                  <span className="font-medium text-sm">{review.userName}</span>
-                  <span className="text-xs text-neutral-400">• {review.date}</span>
+                  <span className="font-medium text-sm">{review.user?.name || "Kullanıcı"}</span>
+                  <span className="text-xs text-neutral-400">
+                    • {new Date(review.createdAt).toLocaleDateString("tr-TR")}
+                  </span>
                 </div>
                 
                 <div className="flex mb-2">
@@ -117,7 +103,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
               </div>
             ))
           ) : (
-            <p className="text-neutral-500">Henüz yorum yapılmamış.</p>
+            <p className="text-neutral-500">Bu ürün için henüz onaylı yorum yok.</p>
           )}
         </div>
 
@@ -129,13 +115,6 @@ export default function ProductReviews({ productId }: { productId: number }) {
             <div className="flex flex-col items-center justify-center text-center py-6 text-neutral-500">
               <Lock className="mb-2 opacity-50" />
               <p className="text-sm">Yorum yapmak için giriş yapmalısınız.</p>
-            </div>
-          ) : !canReview ? (
-             <div className="flex flex-col items-center justify-center text-center py-6 text-neutral-500 border border-dashed border-neutral-300 rounded-lg">
-              <AlertCircle className="mb-2 opacity-50" />
-              <p className="text-sm">
-                Sadece <strong>satın aldığınız ve teslim edilen</strong> ürünlere yorum yapabilirsiniz.
-              </p>
             </div>
           ) : submitStatus === "success" ? (
              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -155,7 +134,10 @@ export default function ProductReviews({ productId }: { productId: number }) {
              </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Yıldız Seçimi */}
+              {submitStatus === "error" && (
+                 <p className="text-red-500 text-sm">Bir hata oluştu. Lütfen tekrar deneyin.</p>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Puanınız
@@ -181,14 +163,8 @@ export default function ProductReviews({ productId }: { productId: number }) {
                     </button>
                   ))}
                 </div>
-                {userRating > 0 && (
-                    <span className="text-xs text-neutral-500 mt-1 block">
-                        {userRating} Yıldız seçildi
-                    </span>
-                )}
               </div>
 
-              {/* Yorum Alanı */}
               <div>
                 <label htmlFor="comment" className="block text-sm font-medium text-neutral-700 mb-1">
                   Yorumunuz
@@ -202,9 +178,6 @@ export default function ProductReviews({ productId }: { productId: number }) {
                   className="w-full rounded-md border border-neutral-300 p-3 text-sm focus:border-black focus:ring-1 focus:ring-black outline-none transition"
                   required
                 />
-                <p className="text-xs text-neutral-400 mt-1">
-                  Yorumunuz ürün yöneticisi tarafından onaylandıktan sonra görünecektir.
-                </p>
               </div>
 
               <button

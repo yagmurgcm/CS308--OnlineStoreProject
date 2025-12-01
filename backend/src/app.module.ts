@@ -6,7 +6,9 @@ import { CartModule } from './cart/cart.module';
 import { getDatabaseConfig } from './config/database.config';
 import { ProductModule } from './product/product.module';
 import { UsersModule } from './users/users.module';
-import { OrderModule } from './order/order.module';   // <-- BUNU EKLEMELİSİN
+import { OrderModule } from './order/order.module';   // <-- BUNU EKLEMELİSİN 
+import { ReviewsModule } from './reviews/reviews.module';
+
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { OrderModule } from './order/order.module';   // <-- BUNU EKLEMELİSİN
     UsersModule,
     AuthModule,
     OrderModule,  // <-- BURASI ARTIK DOĞRU
+    ReviewsModule, // 👈 BURAYA VİRGÜL KOYUP EKLE
   ],
 })
 export class AppModule {}
