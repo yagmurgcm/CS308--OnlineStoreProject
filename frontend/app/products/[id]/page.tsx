@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
 // Sağ tarafı yöneten bileşeni çağırıyoruz
 import ProductRightSide from "../../components/ProductRightSide"; 
+// Yorum bileşenini çağırıyoruz
+import ProductReviews from "../../components/product/product-reviews";
 
 type Product = {
   id: number;
@@ -45,15 +47,13 @@ export default async function ProductDetailPage({ params }: Props) {
   return (
     <div className="container-base py-10 md:py-16 bg-white min-h-screen">
       
-      {/* --- IZGARA (GRID) YAPISI --- 
-          md:grid-cols-[1.5fr_1fr] -> Sol taraf geniş, Sağ taraf dar olsun.
-          gap-10 -> Aralarında boşluk olsun.
+      {/* --- ÜST KISIM: IZGARA (GRID) YAPISI --- 
+          Sol: Resim, Sağ: Detaylar
       */}
       <div className="grid gap-10 md:grid-cols-[1.5fr_1fr] lg:gap-16 items-start">
         
-        {/* --- SOL TARA (RESİM) --- */}
+        {/* --- SOL TARAF (RESİM) --- */}
         <div className="relative w-full md:sticky md:top-24">
-          {/* aspect-[4/5] -> Dikdörtgen resim formatı */}
           <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-50 border border-gray-100 rounded-sm">
             <Image
               src={image}
@@ -68,7 +68,16 @@ export default async function ProductDetailPage({ params }: Props) {
         {/* --- SAĞ TARAF (DETAYLAR) --- */}
         <ProductRightSide product={product} />
 
+      </div> {/* Grid burada bitiyor */}
+
+      {/* --- ALT KISIM: YORUMLAR --- 
+          Grid bittikten sonra buraya ekliyoruz.
+          Böylece resim ve detayın altına iniyor.
+      */}
+      <div className="mt-10">
+        <ProductReviews productId={product.id} />
       </div>
-    </div>
+
+    </div> // Ana container burada bitiyor
   );
 }
