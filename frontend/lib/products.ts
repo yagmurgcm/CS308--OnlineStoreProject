@@ -20,6 +20,8 @@ export type ProductRecord = {
   subcategory?: string | null;
   description?: string | null;
   image: string;
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
 const FALLBACK_IMAGE = "/images/1.jpg";
