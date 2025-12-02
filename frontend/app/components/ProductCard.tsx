@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image"; // 🔥 Image kullanmak daha performanslı
-import Link from "next/link";   // 🔥 Tıklama özelliği için bu şart
+import Image from "next/image";
+import Link from "next/link";
 import { useWishlist } from "@/store/wishlistContext";
-import AddToCartButton from "./AddToCartButton";
+import { Star } from "lucide-react";
 
 type ProductCardProps = {
   productId: number;
@@ -14,9 +14,10 @@ type ProductCardProps = {
   className?: string;
   color?: string;
   size?: string;
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
-// Hata veren dosyanın en üstüne ekle:
 const priceFormatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
@@ -30,20 +31,16 @@ export default function ProductCard({
   className = "",
   color,
   size,
+  averageRating,
+  reviewCount,
 }: ProductCardProps) {
   const { addItemToWishlist } = useWishlist();
   const [isInWishlist, setIsInWishlist] = useState(false);
 
   const image = img ?? "/images/1.jpg";
-  const product = {
-    productId,
-    quantity: 1,
-    name: title,
-    price,
-    image,
-    color,
-    size,
-  };
+  
+  // Puanı sayıya çevir
+  const ratingValue = Number(averageRating || 0);
 
   const handleAddToWishlist = () => {
     setIsInWishlist(true);
@@ -60,9 +57,9 @@ export default function ProductCard({
   };
 
   return (
-    <div className={`group relative flex-none border border-[var(--line)] rounded-lg p-4 bg-white snap-start space-y-3 ${className}`}>
+    <div className={`group relative flex-none border border-[var(--line)] rounded-lg p-3 bg-white snap-start space-y-2 ${className}`}>
       
-      {/* KALP BUTONU (Link dışı) */}
+      {/* KALP BUTONU */}
       <button
         type="button"
         onClick={(e) => {
@@ -70,18 +67,16 @@ export default function ProductCard({
           e.stopPropagation();
           handleAddToWishlist();
         }}
-        className={`absolute z-20 right-2 top-2 flex h-9 w-9 items-center justify-center
-              rounded-full bg-white shadow-md cursor-pointer
+        className={`absolute z-20 right-2 top-2 flex h-8 w-8 items-center justify-center
+              rounded-full bg-white shadow-sm border border-gray-100 cursor-pointer
               transition-all duration-300 
-              opacity-0 group-hover:opacity-100
-              ${isInWishlist ? "scale-150 text-red-500" : "scale-100 text-gray-700"}`}
+              ${isInWishlist ? "scale-110 text-red-500" : "text-gray-400 hover:text-red-500"}`}
       >
         {isInWishlist ? "💖" : "🤍"}
       </button>
 
-      {/* 🔥 1. RESMİ LİNKE ALIYORUZ */}
-      <Link href={`/products/${productId}`} className="block relative aspect-[3/4] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
-          {/* Next.js Image Component'i kullanmak daha iyi */}
+      {/* RESİM */}
+      <Link href={`/products/${productId}`} className="block relative aspect-[3/4] w-full rounded-md overflow-hidden bg-gray-50">
           <Image 
              src={image} 
              alt={title} 
@@ -90,16 +85,48 @@ export default function ProductCard({
           />
       </Link>
 
-      <div className="space-y-1">
-         {/* 🔥 2. BAŞLIĞI LİNKE ALIYORUZ */}
-         <Link href={`/products/${productId}`} className="block">
-            <div className="text-sm text-[var(--muted)] hover:underline hover:text-black cursor-pointer truncate">
+      <div className="flex flex-col gap-1">
+          {/* BAŞLIK */}
+          <Link href={`/products/${productId}`} className="block">
+            <div className="text-sm text-gray-700 font-medium leading-tight line-clamp-2 min-h-[2.5rem]" title={title}>
                {title}
             </div>
-         </Link>
-         
-          <div className="font-medium">{priceFormatter.format(price)}</div>      </div>
+          </Link>
+          
+          {/* ⭐ TRENDYOL TARZI YILDIZ ALANI ⭐ */}
+          {/* Test için ratingValue > 0 şartını kaldırdım, her türlü görünsün */}
+          <div className="flex items-center gap-1 mt-1">
+            {/* 1. Puan Yazısı (Örn: 4.3) */}
+            <span className="text-xs font-bold text-gray-800">
+              {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
+            </span>
 
+            {/* 2. Yıldızlar */}
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  size={10} 
+                  className={`${
+                    star <= Math.round(ratingValue)
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "fill-gray-200 text-gray-200"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* 3. Yorum Sayısı (Örn: (6303)) */}
+            <span className="text-[10px] text-gray-500">
+              ({reviewCount || 0})
+            </span>
+          </div>
+          
+          {/* FİYAT */}
+          <div className="text-sm font-semibold text-black-600 mt-1">
+            {priceFormatter.format(price)}
+          </div>      
+      </div>
     </div>
   );
 }

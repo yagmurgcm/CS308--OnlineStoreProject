@@ -7,6 +7,7 @@ import Scroller from "./components/Scroller";
 import ProductCard from "./components/ProductCard";
 import { fetchProducts } from "@/lib/products";
 
+// --- SABİT DATA ---
 const featured = [
   { title: "Women's Coats", img: "/images/1.jpg" },
   { title: "Men's Knitwear", img: "/images/2.jpg" },
@@ -55,6 +56,8 @@ type SectionProduct = {
   title: string;
   price: number;
   img: string;
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
 export default function HomePage() {
@@ -69,12 +72,17 @@ export default function HomePage() {
       setCatalogError(null);
       try {
         const data = await fetchProducts();
-        const mapped = data.map((item) => ({
+        
+        // 🔥 TEMİZ VERSİYON: Hile yok, direkt backend verisi!
+        const mapped = data.map((item: any) => ({
           productId: item.id,
           title: item.name,
           price: item.price,
           img: item.image,
+          averageRating: item.averageRating, // Gerçek veri
+          reviewCount: item.reviewCount,     // Gerçek veri
         }));
+
         setNewArrivals(mapped.slice(0, 8));
         const best = mapped.slice(8, 16);
         setBestSellers(best.length ? best : mapped.slice(0, 8));
@@ -160,6 +168,8 @@ export default function HomePage() {
                   title={item.title}
                   price={item.price}
                   img={item.img}
+                  averageRating={item.averageRating}
+                  reviewCount={item.reviewCount}
                   className="w-[260px] lg:w-[300px]"
                 />
               ))}
@@ -188,6 +198,8 @@ export default function HomePage() {
                   title={item.title}
                   price={item.price}
                   img={item.img}
+                  averageRating={item.averageRating}
+                  reviewCount={item.reviewCount}
                   className="w-[240px] lg:w-[300px]"
                 />
               ))}

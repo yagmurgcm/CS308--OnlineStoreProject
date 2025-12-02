@@ -7,12 +7,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+// 👇 Import ettiğimiz tipe dikkat et, yukarıdaki dosyadan geliyor
 import CategoryProductCard, {
-  type CategoryProduct,
+  type CategoryProduct, 
 } from "./CategoryProductCard";
 import { fetchProducts, getPalette, pickBadge } from "@/lib/products";
 
-// TİP TANIMLARI
 type PriceFilterOption = {
   value: string;
   label: string;
@@ -55,25 +55,21 @@ const SORT_OPTIONS = [
 type PriceFilterValue = string;
 type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
+// 👇 DecoratedProduct, CategoryProduct'tan miraz alıyor.
+// CategoryProductCard.tsx güncellendiği için artık rating'i tanıyor.
 type DecoratedProduct = CategoryProduct & {
   originalIndex: number;
-  subcategory?: string | null;
 };
 
 export type CategoryListingPageProps = {
   categoryKey: string;
   label: string;
-  heroTitle: string; // Bu varsayılan başlık (Coats & Jackets)
+  heroTitle: string; 
   heroSubtitle: string;
   subCategories: string[];
   defaultSubcategory?: string | null;
   limit?: number;
 };
-
-// YARDIMCI FONKSİYON: String temizleme
-// "Shirts & Blouses" -> "shirtsblouses" yapar.
-const normalize = (value?: string | null) => 
-  value?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
 
 export default function CategoryListingPage({
   categoryKey,
@@ -82,10 +78,9 @@ export default function CategoryListingPage({
   heroSubtitle,
   subCategories,
   defaultSubcategory,
-  limit = 100, // Limit arttırıldı
+  limit = 100, 
 }: CategoryListingPageProps) {
   
-  // Başlangıçta hiçbir şey seçili olmasın ki hepsi görünsün (İstersen değiştirebilirsin)
   const [activeSubcategory, setActiveSubcategory] =
     useState<string | null>(null);
 
@@ -97,39 +92,26 @@ export default function CategoryListingPage({
   const [onlyNewIn, setOnlyNewIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortValue>("recommended");
   
-  // Popover state'leri
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const sortRef = useRef<HTMLDivElement | null>(null);
 
-  // Kategori değişirse (Header'dan Men/Women) seçimi sıfırla
   useEffect(() => {
     setActiveSubcategory(null);
   }, [categoryKey]);
 
-  // VERİ ÇEKME (Debug Modu Açık)
-// VERİ ÇEKME (Garantili Mod)
-  // VERİ RÖNTGENİ MODU (Bunu yapıştır)
-  // VERİ ÇEKME (STRICT MOD - Sadece Doğru Kategoriyi Getirir)
-  // VERİ ÇEKME (STRICT MOD - KESİN KATEGORİ AYRIMI)
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
         const data = await fetchProducts();
-        
-        // URL'den gelen kategori (men, women, beauty)
         const currentCategory = categoryKey.toLowerCase().trim();
 
-        console.log(`--- FİLTRE BAŞLADI: ${currentCategory} ---`);
-
-        // 1. ADIM: SADECE SEÇİLİ KATEGORİYİ AL (Affetmek yok)
+        // 1. KATEGORİ FİLTRELEME
         const scoped = data.filter((item) => {
-          // Backend'den gelen kategori ismini güvenli hale getir
           let itemCat = "";
-          
           if (typeof item.category === 'string') {
              itemCat = item.category;
           } else if (item.category && typeof item.category === 'object' && (item.category as any).name) {
@@ -137,18 +119,11 @@ export default function CategoryListingPage({
           } else {
              itemCat = String(item.category || ""); 
           }
-
-          // Eşleştirme (Büyük küçük harf duyarsız)
           return itemCat.toLowerCase().trim() === currentCategory;
         });
 
-        console.log(`Backend Toplam: ${data.length} -> Kalan: ${scoped.length}`);
-
-        // 🚨 ESKİ HATALI KOD BURADAYDI (scoped.length > 0 ? scoped : data) SİLDİK.
-        // Artık sadece 'scoped' kullanıyoruz. Bulamazsa 0 ürün gösterir ama yanlış göstermez.
-        const source = scoped; 
-        
-        const mapped = source.slice(0, limit).map((item, index) => {
+        // 2. MAPLEME
+        const mapped = scoped.slice(0, limit).map((item: any, index) => {
            const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
 
           return {
@@ -159,8 +134,11 @@ export default function CategoryListingPage({
             image: imageUrl,
             colors: getPalette(item.id),
             badge: pickBadge(index),
-            subcategory: item.subcategory, // Veritabanındaki gerçek subcategory
+            subcategory: item.subcategory,
             originalIndex: index,
+            // 👇 PUANLARI BURADA EŞLEŞTİRİYORUZ
+            averageRating: item.averageRating, 
+            reviewCount: item.reviewCount,     
           };
         });
         
@@ -175,7 +153,7 @@ export default function CategoryListingPage({
     load();
   }, [categoryKey, limit]);
 
-  // Popover dışına tıklayınca kapatma
+  // Popover Kapatma
   useEffect(() => {
     if (!filterOpen && !sortOpen) return;
     const handleClick = (event: MouseEvent) => {
@@ -191,29 +169,17 @@ export default function CategoryListingPage({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [filterOpen, sortOpen]);
 
-  // FİLTRELEME MANTIĞI (SORUNUN ÇÖZÜLDÜĞÜ YER)
-  // GÖRÜNÜR ÜRÜNLERİ FİLTRELEME (visibleProducts)
+  // FİLTRELEME
   const visibleProducts = useMemo(() => {
     let subset = [...products];
 
-    // 1. Subcategory Filtresi
+    // Subcategory
     if (activeSubcategory) {
-      
-      // 🚀 YENİ EKLENEN KISIM: "View All" seçiliyse filtreleme YAPMA (Hepsini göster)
-      if (activeSubcategory === "View All" || activeSubcategory === "All") {
-         // Hiçbir şey yapma, subset olduğu gibi kalsın.
-      } 
-      else {
-        // Normal filtreleme mantığı (Coats, Shirts vs. seçiliyse)
+      if (activeSubcategory !== "View All" && activeSubcategory !== "All") {
         const targetKeywords = activeSubcategory.toLowerCase().split(/[^a-z]+/);
-        
         subset = subset.filter((product) => {
             const prodSub = product.subcategory ? product.subcategory.toLowerCase() : "";
-            
-            // Eğer veritabanındaki subcategory ile buton ismi birebir tutuyorsa (Örn: "Coats & Jackets")
             if (prodSub === activeSubcategory.toLowerCase()) return true;
-
-            // Tutmuyorsa kelime bazlı ara (Fail-safe)
             const prodName = product.name.toLowerCase();
             const isMatch = targetKeywords.some(keyword => 
                (keyword.length > 2) && (prodSub.includes(keyword) || prodName.includes(keyword))
@@ -223,7 +189,7 @@ export default function CategoryListingPage({
       }
     }
 
-    // 2. Fiyat Filtresi
+    // Fiyat
     const priceRule =
       PRICE_FILTERS.find((rule) => rule.value === priceFilter) ??
       PRICE_FILTERS[0];
@@ -235,7 +201,7 @@ export default function CategoryListingPage({
       return true;
     });
 
-    // 3. Sıralama
+    // Sıralama
     const sortRule =
       SORT_OPTIONS.find((rule) => rule.value === sortBy) ?? SORT_OPTIONS[0];
 
@@ -243,12 +209,7 @@ export default function CategoryListingPage({
   }, [products, activeSubcategory, priceFilter, onlyNewIn, sortBy]);
 
   const totalItems = loading ? "Loading..." : `${visibleProducts.length} items`;
-  
-  // DİNAMİK BAŞLIK BELİRLEME
-  // Eğer alt kategori seçiliyse onu yaz, yoksa varsayılan başlığı yaz.
   const displayTitle = activeSubcategory ? activeSubcategory : heroTitle;
-
-  // Filter & Sort Labels
   const activeFilterCount = (priceFilter !== "all" ? 1 : 0) + (onlyNewIn ? 1 : 0);
   const filterLabel = activeFilterCount > 0 ? `Filter (${activeFilterCount})` : "Filter";
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Sort by";
@@ -271,16 +232,12 @@ export default function CategoryListingPage({
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
             {label}
           </p>
-          
-          {/* İŞTE BAŞLIĞI DÜZELTEN KOD BURASI */}
           <h1 className="text-3xl font-semibold tracking-tight">
             {displayTitle}
           </h1>
-          
           <p className="text-sm text-neutral-600">{heroSubtitle}</p>
         </div>
 
-        {/* Kategori Butonları */}
         <nav className="flex flex-wrap gap-4 border-b border-[var(--line)] pb-3 text-sm">
           {subCategories.map((category) => {
             const isActive = activeSubcategory === category;
@@ -289,7 +246,6 @@ export default function CategoryListingPage({
                 key={category}
                 type="button"
                 onClick={() =>
-                  // Tıklayınca state değişiyor, tekrar tıklarsan filtre kalkıyor
                   setActiveSubcategory((prev) =>
                     prev === category ? null : category,
                   )
@@ -308,12 +264,10 @@ export default function CategoryListingPage({
         </nav>
       </section>
 
-      {/* Filtre Butonları (Filter & Sort) */}
       <section className="flex flex-wrap items-center justify-between gap-4 text-sm text-neutral-600">
         <span className="text-neutral-500">{totalItems}</span>
         <div className="flex gap-2">
-            {/* Filter Dropdown */}
-            <div className="relative" ref={filterRef}>
+           <div className="relative" ref={filterRef}>
             <button
               type="button"
               className="btn h-10 px-5"
@@ -327,7 +281,6 @@ export default function CategoryListingPage({
             {filterOpen &&
               renderPopover(
                 <div className="space-y-4">
-                   {/* Fiyat Filtreleri */}
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
                       Price range
@@ -351,7 +304,6 @@ export default function CategoryListingPage({
                       ))}
                     </div>
                   </div>
-                  {/* New Arrivals Checkbox */}
                   <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-neutral-50">
                     <input
                       type="checkbox"
@@ -381,7 +333,6 @@ export default function CategoryListingPage({
               )}
           </div>
 
-          {/* Sort Dropdown */}
           <div className="relative" ref={sortRef}>
             <button
               type="button"
@@ -422,7 +373,6 @@ export default function CategoryListingPage({
         </div>
       </section>
 
-      {/* ÜRÜN LİSTESİ */}
       <section>
         {loading ? (
           <p className="text-sm text-neutral-500">Loading products...</p>
@@ -431,7 +381,6 @@ export default function CategoryListingPage({
         ) : visibleProducts.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-sm text-neutral-500">
-             {/* Ürün bulunamazsa kullanıcıya ne aradığımızı gösteriyoruz */}
               No products found for <span className="font-bold">"{displayTitle}"</span>.
             </p>
             <button 
