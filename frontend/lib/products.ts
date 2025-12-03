@@ -86,3 +86,11 @@ export async function fetchProductById(id: string | number) {
   
   return product || null;
 }
+
+export async function searchProducts(query: string): Promise<ProductRecord[]> {
+  const term = query.trim();
+  if (!term) return [];
+
+  const data = await api.get<ProductDto[]>(`/products?search=${encodeURIComponent(term)}`);
+  return data.map(normalizeProduct);
+}

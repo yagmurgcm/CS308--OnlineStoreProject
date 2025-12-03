@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -140,6 +140,7 @@ export default function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { user, logout } = useAuth();
 
@@ -164,6 +165,12 @@ export default function Header() {
     router.replace(params.toString() ? `${pathname}?${params}` : pathname);
   }, [open, pathname, router, searchParams]);
 
+  const handleSearchSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const term = searchTerm.trim();
+    router.push(term ? `/search?q=${encodeURIComponent(term)}` : "/search");
+  };
+
   return (
     <>
       <header className="bg-white/90 backdrop-blur border-b border-[var(--line)] sticky top-0 z-40">
@@ -173,28 +180,39 @@ export default function Header() {
 
           {/* LEFT: SEARCH */}
           <div className="flex items-center">
-            <div className="hidden md:flex items-center w-72 relative">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="hidden md:flex items-center w-72 relative"
+              role="search"
+            >
               <input
                 type="text"
                 placeholder="Search products…"
-                className="w-full border border-gray-300 rounded-full py-1.5 pl-4 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full border border-gray-300 rounded-full py-1.5 pl-4 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-black"
               />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="absolute right-3 text-gray-500"
+              <button
+                type="submit"
+                className="absolute right-2 grid h-8 w-8 place-items-center rounded-full text-gray-600 hover:bg-gray-100"
+                aria-label="Search products"
               >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            </form>
           </div>
 
           {/* CENTER LOGO */}

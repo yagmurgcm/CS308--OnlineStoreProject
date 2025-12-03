@@ -67,7 +67,7 @@ export default function ProductsPage() {
   if (loading) {
     return (
       <main className="container-base py-10">
-        <p>Loading products...</p>
+        <p className="text-sm text-neutral-600">Loading products...</p>
       </main>
     );
   }
@@ -82,68 +82,102 @@ export default function ProductsPage() {
   }
 
   return (
-    <main className="container-base py-10 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Products</h1>
-        <Link href="/cart" className="underline">
-          Go to cart
-        </Link>
-      </div>
-
-      {products.length === 0 ? (
-        <p>No products found.</p>
-      ) : (
-        <>
-          {actionError && (
-            <p className="text-sm text-red-600" role="alert">
-              {actionError}
+    <main className="bg-[var(--background)] min-h-screen">
+      <section className="container-base py-10 space-y-8">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+              Catalog
             </p>
-          )}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          // app/products/page.tsx İÇİNDEKİ return kısmı:
-
-// ... önceki kodlar ...
-
-<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-  {products.map((p) => {
-    const price = typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
-    const image = p.image || p.imageUrl || "/images/1.jpg";
-    
-    return (
-      <article
-        key={p.id}
-        className="rounded-lg border border-[var(--line)] bg-white p-4 space-y-3 group" // group ekledim hover için
-      >
-        {/* RESME TIKLAYINCA GİTSİN */}
-        <Link href={`/products/${p.id}`} className="block">
-            <div className="relative aspect-[3/2] rounded-md overflow-hidden border border-[var(--line)] bg-[var(--background)]">
-              <Image src={image} alt={p.name} fill className="object-cover transition-transform group-hover:scale-105" />
-            </div>
-        </Link>
-
-        {/* İSME TIKLAYINCA GİTSİN */}
-        <Link href={`/products/${p.id}`} className="block">
-             <div className="text-sm text-neutral-500 hover:underline">{p.name}</div>
-        </Link>
-        
-        <div className="font-semibold">{fmt.format(price)}</div>
-        
-        <button
-          className="btn btn-primary w-full"
-          onClick={() => addToCart(p.id)}
-          disabled={addingId === p.id}
-        >
-          {addingId === p.id ? "Adding..." : "Add to cart"}
-        </button>
-      </article>
-    );
-  })}
-</div>
-
-// ... sonraki kodlar ...
+            <h1 className="text-3xl font-semibold tracking-tight">Products</h1>
+            <p className="text-sm text-neutral-600">
+              Browse everything in one place. Add items to your cart without leaving the grid.
+            </p>
           </div>
-        </>
-      )}
+          <Link href="/cart" className="btn btn-primary">
+            Go to cart
+          </Link>
+        </header>
+
+        {products.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[var(--line)] bg-white p-10 text-center">
+            <p className="text-lg font-medium text-neutral-900">No products found</p>
+            <p className="mt-2 text-sm text-neutral-600">
+              Try refreshing or checking back later.
+            </p>
+          </div>
+        ) : (
+          <>
+            {actionError && (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                role="alert"
+              >
+                {actionError}
+              </div>
+            )}
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((p) => {
+                const price =
+                  typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
+                const image = p.image || p.imageUrl || "/images/1.jpg";
+                const description =
+                  (p.description || "").length > 110
+                    ? `${(p.description || "").slice(0, 107)}...`
+                    : p.description || "";
+
+                return (
+                  <article
+                    key={p.id}
+                    className="group flex h-full flex-col rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <Link
+                      href={`/products/${p.id}`}
+                      className="relative block aspect-[4/5] w-full overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]"
+                    >
+                      <Image
+                        src={image}
+                        alt={p.name}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      />
+                    </Link>
+
+                    <div className="mt-3 flex flex-1 flex-col gap-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <Link
+                          href={`/products/${p.id}`}
+                          className="text-sm font-medium leading-tight text-neutral-900 hover:underline"
+                        >
+                          {p.name}
+                        </Link>
+                        <span className="text-sm font-semibold text-neutral-900">
+                          {fmt.format(price)}
+                        </span>
+                      </div>
+
+                      {description && (
+                        <p className="text-xs text-neutral-500">{description}</p>
+                      )}
+
+                      <button
+                        className="btn btn-primary mt-auto w-full"
+                        onClick={() => addToCart(p.id)}
+                        disabled={addingId === p.id}
+                        aria-live="polite"
+                      >
+                        {addingId === p.id ? "Adding..." : "Add to cart"}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
     </main>
   );
 }

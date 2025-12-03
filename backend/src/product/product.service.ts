@@ -14,12 +14,13 @@ export class ProductService {
 
   // 1. TÜM ÜRÜNLERİ LİSTELEME VE FİLTRELEME
   async findAll(query: GetProductsQueryDto): Promise<Product[]> {
-    const { minPrice, maxPrice, size, sort, category, subcategory } = query;
+    const { minPrice, maxPrice, size, sort, category, subcategory, search } = query;
     
     // QueryBuilder oluştur
     const qb = this.productRepository
       .createQueryBuilder('product')
-      .leftJoinAndSelect('product.variants', 'variant'); // Varyantları dahil et
+      .leftJoinAndSelect('product.variants', 'variant') // Varyantları dahil et
+      .distinct(true); // Aynı ürün için birden fazla varyantta tek satır döndür
 
     // --- FİLTRELER (HİÇBİRİ SİLİNMEDİ) ---
     
@@ -45,6 +46,18 @@ export class ProductService {
 
     if (maxPrice !== undefined) {
       qb.andWhere('variant.price <= :maxPrice', { maxPrice });
+    }
+
+    // Arama filtresi (isim, açıklama, renk veya beden)
+    if (search) {
+      const term = `%${search.toLowerCase()}%`;
+      qb.andWhere(
+        `(LOWER(product.name) LIKE :term
+          OR LOWER(product.description) LIKE :term
+          OR LOWER(variant.color) LIKE :term
+          OR LOWER(variant.size) LIKE :term)`,
+        { term },
+      );
     }
 
     // --- SIRALAMA MANTIĞI ---

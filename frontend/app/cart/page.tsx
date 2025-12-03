@@ -3,8 +3,11 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link"; // Tıklama özelliği için gerekli
+import { useRouter } from "next/navigation";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
+import Toast from "../components/Toast";
+import { checkoutOrder } from "@/lib/orders";
 
 // 1. DÜZELTME: Değişken adını 'formatter' yaptık ve TRY (TL) ayarladık
 const formatter = new Intl.NumberFormat("tr-TR", {
@@ -13,11 +16,14 @@ const formatter = new Intl.NumberFormat("tr-TR", {
 });
 
 export default function CartPage() {
+  const router = useRouter();
   const { user } = useAuth();
-  const { items, subtotal, updateQuantity, removeItem } = useCart();
+  const { items, subtotal, updateQuantity, removeItem, reload } = useCart();
   const hasItems = items.length > 0;
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const decrease = (id: number, quantity: number) => {
     handleQuantityChange(id, quantity - 1);
@@ -60,6 +66,30 @@ export default function CartPage() {
       );
     } finally {
       setPendingId(null);
+    }
+  };
+
+  const handleCheckout = async () => {
+    setCartError(null);
+    setToastMessage(null);
+    setCheckoutLoading(true);
+    try {
+      const order = await checkoutOrder();
+      await reload();
+      setToastMessage("Order placed successfully. Redirecting to invoice…");
+      if (order?.id) {
+        router.push(`/account/orders/${order.id}/invoice`);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Checkout failed";
+      const normalized =
+        message === CART_AUTH_ERROR
+          ? "Please sign in to checkout."
+          : message;
+      setToastMessage(normalized);
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -199,8 +229,12 @@ export default function CartPage() {
             </div>
           </div>
 
-          <button className="btn btn-primary w-full" disabled={!hasItems}>
-            Continue to checkout
+          <button
+            className="btn btn-primary w-full"
+            disabled={!hasItems || checkoutLoading}
+            onClick={handleCheckout}
+          >
+            {checkoutLoading ? "Processing..." : "Continue to checkout"}
           </button>
 
           <div className="text-center text-xs text-neutral-500">
@@ -211,6 +245,14 @@ export default function CartPage() {
           </div>
         </aside>
       </div>
+
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastMessage.toLowerCase().includes("success") ? "success" : "error"}
+          onDismiss={() => setToastMessage(null)}
+        />
+      )}
     </main>
   );
 }
