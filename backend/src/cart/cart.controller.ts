@@ -23,6 +23,18 @@ type CartHttpResponse = {
     productId: number | null;
     variantId: number | null;
     quantity: number;
+    variant?: {
+      id: number;
+      color: string;
+      size: string;
+      price: number | string;
+      product: {
+        id: number;
+        name: string;
+        price: number | string;
+        image: string | null;
+      };
+    } | null;
   }>;
 };
 
@@ -35,6 +47,19 @@ const serializeCart = (cart: Cart): CartHttpResponse => ({
       productId: item.variant?.product?.id ?? null,
       variantId: item.variant?.id ?? null,
       quantity: item.quantity,
+      // 🔥 Variant detaylarını da gönder (color, size, price, product)
+      variant: item.variant ? {
+        id: item.variant.id,
+        color: item.variant.color,
+        size: item.variant.size,
+        price: item.variant.price,
+        product: item.variant.product ? {
+          id: item.variant.product.id,
+          name: item.variant.product.name,
+          price: item.variant.product.price,
+          image: item.variant.product.image ?? null,
+        } : null as any,
+      } : null,
     })) ?? [],
 });
 

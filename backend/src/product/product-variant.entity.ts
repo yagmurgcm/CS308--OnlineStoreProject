@@ -17,6 +17,7 @@ export class ProductVariant {
 
   @ManyToOne(() => Product, (product) => product.variants, {
     onDelete: 'CASCADE', // Ürün silinirse varyantları da silinsin
+    eager: true, // 🔥 Sepete eklerken product bilgisi de gelsin
   })
   @JoinColumn({ name: 'productId' }) // Veritabanında productId adında sütun oluşturur
   product: Product;
