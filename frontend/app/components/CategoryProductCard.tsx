@@ -122,24 +122,6 @@ export default function CategoryProductCard({
         <div className="mt-1 font-semibold text-neutral-900">
           {formatter.format(product.price)}
         </div>
-        
-        {/* Renkler */}
-        {product.colors && product.colors.length > 0 && (
-          <div className="mt-2 flex gap-1">
-            {product.colors.slice(0, 4).map((c, i) => (
-              <div
-                key={i}
-                className="h-3 w-3 rounded-full border border-black/10 shadow-sm"
-                style={{ backgroundColor: c }}
-              />
-            ))}
-            {product.colors.length > 4 && (
-              <span className="text-[10px] text-neutral-400">
-                +{product.colors.length - 4}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

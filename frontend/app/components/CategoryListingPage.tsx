@@ -208,7 +208,7 @@ export default function CategoryListingPage({
   }, [products, activeSubcategory, priceFilter, onlyNewIn, sortBy]);
 
   const totalItems = loading ? "Loading..." : `${visibleProducts.length} items`;
-  const displayTitle = activeSubcategory ? activeSubcategory : heroTitle;
+  const displayTitle = (activeSubcategory && activeSubcategory !== "All") ? activeSubcategory : heroTitle;
   const activeFilterCount = (priceFilter !== "all" ? 1 : 0) + (onlyNewIn ? 1 : 0);
   const filterLabel = activeFilterCount > 0 ? `Filter (${activeFilterCount})` : "Filter";
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Sort by";

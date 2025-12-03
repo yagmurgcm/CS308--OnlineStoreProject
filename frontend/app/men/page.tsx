@@ -20,7 +20,7 @@ export default function MenCategoryPage() {
     <CategoryListingPage
       categoryKey="men"
       label="Men"
-      heroTitle="Coats & Jackets"
+      heroTitle="All Products for Men"
       heroSubtitle="Weather-ready layers designed with FATIH simplicity."
       subCategories={SUB_CATEGORIES}
       defaultSubcategory={SUB_CATEGORIES[0]}
