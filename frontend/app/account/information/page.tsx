@@ -9,7 +9,7 @@ export default function AccountInformationPage() {
     lastName: "Karayel",
     email: "ardakarayel033@gmail.com",
     phone: "+90 555 000 0000",
-    company: " BUrası geçici böyle backendden alcaz",
+    company: "Will be fetched from backend",
   });
 
   useEffect(() => {

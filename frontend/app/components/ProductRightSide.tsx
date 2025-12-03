@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { Star } from "lucide-react";
 import AddToCartButton from "../components/AddToCartButton";
 import { useWishlist } from "@/store/wishlistContext";
 
@@ -20,8 +21,9 @@ type Product = {
   image?: string | null;
   imageUrl?: string | null;
   stock?: number;
-  // Artık mock verileri kullanmıyoruz, variants zorunlu değil ama olsa iyi olur
-  variants?: ProductVariant[]; 
+  variants?: ProductVariant[];
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
 const fmt = new Intl.NumberFormat("tr-TR", {
@@ -30,6 +32,10 @@ const fmt = new Intl.NumberFormat("tr-TR", {
 });
 
 export default function ProductRightSide({ product }: { product: Product }) {
+  // Rating value
+  const ratingValue = Number(product.averageRating || 0);
+  const reviewCount = product.reviewCount || 0;
+
   // 1. ADIM: Varyantlardan Renk ve Beden Listesini Çıkar (Dinamik)
   const variants = product.variants || [];
 
@@ -109,6 +115,35 @@ export default function ProductRightSide({ product }: { product: Product }) {
     <div className="flex flex-col font-sans text-[#1b1b1b] pt-2">
       
       <h1 className="text-4xl font-medium tracking-tight mb-2 text-black">{product.name}</h1>
+      
+      {/* ⭐ RATING & REVIEW COUNT */}
+      <div className="flex items-center gap-2 mb-4">
+        {/* Rating Number */}
+        <span className="text-lg font-bold text-gray-900">
+          {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
+        </span>
+
+        {/* Stars */}
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              size={18}
+              className={`${
+                star <= Math.round(ratingValue)
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "fill-gray-200 text-gray-200"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Review Count */}
+        <span className="text-sm text-gray-500">
+          ({reviewCount} {reviewCount === 1 ? "review" : "reviews"})
+        </span>
+      </div>
+
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Product ID: {product.id}</p>
 
       <div className="flex flex-col mb-8">
@@ -196,10 +231,10 @@ export default function ProductRightSide({ product }: { product: Product }) {
         </div>
       )}
 
-      {/* Eğer hiç varyant yoksa uyarı ver */}
+      {/* Show warning if no variants exist */}
       {variants.length === 0 && (
         <div className="p-4 bg-yellow-50 text-yellow-800 text-sm mb-6 rounded">
-            Bu ürünün varyant (beden/renk) bilgisi bulunamadı. Lütfen yönetici ile iletişime geçin.
+            No variant (size/color) information found for this product. Please contact the administrator.
         </div>
       )}
 

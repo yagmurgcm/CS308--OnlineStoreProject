@@ -16,6 +16,8 @@ type Product = {
   stock?: number;
   mockColors?: string[];
   mockSizes?: string[];
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
 type Props = {

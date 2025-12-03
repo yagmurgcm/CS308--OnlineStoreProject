@@ -37,4 +37,10 @@ export class Product {
 
   @OneToMany(() => Review, (review) => review.product)
   reviews: Review[];
+
+  @Column("decimal", { precision: 3, scale: 1, default: 0 }) 
+  averageRating: number; // Örn: 4.5
+
+  @Column("int", { default: 0 })
+  reviewCount: number;   // Örn: 12
 }

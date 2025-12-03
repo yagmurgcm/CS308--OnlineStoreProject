@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
-import { Review } from '../reviews/review.entity'; // 👈 Review Entity'sini import etmeyi unutma
+// Review entity'sini import etmeye gerek kalmadı çünkü artık hesaplama yapmıyoruz!
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
 
 @Injectable()
@@ -12,28 +12,33 @@ export class ProductService {
     private productRepository: Repository<Product>,
   ) {}
 
-  async findAll(query: GetProductsQueryDto): Promise<any[]> {
+  // 1. TÜM ÜRÜNLERİ LİSTELEME VE FİLTRELEME
+  async findAll(query: GetProductsQueryDto): Promise<Product[]> {
     const { minPrice, maxPrice, size, sort, category, subcategory } = query;
-    console.log("🔥 FETCHING PRODUCTS WITH SEPARATE RATING QUERY");
-
-    // 1. ADIM: Önce Ürünleri ve Varyantları Tertemiz Çekelim (GROUP BY YOK)
+    
+    // QueryBuilder oluştur
     const qb = this.productRepository
       .createQueryBuilder('product')
-      .leftJoinAndSelect('product.variants', 'variant'); // Varyantları getir
+      .leftJoinAndSelect('product.variants', 'variant'); // Varyantları dahil et
 
-    // --- FİLTRELER ---
+    // --- FİLTRELER (HİÇBİRİ SİLİNMEDİ) ---
+    
+    // Kategori Filtresi
     if (category) {
       qb.andWhere('product.category = :category', { category });
     }
 
+    // Alt Kategori Filtresi
     if (subcategory) {
       qb.andWhere("product.subcategory = :subcategory", { subcategory });
     }
 
+    // Beden Filtresi (Varyant üzerinden)
     if (size) {
       qb.andWhere('variant.size = :size', { size });
     }
 
+    // Fiyat Aralığı Filtreleri
     if (minPrice !== undefined) {
       qb.andWhere('variant.price >= :minPrice', { minPrice });
     }
@@ -42,57 +47,31 @@ export class ProductService {
       qb.andWhere('variant.price <= :maxPrice', { maxPrice });
     }
 
-    // --- SIRALAMA ---
+    // --- SIRALAMA MANTIĞI ---
     if (sort === 'price_asc') {
       qb.orderBy('variant.price', 'ASC');
     } else if (sort === 'price_desc') {
       qb.orderBy('variant.price', 'DESC');
+    } else if (sort === 'rating') {
+      // 🔥 YENİ: Artık veritabanındaki hazır sütuna göre sıralıyoruz
+      qb.orderBy('product.averageRating', 'DESC');
     } else {
+      // Varsayılan sıralama (ID'ye göre)
       qb.orderBy('product.id', 'ASC');
     }
 
-    // Ürünleri veritabanından çekiyoruz
-    const products = await qb.getMany();
-
-    // Eğer hiç ürün yoksa boş dönelim, boşa sorgu atmayalım
-    if (products.length === 0) {
-      return [];
-    }
-
-    // 2. ADIM: Sadece bu ürünlerin Puanlarını Hesapla
-    // Ürün ID'lerini bir listeye alalım: [1, 2, 5, ...]
-    const productIds = products.map(p => p.id);
-
-    // Review tablosuna gidip sadece bu ID'ler için ortalama alalım
-    const ratings = await this.productRepository.manager
-      .createQueryBuilder(Review, 'review')
-      .select('review.productId', 'productId')
-      .addSelect('AVG(review.rating)', 'avgRating')
-      .addSelect('COUNT(review.id)', 'reviewCount')
-      .where('review.productId IN (:...ids)', { ids: productIds })
-      .andWhere('review.isApproved = :approved', { approved: true }) // Sadece onaylılar
-      .groupBy('review.productId')
-      .getRawMany();
-
-    // 3. ADIM: Ürünler ile Puanları Birleştir (Merge)
-    return products.map((product) => {
-      // Bu ürünün puan verisini bul
-      const ratingData = ratings.find(r => r.productId === product.id);
-
-      return {
-        ...product,
-        // Veriyi formatla (SQL'den string gelebilir)
-        averageRating: ratingData ? parseFloat(ratingData.avgRating).toFixed(1) : "0",
-        reviewCount: ratingData ? parseInt(ratingData.reviewCount) : 0,
-      };
-    });
+    // 🔥 ESKİ KODDAKİ "MANUEL HESAPLAMA" KISMI BURADAN KALKTI.
+    // Çünkü artık product.averageRating zaten veritabanında var.
+    // Direkt sonucu döndürüyoruz.
+    return await qb.getMany();
   }
 
-  // Get product by id, GET
+  // 2. TEKİL ÜRÜN GETİRME (DETAY SAYFASI İÇİN)
   async findOne(id: number): Promise<Product | null> {
     const product = await this.productRepository.findOne({
       where: { id },
-      relations: ['variants', 'reviews'], // Detayda yorumları da çekebilirsin
+      // Detay sayfasında yorumları göstermek istersen 'reviews' ilişkisini çekmeye devam et
+      relations: ['variants', 'reviews', 'reviews.user'], 
     });
 
     if (!product) {
@@ -102,13 +81,17 @@ export class ProductService {
     return product;
   }
 
-  // Add new product, POST
+  // 3. YENİ ÜRÜN EKLEME
   async create(product: Product): Promise<Product> {
+    // Yeni ürün eklenirken puanı 0, yorum sayısı 0 olarak başlar (Entity'de default verdik)
     return this.productRepository.save(product);
   }
 
-  // Delete product by id, DELETE
+  // 4. ÜRÜN SİLME
   async remove(id: number): Promise<void> {
-    await this.productRepository.delete(id);
+    const result = await this.productRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
   }
 }

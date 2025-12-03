@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Star } from "lucide-react"; 
 import { useWishlist } from "@/store/wishlistContext";
 
-// 👇 TİP TANIMI (TAPU) BURASI - BURAYI GÜNCELLEMEZSEN HATA GİTMEZ
+// 👇 TİP TANIMI (TAPU) - Backend'den gelen veriye uygun
 export type CategoryProduct = {
   id: string;
   productId: number;
@@ -16,7 +16,7 @@ export type CategoryProduct = {
   colors?: string[];
   badge?: string;
   subcategory?: string | null;
-  // 👇 BU İKİ SATIR EKLENMEZSE TYPESCRIPT KIZAR!
+  // 🔥 Backend'den bu alanların geldiğinden eminiz artık
   averageRating?: number | string;
   reviewCount?: number;
 };
@@ -34,8 +34,11 @@ export default function CategoryProductCard({
   const { addItemToWishlist } = useWishlist();
   const [isInWishlist, setIsInWishlist] = useState(false);
 
-  // Puanı güvenli sayıya çevir
-  const ratingValue = Number(product.averageRating || 0);
+  // 🛠️ BACKEND VERİSİNİ İŞLEME (String gelse bile sayıya çeviriyoruz)
+  const rawRating = product.averageRating ? Number(product.averageRating) : 0;
+  // Eğer NaN gelirse (hatalı veri) 0 kabul et
+  const ratingValue = isNaN(rawRating) ? 0 : rawRating;
+  const reviewCount = product.reviewCount || 0;
 
   const handleAddToWishlist = () => {
     setIsInWishlist(true);
@@ -88,31 +91,32 @@ export default function CategoryProductCard({
           </h3>
         </Link>
         
-        {/* ⭐ YILDIZLAR ⭐ */}
-        <div className="flex items-center gap-1 mt-1 min-h-[16px]">
-        {ratingValue > 0 ? (
-          <>
-             <span className="text-xs font-bold text-gray-800">
-                {ratingValue.toFixed(1)}
+        {/* ⭐ YILDIZLAR VE PUANLAMA ALANI ⭐ */}
+        <div className="flex items-center gap-1.5 mt-1 min-h-[18px]">
+             {/* Puan Yazısı (Örn: 4.5) */}
+             <span className="text-xs font-bold text-gray-900">
+                {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
              </span>
-             <div className="flex">
+
+             {/* Yıldız İkonları */}
+             <div className="flex gap-[1px]">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star
                   key={star}
-                  size={10}
+                  size={12} // Biraz büyüttüm daha net görünsün
                   className={`${
                     star <= Math.round(ratingValue)
                       ? "fill-yellow-400 text-yellow-400"
-                      : "fill-gray-200 text-gray-200"
+                      : "fill-gray-100 text-gray-300"
                   }`}
                 />
               ))}
              </div>
-             <span className="text-[10px] text-gray-500">({product.reviewCount})</span>
-          </>
-        ) : (
-          <div className="h-4"></div>
-        )}
+
+             {/* Yorum Sayısı (Örn: (12)) */}
+             <span className="text-[10px] font-medium text-gray-500">
+                ({reviewCount})
+             </span>
         </div>
 
         <div className="mt-1 font-semibold text-neutral-900">

@@ -7,9 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-// 👇 Import ettiğimiz tipe dikkat et, yukarıdaki dosyadan geliyor
 import CategoryProductCard, {
-  type CategoryProduct, 
+  type CategoryProduct,
 } from "./CategoryProductCard";
 import { fetchProducts, getPalette, pickBadge } from "@/lib/products";
 
@@ -55,8 +54,7 @@ const SORT_OPTIONS = [
 type PriceFilterValue = string;
 type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
-// 👇 DecoratedProduct, CategoryProduct'tan miraz alıyor.
-// CategoryProductCard.tsx güncellendiği için artık rating'i tanıyor.
+// DecoratedProduct, CategoryProduct'tan miras alıyor
 type DecoratedProduct = CategoryProduct & {
   originalIndex: number;
 };
@@ -123,6 +121,7 @@ export default function CategoryListingPage({
         });
 
         // 2. MAPLEME
+        // 🔥 BURAYA DİKKAT: (item: any) diyerek hatayı susturuyoruz.
         const mapped = scoped.slice(0, limit).map((item: any, index) => {
            const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
 
@@ -136,7 +135,7 @@ export default function CategoryListingPage({
             badge: pickBadge(index),
             subcategory: item.subcategory,
             originalIndex: index,
-            // 👇 PUANLARI BURADA EŞLEŞTİRİYORUZ
+            // 👇 ARTIK KIZMAYACAK ÇÜNKÜ item: any
             averageRating: item.averageRating, 
             reviewCount: item.reviewCount,     
           };

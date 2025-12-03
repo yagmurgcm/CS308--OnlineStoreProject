@@ -10,6 +10,8 @@ export type ProductDto = {
   image?: string | null;
   imageUrl?: string | null;
   thumbnail?: string | null;
+  averageRating?: number | string;  // 🔥 Backend'den gelen ortalama puan
+  reviewCount?: number;              // 🔥 Backend'den gelen yorum sayısı
 };
 
 export type ProductRecord = {
@@ -50,6 +52,9 @@ export function normalizeProduct(product: ProductDto): ProductRecord {
     subcategory: product.subcategory,
     description: product.description,
     image: product.image || product.imageUrl || product.thumbnail || FALLBACK_IMAGE,
+    // 🔥 Artık puan ve yorum sayısı da aktarılıyor!
+    averageRating: product.averageRating,
+    reviewCount: product.reviewCount,
   };
 }
 
