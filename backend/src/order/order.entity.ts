@@ -17,13 +17,13 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, user => user.orders, { eager: true })
+  @ManyToOne(() => User, (user) => user.orders, { eager: true })
   user: User;
 
   @ManyToOne(() => Cart, { nullable: true, eager: true })
   cart: Cart;
 
-  @OneToMany(() => OrderDetail, detail => detail.order, { cascade: true })
+  @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: true })
   details: OrderDetail[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })

@@ -12,12 +12,19 @@ import CategoryProductCard, {
 } from "./CategoryProductCard";
 import { fetchProducts, getPalette, pickBadge } from "@/lib/products";
 
-const PRICE_FILTERS = [
+type PriceFilterOption = {
+  value: string;
+  label: string;
+  min?: number;
+  max?: number;
+};
+
+const PRICE_FILTERS: PriceFilterOption[] = [
   { value: "all", label: "All prices" },
   { value: "under-1000", label: "Under \u20BA1000", max: 1000 },
   { value: "1000-2000", label: "\u20BA1000 - \u20BA2000", min: 1000, max: 2000 },
   { value: "over-2000", label: "Over \u20BA2000", min: 2000 },
-] as const;
+];
 
 const SORT_OPTIONS = [
   {
@@ -44,25 +51,23 @@ const SORT_OPTIONS = [
   },
 ] as const;
 
-type PriceFilterValue = (typeof PRICE_FILTERS)[number]["value"];
+type PriceFilterValue = string;
 type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
+// DecoratedProduct, CategoryProduct'tan miras alıyor
 type DecoratedProduct = CategoryProduct & {
   originalIndex: number;
-  subcategory?: string | null;
 };
 
 export type CategoryListingPageProps = {
   categoryKey: string;
   label: string;
-  heroTitle: string;
+  heroTitle: string; 
   heroSubtitle: string;
   subCategories: string[];
   defaultSubcategory?: string | null;
   limit?: number;
 };
-
-const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? "";
 
 export default function CategoryListingPage({
   categoryKey,
@@ -71,25 +76,28 @@ export default function CategoryListingPage({
   heroSubtitle,
   subCategories,
   defaultSubcategory,
-  limit = 12,
+  limit = 100, 
 }: CategoryListingPageProps) {
-  const initialSubcategory = defaultSubcategory ?? subCategories[0] ?? null;
+  
+  const [activeSubcategory, setActiveSubcategory] =
+    useState<string | null>(null);
+
   const [products, setProducts] = useState<DecoratedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSubcategory, setActiveSubcategory] =
-    useState<string | null>(initialSubcategory);
+  
   const [priceFilter, setPriceFilter] = useState<PriceFilterValue>("all");
   const [onlyNewIn, setOnlyNewIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortValue>("recommended");
+  
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const sortRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setActiveSubcategory(initialSubcategory);
-  }, [initialSubcategory]);
+    setActiveSubcategory(null);
+  }, [categoryKey]);
 
   useEffect(() => {
     const load = async () => {
@@ -97,24 +105,45 @@ export default function CategoryListingPage({
       setError(null);
       try {
         const data = await fetchProducts();
-        const normalizedCategory = categoryKey.toLowerCase();
-        const scoped = data.filter(
-          (item) => item.category?.toLowerCase() === normalizedCategory,
-        );
-        const source = scoped.length > 0 ? scoped : data;
-        const mapped = source.slice(0, limit).map((item, index) => ({
-          id: `${normalizedCategory}-${item.id}`,
-          productId: item.id,
-          name: item.name,
-          price: item.price,
-          image: item.image,
-          colors: getPalette(item.id),
-          badge: pickBadge(index),
-          subcategory: item.subcategory,
-          originalIndex: index,
-        }));
+        const currentCategory = categoryKey.toLowerCase().trim();
+
+        // 1. KATEGORİ FİLTRELEME
+        const scoped = data.filter((item) => {
+          let itemCat = "";
+          if (typeof item.category === 'string') {
+             itemCat = item.category;
+          } else if (item.category && typeof item.category === 'object' && (item.category as any).name) {
+             itemCat = (item.category as any).name; 
+          } else {
+             itemCat = String(item.category || ""); 
+          }
+          return itemCat.toLowerCase().trim() === currentCategory;
+        });
+
+        // 2. MAPLEME
+        // 🔥 BURAYA DİKKAT: (item: any) diyerek hatayı susturuyoruz.
+        const mapped = scoped.slice(0, limit).map((item: any, index) => {
+           const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
+
+          return {
+            id: `prod-${item.id}`,
+            productId: item.id,
+            name: item.name,
+            price: item.price,
+            image: imageUrl,
+            colors: getPalette(item.id),
+            badge: pickBadge(index),
+            subcategory: item.subcategory,
+            originalIndex: index,
+            // 👇 ARTIK KIZMAYACAK ÇÜNKÜ item: any
+            averageRating: item.averageRating, 
+            reviewCount: item.reviewCount,     
+          };
+        });
+        
         setProducts(mapped);
       } catch (err) {
+        console.error("HATA:", err);
         setError(err instanceof Error ? err.message : "Failed to load products");
       } finally {
         setLoading(false);
@@ -123,6 +152,7 @@ export default function CategoryListingPage({
     load();
   }, [categoryKey, limit]);
 
+  // Popover Kapatma
   useEffect(() => {
     if (!filterOpen && !sortOpen) return;
     const handleClick = (event: MouseEvent) => {
@@ -138,54 +168,50 @@ export default function CategoryListingPage({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [filterOpen, sortOpen]);
 
+  // FİLTRELEME
   const visibleProducts = useMemo(() => {
-    if (products.length === 0) return [];
-    const normalizedActive = normalize(activeSubcategory);
-    const priceRule =
-      PRICE_FILTERS.find((rule) => rule.value === priceFilter) ??
-      PRICE_FILTERS[0];
-    const sortRule =
-      SORT_OPTIONS.find((rule) => rule.value === sortBy) ?? SORT_OPTIONS[0];
+    let subset = [...products];
 
-    let subset = products;
-    if (normalizedActive) {
-      const scoped = products.filter(
-        (product) => normalize(product.subcategory) === normalizedActive,
-      );
-      if (scoped.length > 0) {
-        subset = scoped;
+    // Subcategory
+    if (activeSubcategory) {
+      if (activeSubcategory !== "View All" && activeSubcategory !== "All") {
+        const targetKeywords = activeSubcategory.toLowerCase().split(/[^a-z]+/);
+        subset = subset.filter((product) => {
+            const prodSub = product.subcategory ? product.subcategory.toLowerCase() : "";
+            if (prodSub === activeSubcategory.toLowerCase()) return true;
+            const prodName = product.name.toLowerCase();
+            const isMatch = targetKeywords.some(keyword => 
+               (keyword.length > 2) && (prodSub.includes(keyword) || prodName.includes(keyword))
+            );
+            return isMatch;
+        });
       }
     }
 
+    // Fiyat
+    const priceRule =
+      PRICE_FILTERS.find((rule) => rule.value === priceFilter) ??
+      PRICE_FILTERS[0];
+
     subset = subset.filter((product) => {
-      if (
-        priceRule.min !== undefined &&
-        product.price < priceRule.min
-      ) {
-        return false;
-      }
-      if (
-        priceRule.max !== undefined &&
-        product.price > priceRule.max
-      ) {
-        return false;
-      }
-      if (onlyNewIn && product.badge?.toLowerCase() !== "new in") {
-        return false;
-      }
+      if (priceRule.min !== undefined && product.price < priceRule.min) return false;
+      if (priceRule.max !== undefined && product.price > priceRule.max) return false;
+      if (onlyNewIn && product.badge?.toLowerCase() !== "new in") return false;
       return true;
     });
 
-    return [...subset].sort(sortRule.compare);
+    // Sıralama
+    const sortRule =
+      SORT_OPTIONS.find((rule) => rule.value === sortBy) ?? SORT_OPTIONS[0];
+
+    return subset.sort(sortRule.compare);
   }, [products, activeSubcategory, priceFilter, onlyNewIn, sortBy]);
 
   const totalItems = loading ? "Loading..." : `${visibleProducts.length} items`;
-  const activeFilterCount =
-    (priceFilter !== "all" ? 1 : 0) + (onlyNewIn ? 1 : 0);
-  const filterLabel =
-    activeFilterCount > 0 ? `Filter (${activeFilterCount})` : "Filter";
-  const sortLabel =
-    SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Sort by";
+  const displayTitle = (activeSubcategory && activeSubcategory !== "All") ? activeSubcategory : heroTitle;
+  const activeFilterCount = (priceFilter !== "all" ? 1 : 0) + (onlyNewIn ? 1 : 0);
+  const filterLabel = activeFilterCount > 0 ? `Filter (${activeFilterCount})` : "Filter";
+  const sortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? "Sort by";
 
   const renderPopover = (content: ReactNode) => (
     <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-[var(--line)] bg-white p-4 shadow-2xl">
@@ -205,7 +231,9 @@ export default function CategoryListingPage({
           <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
             {label}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">{heroTitle}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {displayTitle}
+          </h1>
           <p className="text-sm text-neutral-600">{heroSubtitle}</p>
         </div>
 
@@ -238,7 +266,7 @@ export default function CategoryListingPage({
       <section className="flex flex-wrap items-center justify-between gap-4 text-sm text-neutral-600">
         <span className="text-neutral-500">{totalItems}</span>
         <div className="flex gap-2">
-          <div className="relative" ref={filterRef}>
+           <div className="relative" ref={filterRef}>
             <button
               type="button"
               className="btn h-10 px-5"
@@ -350,9 +378,17 @@ export default function CategoryListingPage({
         ) : error ? (
           <p className="text-sm text-red-600">{error}</p>
         ) : visibleProducts.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            No products match your filters yet. Try clearing them.
-          </p>
+          <div className="py-10 text-center">
+            <p className="text-sm text-neutral-500">
+              No products found for <span className="font-bold">"{displayTitle}"</span>.
+            </p>
+            <button 
+                onClick={() => setActiveSubcategory(null)}
+                className="mt-2 text-[#7a0025] underline text-sm"
+            >
+                Clear Filters
+            </button>
+          </div>
         ) : (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visibleProducts.map((product) => (

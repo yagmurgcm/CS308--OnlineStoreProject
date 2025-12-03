@@ -7,8 +7,6 @@ import { ProductController } from './product.controller';
 //Product Module (connects entity, service, and controller)
 
 @Module({
-
-
   imports: [TypeOrmModule.forFeature([Product])], // connects Product entity to database
   providers: [ProductService], // service logic
   controllers: [ProductController], // API endpoints

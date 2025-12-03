@@ -1,9 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 
 import { Order } from './order.entity';
 import { Product } from '../product/entities/product.entity';
@@ -13,7 +8,7 @@ export class OrderDetail {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, order => order.details, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Order, (order) => order.details, { onDelete: 'CASCADE' })
   order: Order;
 
   @ManyToOne(() => Product, { eager: true })

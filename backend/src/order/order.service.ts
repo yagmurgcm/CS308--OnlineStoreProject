@@ -8,8 +8,6 @@ import { CartService } from '../cart/cart.service';
 import { UsersService } from '../users/users.service';
 import { ProductVariant } from '../product/product-variant.entity';
 
-
-
 @Injectable()
 export class OrderService {
   constructor(

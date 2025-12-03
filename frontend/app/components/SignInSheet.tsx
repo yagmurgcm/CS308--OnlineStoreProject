@@ -175,7 +175,7 @@ export default function SignInSheet({ open, onClose }: Props) {
           <hr className="border-[var(--line)]" />
 
           <div className="space-y-3">
-            <h3 className="text-[17px] font-medium">New to FATIH Online?</h3>
+            <h3 className="text-[17px] font-medium">New to MKN Online?</h3>
             <p className="text-[var(--muted)] text-sm">
               Create an account and you will be able to manage orders, save addresses, and more.
             </p>
@@ -194,7 +194,6 @@ export default function SignInSheet({ open, onClose }: Props) {
     </div>
   );
 }
-
 
 
 

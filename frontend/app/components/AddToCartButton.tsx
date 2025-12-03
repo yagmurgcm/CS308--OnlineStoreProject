@@ -7,18 +7,25 @@ import { CART_AUTH_ERROR, CartItemInput, useCart } from "@/lib/cart-context";
 type AddToCartButtonProps = {
   product: CartItemInput;
   className?: string;
+  children?: React.ReactNode;
 };
 
 export default function AddToCartButton({
   product,
   className = "",
+  children,
 }: AddToCartButtonProps) {
   const router = useRouter();
   const { addItem } = useCart();
   const [justAdded, setJustAdded] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleClick = async () => {
+  // 🔥 DÜZELTME BURADA: (e: React.MouseEvent) parametresini ekledik
+  const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    // 🛑 KRİTİK KOMUTLAR:
+    e.preventDefault();  // Sayfanın yenilenmesini veya linkin çalışmasını engeller
+    e.stopPropagation(); // Tıklamanın kartın üzerindeki Link'e sıçramasını engeller
+
     setLoading(true);
     try {
       await addItem(product);
@@ -39,11 +46,11 @@ export default function AddToCartButton({
     <button
       type="button"
       onClick={handleClick}
-      className={`btn btn-primary w-full text-sm ${className}`}
+      className={className || "btn btn-primary w-full text-sm"}
       aria-live="polite"
       disabled={loading}
     >
-      {loading ? "Adding..." : justAdded ? "Added!" : "Add to cart"}
+      {loading ? "Adding..." : justAdded ? "Added!" : (children || "Add to cart")}
     </button>
   );
 }

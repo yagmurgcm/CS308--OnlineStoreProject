@@ -27,4 +27,3 @@ export class AuthController {
     return this.authService.logout(req.user.sub);
   }
 }
-

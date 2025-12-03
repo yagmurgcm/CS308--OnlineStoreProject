@@ -73,7 +73,7 @@ export default function SignUpPage() {
           <div className="p-6 md:p-8">
             <div className="text-center mb-6">
               <Link href="/" className="inline-block text-xl font-semibold tracking-[0.2em]">
-                FATIH
+                MKN
               </Link>
               <h1 className="mt-2 text-2xl font-semibold">Create your account</h1>
               <p className="text-[var(--muted)] text-sm">

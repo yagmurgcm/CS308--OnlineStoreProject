@@ -3,6 +3,7 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
+  "All",
   "Skincare",
   "Body Care",
   "Hair Care",
@@ -18,7 +19,7 @@ export default function BeautyCategoryPage() {
     <CategoryListingPage
       categoryKey="beauty"
       label="Beauty"
-      heroTitle="Skincare Essentials"
+      heroTitle="All Products for Beauty"
       heroSubtitle="Minimal formulas for everyday hydration and balance."
       subCategories={SUB_CATEGORIES}
       defaultSubcategory={SUB_CATEGORIES[0]}

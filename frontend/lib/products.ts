@@ -10,6 +10,8 @@ export type ProductDto = {
   image?: string | null;
   imageUrl?: string | null;
   thumbnail?: string | null;
+  averageRating?: number | string;  // 🔥 Backend'den gelen ortalama puan
+  reviewCount?: number;              // 🔥 Backend'den gelen yorum sayısı
 };
 
 export type ProductRecord = {
@@ -20,6 +22,8 @@ export type ProductRecord = {
   subcategory?: string | null;
   description?: string | null;
   image: string;
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
 const FALLBACK_IMAGE = "/images/1.jpg";
@@ -48,6 +52,9 @@ export function normalizeProduct(product: ProductDto): ProductRecord {
     subcategory: product.subcategory,
     description: product.description,
     image: product.image || product.imageUrl || product.thumbnail || FALLBACK_IMAGE,
+    // 🔥 Artık puan ve yorum sayısı da aktarılıyor!
+    averageRating: product.averageRating,
+    reviewCount: product.reviewCount,
   };
 }
 
@@ -65,4 +72,25 @@ export function pickBadge(index: number): string | undefined {
   if (index < 3) return "New in";
   if (index % 5 === 0) return "Best seller";
   return undefined;
+}
+
+
+// lib/products.ts dosyanın sonuna ekle:
+
+export async function fetchProductById(id: string | number) {
+  const allProducts = await fetchProducts(); // Var olan fonksiyonunu kullanıyoruz
+  
+  // ID'si eşleşen ürünü bul
+  // (Hem string hem number gelebilir diye ikisini de stringe çevirip karşılaştırıyoruz)
+  const product = allProducts.find((p) => String(p.id) === String(id));
+  
+  return product || null;
+}
+
+export async function searchProducts(query: string): Promise<ProductRecord[]> {
+  const term = query.trim();
+  if (!term) return [];
+
+  const data = await api.get<ProductDto[]>(`/products?search=${encodeURIComponent(term)}`);
+  return data.map(normalizeProduct);
 }

@@ -3,6 +3,8 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
+  "All",
+
   "Coats & Jackets",
   "Hoodies & Sweatshirts",
   "Jumpers & Cardigans",
@@ -18,11 +20,10 @@ export default function MenCategoryPage() {
     <CategoryListingPage
       categoryKey="men"
       label="Men"
-      heroTitle="Coats & Jackets"
-      heroSubtitle="Weather-ready layers designed with MUJI simplicity."
+      heroTitle="All Products for Men"
+      heroSubtitle="Weather-ready layers designed with MKN simplicity."
       subCategories={SUB_CATEGORIES}
       defaultSubcategory={SUB_CATEGORIES[0]}
     />
   );
 }
-

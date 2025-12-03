@@ -3,7 +3,8 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
-  "New In",
+    "All",
+
   "Coats & Jackets",
   "Knitwear",
   "Dresses",
@@ -18,10 +19,10 @@ export default function WomenCategoryPage() {
     <CategoryListingPage
       categoryKey="women"
       label="Women"
-      heroTitle="Coats & Jackets"
+      heroTitle="All Products for Women"
       heroSubtitle="Layer up with refined silhouettes and warm textures."
       subCategories={SUB_CATEGORIES}
-      defaultSubcategory={SUB_CATEGORIES[1]}
+      defaultSubcategory={SUB_CATEGORIES[0]}
     />
   );
 }
