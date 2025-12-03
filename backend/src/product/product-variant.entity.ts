@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
-  JoinColumn
+  JoinColumn,
 } from 'typeorm';
 import { Product } from './entities/product.entity'; // Import yolunu projene göre kontrol et
 

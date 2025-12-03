@@ -21,10 +21,9 @@ export default function MenCategoryPage() {
       categoryKey="men"
       label="Men"
       heroTitle="All Products for Men"
-      heroSubtitle="Weather-ready layers designed with FATIH simplicity."
+      heroSubtitle="Weather-ready layers designed with MKN simplicity."
       subCategories={SUB_CATEGORIES}
       defaultSubcategory={SUB_CATEGORIES[0]}
     />
   );
 }
-

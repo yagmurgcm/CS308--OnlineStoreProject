@@ -68,7 +68,12 @@ type ServerCartItem = {
   };
 };
 
-type CartResponse = { id: number; userId: number; items: ServerCartItem[] };
+type CartResponse = {
+  id: number;
+  userId: number | null;
+  guestToken: string | null;
+  items: ServerCartItem[];
+};
 
 type ProductSummary = {
   id: number;
@@ -93,6 +98,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? null;
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const productCache = useRef<Map<number, ProductSummary>>(new Map());
 
@@ -102,6 +108,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("guestCartToken");
+    if (stored) {
+      setGuestToken(stored);
+    }
+  }, []);
 
   const fetchProductSummary = useCallback(async (productId: number) => {
     const cached = productCache.current.get(productId);
@@ -184,21 +198,53 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [fetchProductSummary],
   );
 
+  const persistGuestToken = useCallback((token: string | null) => {
+    setGuestToken(token);
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (token) {
+      localStorage.setItem("guestCartToken", token);
+    } else {
+      localStorage.removeItem("guestCartToken");
+    }
+  }, []);
+
+  const ensureGuestToken = useCallback(async (): Promise<string> => {
+    if (guestToken) {
+      return guestToken;
+    }
+    const cart = await api.post<CartResponse>("/cart/guest");
+    if (!cart?.guestToken) {
+      throw new Error("Guest cart response missing token");
+    }
+    persistGuestToken(cart.guestToken);
+    return cart.guestToken;
+  }, [guestToken, persistGuestToken]);
+
   const loadCart = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!userId) {
-        if (mountedRef.current) {
-          setItems([]);
-          setIsLoading(false);
-          productCache.current.clear();
-        }
-        return;
-      }
       if (mountedRef.current) {
         setIsLoading(true);
       }
       try {
-        const cart = await api.get<CartResponse | null>(`/cart/${userId}`);
+        let cart: CartResponse | null = null;
+        if (userId) {
+          cart = await api.get<CartResponse | null>(`/cart/${userId}`);
+        } else {
+          let token = guestToken;
+          if (!token) {
+            const created = await api.post<CartResponse>(`/cart/guest`);
+            if (!created?.guestToken) {
+              throw new Error("Guest cart response missing token");
+            }
+            token = created.guestToken;
+            persistGuestToken(token);
+            cart = created;
+          } else {
+            cart = await api.get<CartResponse | null>(`/cart/guest/${token}`);
+          }
+        }
         const hydrated = await hydrateItems(cart?.items ?? []);
         if (mountedRef.current) {
           setItems(hydrated);
@@ -216,24 +262,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [userId, hydrateItems],
+    [userId, guestToken, hydrateItems, persistGuestToken],
   );
 
   useEffect(() => {
     loadCart({ silent: true }).catch(() => undefined);
   }, [loadCart]);
 
-  const ensureAuthenticated = useCallback(() => {
-    if (!userId) {
-      throw new Error(CART_AUTH_ERROR);
-    }
-  }, [userId]);
-
   const removeItem = useCallback(
     async (itemId: number) => {
-      ensureAuthenticated();
       try {
-        await api.delete(`/cart/${userId}/items/${itemId}`);
+        if (userId) {
+          await api.delete(`/cart/${userId}/items/${itemId}`);
+        } else {
+          const token = await ensureGuestToken();
+          await api.delete(`/cart/guest/${token}/items/${itemId}`);
+        }
         await loadCart({ silent: false });
       } catch (error) {
         console.error("Failed to remove cart item", error);
@@ -242,20 +286,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : new Error("Failed to remove cart item");
       }
     },
-    [ensureAuthenticated, userId, loadCart],
+    [userId, loadCart, ensureGuestToken],
   );
 
   const updateQuantity = useCallback(
     async (itemId: number, quantity: number) => {
-      ensureAuthenticated();
       if (quantity <= 0) {
         return removeItem(itemId);
       }
       try {
-        await api.patch<CartResponse>(`/cart/${userId}/items`, {
-          itemId,
-          quantity,
-        });
+        if (userId) {
+          await api.patch<CartResponse>(`/cart/${userId}/items`, {
+            itemId,
+            quantity,
+          });
+        } else {
+          const token = await ensureGuestToken();
+          await api.patch<CartResponse>(`/cart/guest/${token}/items`, {
+            itemId,
+            quantity,
+          });
+        }
         await loadCart({ silent: false });
       } catch (error) {
         console.error("Failed to update cart item", error);
@@ -264,21 +315,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : new Error("Failed to update cart item");
       }
     },
-    [ensureAuthenticated, userId, loadCart, removeItem],
+    [userId, loadCart, removeItem, ensureGuestToken],
   );
 
   // Renk ve Beden parametrelerini API'ye gönderen fonksiyon
   const addItem = useCallback(
     async ({ productId, quantity = 1, color, size }: CartItemInput) => {
-      ensureAuthenticated();
       const normalizedQty = Math.max(1, quantity);
       try {
-        await api.post<CartResponse>(`/cart/${userId}/items`, {
-          productId,
-          quantity: normalizedQty,
-          color, 
-          size,
-        });
+        if (userId) {
+          await api.post<CartResponse>(`/cart/${userId}/items`, {
+            productId,
+            quantity: normalizedQty,
+            color,
+            size,
+          });
+        } else {
+          const token = await ensureGuestToken();
+          await api.post<CartResponse>(`/cart/guest/${token}/items`, {
+            productId,
+            quantity: normalizedQty,
+            color,
+            size,
+          });
+        }
         await loadCart({ silent: false });
       } catch (error) {
         console.error("Failed to add to cart", error);
@@ -287,13 +347,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : new Error("Failed to add to cart");
       }
     },
-    [ensureAuthenticated, userId, loadCart],
+    [userId, loadCart, ensureGuestToken],
   );
 
   const clearCart = useCallback(async () => {
-    ensureAuthenticated();
     try {
-      await api.delete(`/cart/${userId}/clear`);
+      if (userId) {
+        await api.delete(`/cart/${userId}/clear`);
+      } else {
+        const token = await ensureGuestToken();
+        await api.delete(`/cart/guest/${token}/clear`);
+      }
       await loadCart({ silent: false });
     } catch (error) {
       console.error("Failed to clear cart", error);
@@ -301,7 +365,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ? error
         : new Error("Failed to clear cart");
     }
-  }, [ensureAuthenticated, userId, loadCart]);
+  }, [userId, loadCart, ensureGuestToken]);
 
   const totalItems = useMemo(
     () => items.reduce((total, item) => total + item.quantity, 0),

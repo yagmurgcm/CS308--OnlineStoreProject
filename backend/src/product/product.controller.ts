@@ -1,8 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Product } from './entities/product.entity';
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
-
 
 // Product Endpoints
 
@@ -18,10 +25,10 @@ export class ProductController {
 
   // GET endpoint (get one product by id)
   @Get(':id')
-    findOne(@Param('id') id: string): Promise<Product | null> {
+  findOne(@Param('id') id: string): Promise<Product | null> {
     return this.productService.findOne(Number(id));
   }
-  
+
   // POST endpoint (add new product)
   @Post()
   create(@Body() product: Product): Promise<Product> {

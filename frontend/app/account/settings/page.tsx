@@ -159,7 +159,7 @@ export default function SettingsPage() {
             onChange={handleChange}
           />
           <label className="text-sm">
-            Sign up for FATIH Membership and enjoy exclusive offers.
+            Sign up for MKN Membership and enjoy exclusive offers.
           </label>
         </div>
 

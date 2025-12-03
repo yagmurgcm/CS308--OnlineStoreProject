@@ -10,7 +10,7 @@ export class ReviewsService {
   constructor(
     @InjectRepository(Review)
     private reviewsRepository: Repository<Review>,
-    
+
     // 👇 EKLENDİ: Ürün tablosunu güncellemek için buna ihtiyacımız var
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
@@ -31,7 +31,7 @@ export class ReviewsService {
       userId: userId,
       user: { id: userId },
     });
-    
+
     const savedReview = await this.reviewsRepository.save(newReview);
 
     // 🔥 EKLENDİ: Yorum kaydedilince Ürünün Puanını Güncelle
@@ -43,9 +43,9 @@ export class ReviewsService {
   // Sadece ONAYLI yorumları getir
   async findAllByProduct(productId: number) {
     return this.reviewsRepository.find({
-      where: { 
-        productId, 
-        isApproved: true 
+      where: {
+        productId,
+        isApproved: true,
       },
       order: { createdAt: 'DESC' },
       relations: ['user'],
@@ -69,9 +69,11 @@ export class ReviewsService {
     // Product tablosunu güncelle
     await this.productRepository.update(productId, {
       averageRating: Number(avgRating),
-      reviewCount: reviewCount
+      reviewCount: reviewCount,
     });
-    
-    console.log(`✅ Ürün #${productId} güncellendi -> Puan: ${avgRating}, Sayı: ${reviewCount}`);
+
+    console.log(
+      `✅ Ürün #${productId} güncellendi -> Puan: ${avgRating}, Sayı: ${reviewCount}`,
+    );
   }
 }

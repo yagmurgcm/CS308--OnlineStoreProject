@@ -218,7 +218,7 @@ export default function Header() {
           {/* CENTER LOGO */}
           <div className="text-center">
             <Link href="/" className="text-xl font-semibold tracking-[0.2em]">
-              FATIH
+              MKN
             </Link>
           </div>
 

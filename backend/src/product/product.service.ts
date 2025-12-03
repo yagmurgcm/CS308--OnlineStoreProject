@@ -14,8 +14,9 @@ export class ProductService {
 
   // 1. TÜM ÜRÜNLERİ LİSTELEME VE FİLTRELEME
   async findAll(query: GetProductsQueryDto): Promise<Product[]> {
-    const { minPrice, maxPrice, size, sort, category, subcategory, search } = query;
-    
+    const { minPrice, maxPrice, size, sort, category, subcategory, search } =
+      query;
+
     // QueryBuilder oluştur
     const qb = this.productRepository
       .createQueryBuilder('product')
@@ -23,7 +24,7 @@ export class ProductService {
       .distinct(true); // Aynı ürün için birden fazla varyantta tek satır döndür
 
     // --- FİLTRELER (HİÇBİRİ SİLİNMEDİ) ---
-    
+
     // Kategori Filtresi
     if (category) {
       qb.andWhere('product.category = :category', { category });
@@ -31,7 +32,7 @@ export class ProductService {
 
     // Alt Kategori Filtresi
     if (subcategory) {
-      qb.andWhere("product.subcategory = :subcategory", { subcategory });
+      qb.andWhere('product.subcategory = :subcategory', { subcategory });
     }
 
     // Beden Filtresi (Varyant üzerinden)
@@ -84,11 +85,11 @@ export class ProductService {
     const product = await this.productRepository.findOne({
       where: { id },
       // Detay sayfasında yorumları göstermek istersen 'reviews' ilişkisini çekmeye devam et
-      relations: ['variants', 'reviews', 'reviews.user'], 
+      relations: ['variants', 'reviews', 'reviews.user'],
     });
 
     if (!product) {
-       throw new NotFoundException(`Product #${id} not found`);
+      throw new NotFoundException(`Product #${id} not found`);
     }
 
     return product;
