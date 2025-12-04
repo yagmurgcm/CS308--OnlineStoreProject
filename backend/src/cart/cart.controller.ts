@@ -17,6 +17,7 @@ import {
 import { CartService } from './cart.service';
 import { AddItemDto } from './dto/add-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { UpdateQuantityDto } from './dto/update-quantity.dto';
 import { MergeCartDto } from './dto/merge-cart.dto';
 import { Cart } from './entities/cart.entity';
 import { VariantQuantityDto } from './dto/variant-quantity.dto';
@@ -130,6 +131,20 @@ export class CartController {
     return serializeCart(cart);
   }
 
+  @Patch(':userId/items/:itemId')
+  async updateItemQuantity(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body() dto: UpdateQuantityDto,
+  ) {
+    const cart = await this.cartService.updateItemQuantity(
+      userId,
+      itemId,
+      dto.quantity,
+    );
+    return serializeCart(cart);
+  }
+
   @Patch(':userId/items')
   async updateItem(
     @Param('userId', ParseIntPipe) userId: number,
@@ -176,6 +191,21 @@ export class CartController {
     @Body() dto: AddItemDto,
   ) {
     const cart = await this.cartService.addItemForGuest(guestToken, dto);
+    return serializeCart(cart);
+  }
+
+  @Patch('guest/:guestToken/items/:itemId')
+  async updateGuestItemQuantity(
+    @Param('guestToken', new ParseUUIDPipe({ version: '4' }))
+    guestToken: string,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Body() dto: UpdateQuantityDto,
+  ) {
+    const cart = await this.cartService.updateGuestItemQuantity(
+      guestToken,
+      itemId,
+      dto.quantity,
+    );
     return serializeCart(cart);
   }
 

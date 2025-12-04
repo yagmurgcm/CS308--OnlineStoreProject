@@ -144,17 +144,41 @@ class InMemoryCartItemRepository {
     return null;
   }
 
+  private removeFromCartItems(item: CartItem) {
+    const cartItems = item.cart?.items;
+    if (!cartItems) return;
+    const idx = cartItems.findIndex((entry) => entry.id === item.id);
+    if (idx >= 0) {
+      cartItems.splice(idx, 1);
+    }
+  }
+
   async delete(criteria: number | { cart: { id: number } } | { id: number }): Promise<void> {
     if (typeof criteria === 'number') {
+      const toRemove = this.data.find((item) => item.id === criteria);
+      if (toRemove) {
+        this.removeFromCartItems(toRemove);
+      }
       this.data = this.data.filter((item) => item.id !== criteria);
       return;
     }
     if ('id' in criteria) {
+      const toRemove = this.data.find((item) => item.id === criteria.id);
+      if (toRemove) {
+        this.removeFromCartItems(toRemove);
+      }
       this.data = this.data.filter((item) => item.id !== criteria.id);
       return;
     }
     if ('cart' in criteria) {
-      this.data = this.data.filter((item) => item.cart?.id !== criteria.cart.id);
+      const cartId = criteria.cart.id;
+      this.data = this.data.filter((item) => {
+        if (item.cart?.id === cartId) {
+          this.removeFromCartItems(item);
+          return false;
+        }
+        return true;
+      });
     }
   }
 }
@@ -273,6 +297,32 @@ describe('CartService - Add-to-cart flows', () => {
     await expect(service.addItem(1, { variantId: 999, quantity: 1 })).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it('throws when adding quantity above stock limit', async () => {
+    const { service, variantRepo } = createService();
+    const variant = buildVariant(1, 'Runner');
+    variant.stock = 2;
+    variantRepo.setVariants([variant]);
+
+    await expect(
+      service.addItem(1, { variantId: variant.id, quantity: 3 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('prevents increasing existing item beyond available stock', async () => {
+    const { service, variantRepo } = createService();
+    const variant = buildVariant(1, 'Runner');
+    variant.stock = 3;
+    variantRepo.setVariants([variant]);
+
+    await service.addItem(1, { variantId: variant.id, quantity: 2 });
+    await expect(
+      service.addItem(1, { variantId: variant.id, quantity: 2 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const cart = await service.getCart(1);
+    expect(cart.items[0].quantity).toBe(2);
   });
 });
 
@@ -404,5 +454,76 @@ describe('CartService - Merge guest cart', () => {
 
     const secondMerge = await service.mergeGuestCart(500, 'guest-repeat');
     expect(secondMerge.items[0].quantity).toBe(2);
+  });
+});
+
+describe('CartService - Update quantity', () => {
+  it('updates item quantity when stock is sufficient', async () => {
+    const { service, variantRepo } = createService();
+    variantRepo.setVariants([buildVariant(1, 'Runner')]);
+
+    await service.addItem(10, { variantId: 1, quantity: 1 });
+    const cart = await service.updateItem(10, { variantId: 1, quantity: 3 });
+
+    expect(cart.items[0].quantity).toBe(3);
+  });
+
+  it('throws when updating quantity above available stock', async () => {
+    const { service, variantRepo } = createService();
+    const variant = buildVariant(1, 'Runner');
+    variant.stock = 2;
+    variantRepo.setVariants([variant]);
+
+    await service.addItem(11, { variantId: 1, quantity: 1 });
+    await expect(
+      service.updateItem(11, { variantId: 1, quantity: 5 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects invalid quantities (zero or negative)', async () => {
+    const { service, variantRepo } = createService();
+    variantRepo.setVariants([buildVariant(1, 'Runner')]);
+
+    await service.addItem(12, { variantId: 1, quantity: 1 });
+    await expect(
+      service.updateItem(12, { variantId: 1, quantity: 0 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('CartService - Clear cart', () => {
+  it('clears items from an existing user cart', async () => {
+    const { service, variantRepo } = createService();
+    variantRepo.setVariants([buildVariant(1, 'Runner')]);
+
+    await service.addItem(50, { variantId: 1, quantity: 2 });
+    let cart = await service.getCart(50);
+    expect(cart.items).toHaveLength(1);
+
+    await service.clear(50);
+    cart = await service.getCart(50);
+    expect(cart.items).toHaveLength(0);
+  });
+
+  it('allows clearing an already empty cart', async () => {
+    const { service } = createService();
+
+    await expect(service.clear(99)).resolves.toBeUndefined();
+    const cart = await service.getCart(99);
+    expect(cart.items).toHaveLength(0);
+  });
+
+  it('clears items from a guest cart', async () => {
+    const { service, variantRepo } = createService();
+    variantRepo.setVariants([buildVariant(1, 'Runner')]);
+
+    const guestToken = 'guest-token';
+    await service.addItemForGuest(guestToken, { variantId: 1, quantity: 1 });
+    let guestCart = await service.getGuestCart(guestToken);
+    expect(guestCart.items).toHaveLength(1);
+
+    await service.clearGuestCart(guestToken);
+    guestCart = await service.getGuestCart(guestToken);
+    expect(guestCart.items).toHaveLength(0);
   });
 });

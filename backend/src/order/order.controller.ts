@@ -4,9 +4,11 @@ import {
   Get,
   Param,
   Req,
+  Res,
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InvoiceService } from './invoice.service';
@@ -21,12 +23,12 @@ export class OrderController {
 
   @Post('checkout')
   async checkout(@Req() req) {
-    return this.orderService.checkout(req.user.id);
+    return this.orderService.checkout(req.user.userId);
   }
 
   @Get()
   async getUserOrders(@Req() req) {
-    return this.orderService.getOrdersByUser(req.user.id);
+    return this.orderService.getOrdersByUser(req.user.userId);
   }
 
   @Get(':id')
@@ -35,7 +37,18 @@ export class OrderController {
   }
 
   @Get(':id/invoice')
-  async getInvoice(@Param('id', ParseIntPipe) id: number) {
-    return this.invoiceService.buildInvoiceSummary(id);
+  async getInvoice(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req,
+    @Res() res: Response,
+  ) {
+    await this.orderService.assertOrderOwnership(id, req.user.userId);
+    const pdf = await this.invoiceService.generateInvoicePdf(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="invoice-${id}.pdf"`,
+    );
+    return res.send(pdf);
   }
 }

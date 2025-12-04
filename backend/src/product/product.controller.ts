@@ -19,7 +19,14 @@ export class ProductController {
 
   // GET endpoint (all products)
   @Get()
-  findAll(@Query() query: GetProductsQueryDto): Promise<Product[]> {
+  findAll(
+    @Query() query: GetProductsQueryDto,
+  ): Promise<{
+    items: Product[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+  }> {
     return this.productService.findAll(query);
   }
 

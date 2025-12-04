@@ -163,6 +163,33 @@ export class CartService {
     return (await this.findCart(owner, manager))!;
   }
 
+  private ensurePositiveQuantity(quantity: number) {
+    if (quantity < 1) {
+      throw new BadRequestException('Quantity must be at least 1');
+    }
+  }
+
+  private async assertStockAvailability(
+    variantId: number,
+    requestedQuantity: number,
+  ): Promise<ProductVariant> {
+    const variant = await this.variantRepo.findOne({
+      where: { id: variantId },
+    });
+
+    if (!variant) {
+      throw new BadRequestException('Variant not found');
+    }
+
+    if (requestedQuantity > variant.stock) {
+      throw new BadRequestException(
+        `Requested quantity (${requestedQuantity}) exceeds available stock (${variant.stock})`,
+      );
+    }
+
+    return variant;
+  }
+
   // 🔥 PUBLIC: Sepeti Getir
   async getCart(userId: number): Promise<Cart> {
     return this.ensureCart({ kind: 'user', userId });
@@ -183,6 +210,7 @@ export class CartService {
     owner: CartOwner,
     dto: AddItemDto,
   ): Promise<Cart> {
+    this.ensurePositiveQuantity(dto.quantity);
     const cart = await this.ensureCart(owner);
 
     const variantId = await this.resolveVariantId({
@@ -199,15 +227,21 @@ export class CartService {
       },
     });
 
+    const desiredQuantity = (item?.quantity ?? 0) + dto.quantity;
+    const variant = await this.assertStockAvailability(
+      variantId,
+      desiredQuantity,
+    );
+
     if (item) {
       console.log(
         `🔄 Ürün zaten sepette (Mevcut: ${item.quantity}), miktar artırılıyor.`,
       );
-      item.quantity += dto.quantity;
+      item.quantity = desiredQuantity;
     } else {
       console.log('✨ Yeni satır oluşturuluyor.');
       item = this.cartItemRepo.create({
-        variant: { id: variantId } as ProductVariant,
+        variant,
         quantity: dto.quantity,
         cart,
       });
@@ -230,8 +264,10 @@ export class CartService {
     owner: CartOwner,
     dto: UpdateItemDto,
   ): Promise<Cart> {
+    this.ensurePositiveQuantity(dto.quantity);
     const cart = await this.ensureCart(owner);
     let item: CartItem | null = null;
+    let variantId: number | undefined;
 
     if (dto.itemId) {
       item = await this.cartItemRepo.findOne({
@@ -240,8 +276,9 @@ export class CartService {
           cart: { id: cart.id },
         },
       });
+      variantId = item?.variant?.id ?? dto.variantId;
     } else {
-      const variantId = await this.resolveVariantId(dto);
+      variantId = await this.resolveVariantId(dto);
       item = await this.cartItemRepo.findOne({
         where: {
           cart: { id: cart.id },
@@ -252,7 +289,19 @@ export class CartService {
 
     if (!item) throw new NotFoundException('Ürün sepette bulunamadı');
 
+    if (!variantId) {
+      throw new BadRequestException('Variant not found for the cart item');
+    }
+
+    const variant = await this.assertStockAvailability(
+      variantId,
+      dto.quantity,
+    );
+
     item.quantity = dto.quantity;
+    if (!item.variant) {
+      item.variant = variant;
+    }
     await this.cartItemRepo.save(item);
 
     return (await this.findCart(owner))!;
@@ -265,6 +314,22 @@ export class CartService {
 
   async updateGuestItem(guestToken: string, dto: UpdateItemDto): Promise<Cart> {
     return this.updateItemForOwner({ kind: 'guest', guestToken }, dto);
+  }
+
+  async updateItemQuantity(
+    userId: number,
+    itemId: number,
+    quantity: number,
+  ): Promise<Cart> {
+    return this.updateItemForOwner({ kind: 'user', userId }, { itemId, quantity });
+  }
+
+  async updateGuestItemQuantity(
+    guestToken: string,
+    itemId: number,
+    quantity: number,
+  ): Promise<Cart> {
+    return this.updateItemForOwner({ kind: 'guest', guestToken }, { itemId, quantity });
   }
 
   private async removeItemForOwner(

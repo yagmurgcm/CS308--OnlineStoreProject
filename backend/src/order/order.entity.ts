@@ -23,7 +23,7 @@ export class Order {
   @ManyToOne(() => Cart, { nullable: true, eager: true })
   cart: Cart;
 
-  @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: true })
+  @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: false })
   details: OrderDetail[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })

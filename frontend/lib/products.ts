@@ -58,9 +58,24 @@ export function normalizeProduct(product: ProductDto): ProductRecord {
   };
 }
 
+type PagedProductsResponse = {
+  items?: ProductDto[];
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+};
+
+const toProductList = (
+  data: ProductDto[] | PagedProductsResponse | null | undefined,
+): ProductDto[] => {
+  if (Array.isArray(data)) return data;
+  return data?.items ?? [];
+};
+
 export async function fetchProducts(): Promise<ProductRecord[]> {
-  const data = await api.get<ProductDto[]>("/products");
-  return data.map(normalizeProduct);
+  const data = await api.get<ProductDto[] | PagedProductsResponse>("/products");
+  const list = toProductList(data);
+  return list.map(normalizeProduct);
 }
 
 export function getPalette(productId: number): string[] {
@@ -91,6 +106,8 @@ export async function searchProducts(query: string): Promise<ProductRecord[]> {
   const term = query.trim();
   if (!term) return [];
 
-  const data = await api.get<ProductDto[]>(`/products?search=${encodeURIComponent(term)}`);
-  return data.map(normalizeProduct);
+  const data = await api.get<ProductDto[] | PagedProductsResponse>(
+    `/products?search=${encodeURIComponent(term)}`,
+  );
+  return toProductList(data).map(normalizeProduct);
 }
