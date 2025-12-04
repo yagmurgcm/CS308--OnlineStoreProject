@@ -99,6 +99,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [guestToken, setGuestToken] = useState<string | null>(null);
+  const [mergedGuestCart, setMergedGuestCart] = useState(false);
   const mountedRef = useRef(true);
   const productCache = useRef<Map<number, ProductSummary>>(new Map());
 
@@ -116,6 +117,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setGuestToken(stored);
     }
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setMergedGuestCart(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (guestToken) {
+      setMergedGuestCart(false);
+    }
+  }, [guestToken]);
 
   const fetchProductSummary = useCallback(async (productId: number) => {
     const cached = productCache.current.get(productId);
@@ -268,6 +281,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadCart({ silent: true }).catch(() => undefined);
   }, [loadCart]);
+
+  // Merge guest cart into user cart after login
+  useEffect(() => {
+    const merge = async () => {
+      if (!userId || !guestToken || mergedGuestCart) return;
+      try {
+        await api.post<CartResponse>(`/cart/${userId}/merge-guest`, {
+          guestToken,
+        });
+        persistGuestToken(null);
+        setMergedGuestCart(true);
+        await loadCart({ silent: false });
+      } catch (error) {
+        console.error("Failed to merge guest cart", error);
+      }
+    };
+    merge();
+  }, [userId, guestToken, mergedGuestCart, loadCart, persistGuestToken]);
 
   const removeItem = useCallback(
     async (itemId: number) => {

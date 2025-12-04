@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -33,7 +37,7 @@ export class OrderService {
 
     const cart = await this.cartService.getCart(userId);
     if (!cart || !cart.items || cart.items.length === 0) {
-      throw new Error('Cart is empty');
+      throw new BadRequestException('Cart is empty');
     }
 
     const order = this.orderRepo.create({
