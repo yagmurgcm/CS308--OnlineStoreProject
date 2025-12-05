@@ -32,6 +32,33 @@ export class Order {
   @Column({ default: 'pending' })
   status: string;
 
+  @Column({ nullable: true, length: 120 })
+  contactName?: string;
+
+  @Column({ nullable: true, length: 255 })
+  contactEmail?: string;
+
+  @Column({ nullable: true, length: 30 })
+  contactPhone?: string;
+
+  @Column({ nullable: true, length: 255 })
+  shippingAddress?: string;
+
+  @Column({ nullable: true, length: 120 })
+  shippingCity?: string;
+
+  @Column({ nullable: true, length: 20 })
+  shippingPostalCode?: string;
+
+  @Column({ nullable: true, length: 120 })
+  shippingCountry?: string;
+
+  @Column({ nullable: true, length: 20 })
+  paymentBrand?: string;
+
+  @Column({ nullable: true, length: 8 })
+  paymentLast4?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -22,6 +22,7 @@ export default function CartPage() {
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   const decrease = (id: number, quantity: number) => {
     handleQuantityChange(id, quantity - 1);
@@ -70,6 +71,10 @@ export default function CartPage() {
   const handleCheckout = async () => {
     setCartError(null);
     setToastMessage(null);
+    if (!user) {
+      setShowAuthPrompt(true);
+      return;
+    }
     // Ödeme bilgileri için yeni checkout sayfasına yönlendiriyoruz
     router.push("/checkout");
   };
@@ -233,6 +238,38 @@ export default function CartPage() {
           type={toastMessage.toLowerCase().includes("success") ? "success" : "error"}
           onDismiss={() => setToastMessage(null)}
         />
+      )}
+
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-neutral-900">Sign in to checkout</h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              You need an account to place an order. Your cart items are saved.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/?auth=signin&redirect=/checkout"
+                className="btn btn-primary w-full sm:w-auto text-center"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/sign-up?redirect=/checkout"
+                className="btn btn-secondary w-full sm:w-auto text-center"
+              >
+                Create account
+              </Link>
+              <button
+                type="button"
+                className="btn btn-ghost w-full sm:w-auto"
+                onClick={() => router.push("/")}
+              >
+                Keep browsing
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

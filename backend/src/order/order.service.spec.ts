@@ -87,6 +87,15 @@ class InMemoryOrderRepository {
       cart: payload.cart!,
       status: payload.status ?? 'pending',
       totalPrice: payload.totalPrice ?? 0,
+      contactEmail: payload.contactEmail,
+      contactName: payload.contactName,
+      contactPhone: payload.contactPhone,
+      shippingAddress: payload.shippingAddress,
+      shippingCity: payload.shippingCity,
+      shippingPostalCode: payload.shippingPostalCode,
+      shippingCountry: payload.shippingCountry,
+      paymentBrand: payload.paymentBrand,
+      paymentLast4: payload.paymentLast4,
       details: payload.details ?? [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -145,6 +154,9 @@ const createService = () => {
   const usersService = {
     findById: jest.fn(),
   } as any;
+  const invoiceService = {
+    sendInvoiceEmail: jest.fn(),
+  } as any;
 
   const service = new OrderService(
     orderRepo as any,
@@ -152,6 +164,7 @@ const createService = () => {
     variantRepo as any,
     cartService,
     usersService,
+    invoiceService,
   );
 
   return {
@@ -162,6 +175,7 @@ const createService = () => {
     variantRepo,
     cartService,
     usersService,
+    invoiceService,
   };
 };
 
@@ -174,7 +188,15 @@ const buildVariant = (id: number, price: number, productName = 'Demo Product'): 
 
 describe('OrderService.checkout', () => {
   it('creates order and details with line totals and clears cart', async () => {
-    const { service, variantRepo, cartService, usersService, detailRepo, cartRepo } =
+    const {
+      service,
+      variantRepo,
+      cartService,
+      usersService,
+      detailRepo,
+      cartRepo,
+      invoiceService,
+    } =
       createService();
     variantRepo.set(buildVariant(1, 50));
     variantRepo.set(buildVariant(2, 25));
@@ -196,13 +218,34 @@ describe('OrderService.checkout', () => {
     cartService.getCart.mockResolvedValue(cartRepo.cart);
     usersService.findById.mockResolvedValue({ id: 5, email: 'buyer@example.com' });
 
-    const order = await service.checkout(5);
+    const order = await service.checkout(5, {
+      email: 'buyer@example.com',
+      fullName: 'Demo Buyer',
+      phone: '5555555',
+      address: 'Test street',
+      city: 'Istanbul',
+      postalCode: '34000',
+      country: 'Turkey',
+      cardBrand: 'Visa',
+      cardLast4: '4242',
+    });
 
     expect(order?.totalPrice).toBe(50 * 2 + 25 * 3);
     expect(detailRepo.data).toHaveLength(2);
     expect(detailRepo.data[0].lineTotal).toBe(100);
     expect(detailRepo.data[1].lineTotal).toBe(75);
     expect(cartService.clear).toHaveBeenCalledWith(5);
+    expect(invoiceService.sendInvoiceEmail).toHaveBeenCalledWith(order?.id, {
+      to: 'buyer@example.com',
+      contactName: 'Demo Buyer',
+      contactPhone: '5555555',
+      shippingAddress: 'Test street',
+      shippingCity: 'Istanbul',
+      shippingCountry: 'Turkey',
+      shippingPostalCode: '34000',
+      paymentBrand: 'Visa',
+      paymentLast4: '4242',
+    });
   });
 
   it('throws when cart is empty', async () => {

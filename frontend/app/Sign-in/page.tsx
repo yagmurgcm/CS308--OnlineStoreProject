@@ -1,10 +1,12 @@
 "use client";
+
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -74,7 +76,8 @@ export default function SignInPage() {
       });
       setEmail("");
       setPassword("");
-      router.push("/");
+      const redirectTo = searchParams.get("redirect") || "/";
+      router.push(redirectTo);
     } catch (err) {
       console.error("Signin error:", err);
       setError("Email or password is wrong");

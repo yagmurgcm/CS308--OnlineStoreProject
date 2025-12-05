@@ -23,6 +23,7 @@ const coercePrice = (value: number | string | undefined): number => {
 export function InvoiceView({ order }: InvoiceViewProps) {
   const created = order.createdAt ? new Date(order.createdAt) : null;
   const totalPrice = coercePrice(order.totalPrice);
+  const recipientEmail = order.contactEmail ?? order.user?.email;
 
   const handleDownload = () => {
     if (typeof window !== "undefined" && typeof window.print === "function") {
@@ -56,7 +57,7 @@ export function InvoiceView({ order }: InvoiceViewProps) {
             </p>
           )}
           <p className="text-sm text-emerald-700">
-            Invoice emailed to {order.user?.email || "your inbox"}.
+            Invoice emailed to {recipientEmail || "your inbox"}.
           </p>
         </div>
 

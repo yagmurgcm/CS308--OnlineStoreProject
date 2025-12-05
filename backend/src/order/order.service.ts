@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { Product } from '../product/entities/product.entity';
 import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
@@ -13,6 +14,8 @@ import { CartService } from '../cart/cart.service';
 import { UsersService } from '../users/users.service';
 import { ProductVariant } from '../product/product-variant.entity';
 import { Cart } from '../cart/entities/cart.entity';
+import { CheckoutDto } from './dto/checkout.dto';
+import { InvoiceService } from './invoice.service';
 
 @Injectable()
 export class OrderService {
@@ -28,115 +31,146 @@ export class OrderService {
 
     private readonly cartService: CartService,
     private readonly usersService: UsersService,
+    private readonly invoiceService: InvoiceService,
   ) {}
 
   // ---------------------------------------
   // Checkout (clean version)
   // ---------------------------------------
-async checkout(userId: number) {
-  const user = await this.usersService.findById(userId);
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  let createdOrder: Order | null = null;
-
-  await this.orderRepo.manager.transaction(async (manager) => {
-    const orderRepository = manager.getRepository(Order);
-    const detailRepository = manager.getRepository(OrderDetail);
-    const cartRepository = manager.getRepository(Cart);
-    const variantRepository = manager.getRepository(ProductVariant);
-
-    // 1) Kullanıcının sepetini FULL relations ile çek
-    console.log('CHECKOUT STEP 1: loading cart for user', userId);
-    const cart = await cartRepository.findOne({
-      where: { userId },
-      relations: ['items', 'items.variant', 'items.variant.product'],
-      order: { items: { id: 'ASC' } },
-    });
-
-    if (!cart || !cart.items || cart.items.length === 0) {
-      throw new BadRequestException('Cart is empty');
+  async checkout(userId: number, payload?: CheckoutDto) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-    console.log(
-      'CHECKOUT STEP 1.5: cart loaded ->',
-      cart.id,
-      'items:',
-      cart.items.length,
-    );
 
-    // 2) Order nesnesini oluştur
-    const order = orderRepository.create({
-      user,
-      status: 'pending',
-      totalPrice: 0,
-    });
+    let createdOrder: Order | null = null;
 
-    console.log('CHECKOUT STEP 2: computing total price');
+    await this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const detailRepository = manager.getRepository(OrderDetail);
+      const cartRepository = manager.getRepository(Cart);
+      const variantRepository = manager.getRepository(ProductVariant);
 
-    let totalPrice = 0;
-
-    for (const item of cart.items) {
-      const variant = await variantRepository.findOne({
-        where: { id: item.variant.id },
-        relations: ['product'],
+      // 1) Load user's cart with full relations
+      console.log('CHECKOUT STEP 1: loading cart for user', userId);
+      const cart = await cartRepository.findOne({
+        where: { userId },
+        relations: ['items', 'items.variant', 'items.variant.product'],
+        order: { items: { id: 'ASC' } },
       });
 
-      if (!variant || !variant.product) {
-        throw new NotFoundException(
-          `Variant ${item.variant.id} or its product not found`,
-        );
+      if (!cart || !cart.items || cart.items.length === 0) {
+        throw new BadRequestException('Cart is empty');
+      }
+      console.log(
+        'CHECKOUT STEP 1.5: cart loaded ->',
+        cart.id,
+        'items:',
+        cart.items.length,
+      );
+
+      // 2) Build order shell
+      const order = orderRepository.create({
+        user,
+        status: 'pending',
+        totalPrice: 0,
+        contactName: payload?.fullName,
+        contactEmail: payload?.email ?? user.email,
+        contactPhone: payload?.phone,
+        shippingAddress: payload?.address,
+        shippingCity: payload?.city,
+        shippingPostalCode: payload?.postalCode,
+        shippingCountry: payload?.country,
+        paymentBrand: payload?.cardBrand,
+        paymentLast4: payload?.cardLast4,
+      });
+
+      console.log('CHECKOUT STEP 2: computing total price');
+
+      let totalPrice = 0;
+
+      for (const item of cart.items) {
+        const variant = await variantRepository.findOne({
+          where: { id: item.variant.id },
+          relations: ['product'],
+        });
+
+        if (!variant || !variant.product) {
+          throw new NotFoundException(
+            `Variant ${item.variant.id} or its product not found`,
+          );
+        }
+
+        const price = Number(variant.price);
+        const lineTotal = price * item.quantity;
+        totalPrice += lineTotal;
       }
 
-      const price = Number(variant.price);
-      const lineTotal = price * item.quantity;
-      totalPrice += lineTotal;
+      order.totalPrice = totalPrice;
+
+      // 3) Persist order
+      console.log('CHECKOUT STEP 3: saving order...');
+      await orderRepository.save(order);
+      console.log('CHECKOUT STEP 3 DONE: order saved with id', order.id);
+
+      // 4) Persist order details
+      console.log('CHECKOUT STEP 4: inserting details...');
+
+      const detailEntities = cart.items.map((item) =>
+        detailRepository.create({
+          order: { id: order.id } as Order,
+          product: { id: item.variant.product.id } as Product,
+          quantity: item.quantity,
+          price: Number(item.variant.price),
+          lineTotal: Number(item.variant.price) * item.quantity,
+        }),
+      );
+
+      await detailRepository.insert(detailEntities);
+      console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);
+
+      // 5) Clear cart
+      console.log('CHECKOUT STEP 5: clearing cart for user', userId);
+      await this.cartService.clear(userId);
+
+      // 6) Reload order with relations
+      createdOrder = await orderRepository.findOne({
+        where: { id: order.id },
+        relations: ['details', 'details.product', 'user'],
+      });
+      console.log(
+        'CHECKOUT STEP 6: reloaded order ->',
+        createdOrder?.id,
+        'details:',
+        createdOrder?.details?.length ?? 0,
+      );
+    });
+
+    if (!createdOrder) {
+      throw new NotFoundException('Order could not be created');
     }
 
-    order.totalPrice = totalPrice;
+    const finalizedOrder = createdOrder as Order;
+    const to = payload?.email ?? finalizedOrder.contactEmail ?? user.email;
+    this.invoiceService
+      .sendInvoiceEmail(finalizedOrder.id, {
+        to,
+        contactName: payload?.fullName ?? finalizedOrder.contactName,
+        contactPhone: payload?.phone ?? finalizedOrder.contactPhone,
+        shippingAddress: payload?.address ?? finalizedOrder.shippingAddress,
+        shippingCity: payload?.city ?? finalizedOrder.shippingCity,
+        shippingCountry: payload?.country ?? finalizedOrder.shippingCountry,
+        shippingPostalCode:
+          payload?.postalCode ?? finalizedOrder.shippingPostalCode,
+        paymentBrand: payload?.cardBrand ?? finalizedOrder.paymentBrand,
+        paymentLast4: payload?.cardLast4 ?? finalizedOrder.paymentLast4,
+      })
+      .catch((err) => {
+        console.error('Failed to send invoice email', err);
+      });
 
-    // 3) Order'ı kaydet
-    console.log('CHECKOUT STEP 3: saving order...');
-    await orderRepository.save(order);
-    console.log('CHECKOUT STEP 3 DONE: order saved with id', order.id);
-
-    // 4) OrderDetail kayıtlarını ekle
-    console.log('CHECKOUT STEP 4: inserting details...');
-
-    const detailEntities = cart.items.map((item) =>
-      detailRepository.create({
-        order: { id: order.id } as Order,
-        product: { id: item.variant.product.id } as Product,
-        quantity: item.quantity,
-        price: Number(item.variant.price),
-        lineTotal: Number(item.variant.price) * item.quantity,
-      }),
-    );
-
-    await detailRepository.insert(detailEntities);
-    console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);
-
-    // 5) Sepeti temizle
-    console.log('CHECKOUT STEP 5: clearing cart for user', userId);
-    await this.cartService.clear(userId);
-
-    // 6) Geri dönerken relations'lı haliyle order'ı çek
-    createdOrder = await orderRepository.findOne({
-      where: { id: order.id },
-      relations: ['details', 'details.product', 'user'],
-    });
-    console.log(
-      'CHECKOUT STEP 6: reloaded order ->',
-      createdOrder?.id,
-      'details:',
-      createdOrder?.details?.length ?? 0,
-    );
-  });
-
-  return createdOrder;
-}
-
-
+    return finalizedOrder;
+  }
 
   async getOrdersByUser(userId: number) {
     return this.orderRepo.find({

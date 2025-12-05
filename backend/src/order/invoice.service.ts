@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import nodemailer, { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
@@ -10,6 +12,19 @@ import {
   InvoiceSummaryDto,
   InvoiceTotalsDto,
 } from './dto/invoice-summary.dto';
+
+type InvoiceEmailOptions = InvoiceBuildOptions & {
+  to?: string | null;
+  from?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  shippingAddress?: string | null;
+  shippingCity?: string | null;
+  shippingCountry?: string | null;
+  shippingPostalCode?: string | null;
+  paymentBrand?: string | null;
+  paymentLast4?: string | null;
+};
 
 @Injectable()
 export class InvoiceService {
@@ -106,16 +121,38 @@ export class InvoiceService {
     return Math.round(value * 100) / 100;
   }
 
-  async generateInvoicePdf(
-    orderId: number,
-    options: InvoiceBuildOptions = {},
-  ): Promise<Buffer> {
-    const summary = await this.buildInvoiceSummary(orderId, options);
+  private buildInvoiceLines(
+    summary: InvoiceSummaryDto,
+    options: InvoiceEmailOptions = {},
+  ): string[] {
     const lines: string[] = [];
 
     lines.push(`Invoice #${summary.orderId}`);
     lines.push(`Date: ${summary.createdAt.toISOString().substring(0, 10)}`);
     lines.push(`Customer: ${summary.customer.email ?? 'N/A'}`);
+    if (options.contactName) {
+      lines.push(`Name: ${options.contactName}`);
+    }
+    if (options.contactPhone) {
+      lines.push(`Phone: ${options.contactPhone}`);
+    }
+    if (
+      options.shippingAddress ||
+      options.shippingCity ||
+      options.shippingPostalCode ||
+      options.shippingCountry
+    ) {
+      lines.push(
+        `Ship to: ${[
+          options.shippingAddress,
+          options.shippingCity,
+          options.shippingPostalCode,
+          options.shippingCountry,
+        ]
+          .filter(Boolean)
+          .join(', ')}`,
+      );
+    }
     lines.push(' ');
     lines.push('Items:');
     summary.items.forEach((item) => {
@@ -128,6 +165,24 @@ export class InvoiceService {
       `Subtotal: ${summary.totals.subtotal.toFixed(2)}, Tax: ${summary.totals.tax.toFixed(2)}, Shipment: ${summary.totals.shipment.toFixed(2)}, Discount: ${summary.totals.discount.toFixed(2)}`,
     );
     lines.push(`Total: ${summary.totals.grandTotal.toFixed(2)}`);
+
+    if (options.paymentBrand || options.paymentLast4) {
+      lines.push(
+        `Paid with: ${options.paymentBrand ?? 'Card'} ${
+          options.paymentLast4 ? `•••• ${options.paymentLast4}` : ''
+        }`,
+      );
+    }
+
+    return lines;
+  }
+
+  async generateInvoicePdf(
+    orderId: number,
+    options: InvoiceEmailOptions = {},
+  ): Promise<Buffer> {
+    const summary = await this.buildInvoiceSummary(orderId, options);
+    const lines = this.buildInvoiceLines(summary, options);
 
     return this.buildMinimalPdf(lines);
   }
@@ -182,5 +237,155 @@ export class InvoiceService {
     pdf += `startxref\n${xrefStart}\n%%EOF`;
 
     return Buffer.from(pdf, 'utf8');
+  }
+
+  private createTransport(): Transporter | null {
+    const host = process.env.SMTP_HOST;
+    const port =
+      process.env.SMTP_PORT !== undefined ? Number(process.env.SMTP_PORT) : undefined;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!host || !port || !user || !pass) {
+      return null;
+    }
+
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+  }
+
+  private buildInvoiceEmailText(
+    summary: InvoiceSummaryDto,
+    options: InvoiceEmailOptions = {},
+  ): string {
+    const lines: string[] = [];
+    const greetingName = options.contactName ?? 'there';
+    lines.push(`Hello ${greetingName},`);
+    lines.push(`Thank you for your purchase. Your order #${summary.orderId} is confirmed.`);
+    lines.push('');
+    if (options.shippingAddress || options.shippingCity || options.shippingCountry) {
+      lines.push('Shipping details:');
+      lines.push(
+        `  ${[
+          options.shippingAddress,
+          options.shippingCity,
+          options.shippingPostalCode,
+          options.shippingCountry,
+        ]
+          .filter(Boolean)
+          .join(', ')}`,
+      );
+      lines.push('');
+    }
+    lines.push('Order summary:');
+    summary.items.forEach((item) =>
+      lines.push(
+        `  • ${item.productName} x${item.quantity} = ${item.lineTotal.toFixed(2)}`,
+      ),
+    );
+    lines.push('');
+    lines.push(
+      `Total: ${summary.totals.grandTotal.toFixed(
+        2,
+      )} (incl. tax ${summary.totals.tax.toFixed(2)})`,
+    );
+    if (options.paymentBrand || options.paymentLast4) {
+      lines.push(
+        `Paid with ${options.paymentBrand ?? 'Card'} ${
+          options.paymentLast4 ? `•••• ${options.paymentLast4}` : ''
+        }`,
+      );
+    }
+    lines.push('');
+    lines.push('Your invoice is attached as PDF.');
+    lines.push('If you have any questions, just reply to this email.');
+
+    return lines.join('\n');
+  }
+
+  private async sendViaResend(params: {
+    to: string;
+    from: string;
+    subject: string;
+    text: string;
+    html: string;
+    pdf: Buffer;
+  }): Promise<boolean> {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return false;
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: params.from,
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+      attachments: [
+        {
+          filename: `invoice-${params.subject.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`,
+          content: params.pdf, // Buffer is accepted by Resend SDK
+        },
+      ],
+    });
+    console.log('[Resend] Invoice email sent to', params.to);
+    return true;
+  }
+
+  async sendInvoiceEmail(
+    orderId: number,
+    options: InvoiceEmailOptions = {},
+  ): Promise<void> {
+    const summary = await this.buildInvoiceSummary(orderId, options);
+    const to = options.to ?? summary.customer.email;
+    if (!to) {
+      console.warn('Invoice email skipped because no recipient email was found.');
+      return;
+    }
+
+    const pdf = await this.generateInvoicePdf(orderId, options);
+    const subject = `Order #${summary.orderId} invoice`;
+    const from =
+      options.from ??
+      process.env.RESEND_FROM ??
+      process.env.SMTP_FROM ??
+      'onboarding@resend.dev';
+    const text = this.buildInvoiceEmailText(summary, options);
+    const html = `<p>${text.replace(/\n/g, '<br/>')}</p>`;
+
+    if (!process.env.RESEND_API_KEY && !this.createTransport()) {
+      console.warn('No email transport available (Resend and SMTP missing).');
+      return;
+    }
+
+    // Try Resend first
+    try {
+      const sent = await this.sendViaResend({ to, from, subject, text, html, pdf });
+      if (sent) return;
+    } catch (err) {
+      console.error('Resend invoice email failed, falling back to SMTP', err);
+    }
+
+    // Fallback to SMTP if configured
+    const transport = this.createTransport();
+    if (!transport) {
+      return;
+    }
+
+    await transport.sendMail({
+      to,
+      from,
+      subject,
+      text,
+      attachments: [
+        {
+          filename: `invoice-${summary.orderId}.pdf`,
+          content: pdf,
+        },
+      ],
+    });
   }
 }

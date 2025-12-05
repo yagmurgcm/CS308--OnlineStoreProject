@@ -1,7 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
 
 export default function SignInSheet({ open, onClose }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,13 +108,14 @@ export default function SignInSheet({ open, onClose }: Props) {
                 if (!payloadToken || !resolvedEmail) {
                   setError("Authentication failed. Please try again.");
                   return;
-                }
-                setAuthenticatedUser({
-                  name: payloadName || resolvedEmail,
-                  email: resolvedEmail,
-                  accessToken: payloadToken,
-                });
-                router.push("/");
+              }
+              setAuthenticatedUser({
+                name: payloadName || resolvedEmail,
+                email: resolvedEmail,
+                accessToken: payloadToken,
+              });
+                const redirectTo = searchParams.get("redirect") || "/";
+                router.push(redirectTo);
                 setMessage("Sign in successful");
                 setEmail("");
                 setPassword("");

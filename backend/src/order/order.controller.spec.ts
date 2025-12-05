@@ -20,6 +20,7 @@ describe('OrderController invoice endpoint', () => {
     invoiceService = {
       buildInvoiceSummary: jest.fn(),
       generateInvoicePdf: jest.fn(),
+      sendInvoiceEmail: jest.fn(),
     } as unknown as jest.Mocked<InvoiceService>;
 
     controller = new OrderController(orderService, invoiceService);

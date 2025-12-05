@@ -7,11 +7,13 @@ import {
   Res,
   UseGuards,
   ParseIntPipe,
+  Body,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InvoiceService } from './invoice.service';
+import { CheckoutDto } from './dto/checkout.dto';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -22,8 +24,8 @@ export class OrderController {
   ) {}
 
   @Post('checkout')
-  async checkout(@Req() req) {
-    return this.orderService.checkout(req.user.userId);
+  async checkout(@Req() req, @Body() checkoutDto: CheckoutDto) {
+    return this.orderService.checkout(req.user.userId, checkoutDto);
   }
 
   @Get()
