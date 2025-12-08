@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import Link from "next/link";
 import Header from "./components/Header";
 import { Providers } from "./providers";
 
@@ -89,19 +90,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div className="font-medium mb-2">Sustainability</div>
                 <ul className="space-y-1 text-white/70">
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#philosophy">
                       Our Philosophy
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#materials">
                       Materials
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#recycling">
                       Recycling
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>
