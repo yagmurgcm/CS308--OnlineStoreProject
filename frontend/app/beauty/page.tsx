@@ -5,13 +5,10 @@ import CategoryListingPage from "../components/CategoryListingPage";
 const SUB_CATEGORIES = [
   "All",
   "Skincare",
-  "Body Care",
-  "Hair Care",
   "Fragrance",
   "Bath",
-  "Tools & Accessories",
   "Makeup",
-  "Travel Sizes",
+  
 ];
 
 export default function BeautyCategoryPage() {

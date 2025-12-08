@@ -9,9 +9,7 @@ const SUB_CATEGORIES = [
   "Hoodies & Sweatshirts",
   "Jumpers & Cardigans",
   "Trousers & Shorts",
-  "Shirts",
   "Tops & T-Shirts",
-  "Polo Shirts",
   "Pyjamas & Loungewear",
 ];
 
