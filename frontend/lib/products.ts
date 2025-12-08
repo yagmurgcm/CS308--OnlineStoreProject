@@ -73,7 +73,7 @@ const toProductList = (
 };
 
 export async function fetchProducts(): Promise<ProductRecord[]> {
-  const data = await api.get<ProductDto[] | PagedProductsResponse>("/products");
+  const data = await api.get<ProductDto[] | PagedProductsResponse>("/products?limit=100");
   const list = toProductList(data);
   return list.map(normalizeProduct);
 }
@@ -107,7 +107,7 @@ export async function searchProducts(query: string): Promise<ProductRecord[]> {
   if (!term) return [];
 
   const data = await api.get<ProductDto[] | PagedProductsResponse>(
-    `/products?search=${encodeURIComponent(term)}`,
+    `/products?search=${encodeURIComponent(term)}&limit=100`,
   );
   return toProductList(data).map(normalizeProduct);
 }

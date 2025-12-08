@@ -191,8 +191,10 @@ export default function CheckoutPage() {
     const nextErrors: Record<string, string> = {};
     if (!delivery.fullName.trim()) nextErrors.fullName = "Required";
     if (!delivery.email.trim()) nextErrors.email = "Required";
-    if (!/^[0-9]{10,15}$/.test(delivery.phone.trim())) {
-      nextErrors.phone = "Enter a valid phone number";
+    // Phone: sadece rakamları say, boşluk/tire/+ temizle, 10-15 arası olmalı
+    const phoneDigits = delivery.phone.replace(/[\s\-\+\(\)]/g, "");
+    if (!/^[0-9]{10,15}$/.test(phoneDigits)) {
+      nextErrors.phone = "Enter a valid phone number (10-15 digits)";
     }
     if (!delivery.address.trim()) nextErrors.address = "Required";
     if (!delivery.city.trim()) nextErrors.city = "Required";
@@ -403,45 +405,45 @@ export default function CheckoutPage() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <input
-                  className="input sm:col-span-2"
+                  className={`input sm:col-span-2 ${errors.fullName ? "border-red-500" : ""}`}
                   placeholder="Full name"
                   value={delivery.fullName}
                   onChange={(e) => setDelivery({ ...delivery, fullName: e.target.value })}
                 />
                 <input
-                  className="input"
+                  className={`input ${errors.email ? "border-red-500" : ""}`}
                   type="email"
                   placeholder="Email"
                   value={delivery.email}
                   onChange={(e) => setDelivery({ ...delivery, email: e.target.value })}
                 />
                 <input
-                  className="input"
+                  className={`input ${errors.phone ? "border-red-500" : ""}`}
                   type="tel"
-                  placeholder="Phone"
+                  placeholder="Phone (e.g. +90 555 123 4567)"
                   value={delivery.phone}
                   onChange={(e) => setDelivery({ ...delivery, phone: e.target.value })}
                 />
                 <input
-                  className="input sm:col-span-2"
+                  className={`input sm:col-span-2 ${errors.address ? "border-red-500" : ""}`}
                   placeholder="Street address"
                   value={delivery.address}
                   onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
                 />
                 <input
-                  className="input"
+                  className={`input ${errors.city ? "border-red-500" : ""}`}
                   placeholder="City"
                   value={delivery.city}
                   onChange={(e) => setDelivery({ ...delivery, city: e.target.value })}
                 />
                 <input
-                  className="input"
+                  className={`input ${errors.postalCode ? "border-red-500" : ""}`}
                   placeholder="Postal code"
                   value={delivery.postalCode}
                   onChange={(e) => setDelivery({ ...delivery, postalCode: e.target.value })}
                 />
                 <select
-                  className="input"
+                  className={`input ${errors.country ? "border-red-500" : ""}`}
                   value={delivery.country}
                   onChange={(e) => setDelivery({ ...delivery, country: e.target.value })}
                 >
@@ -456,7 +458,18 @@ export default function CheckoutPage() {
                 </select>
               </div>
               {Object.keys(errors).length > 0 && (
-                <p className="text-sm text-red-600">Please fix highlighted fields before continuing.</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  <p className="font-medium mb-1">Please fix the following:</p>
+                  <ul className="space-y-1">
+                    {errors.fullName && <li>• Full name is required</li>}
+                    {errors.email && <li>• Email is required</li>}
+                    {errors.phone && <li>• {errors.phone}</li>}
+                    {errors.address && <li>• Address is required</li>}
+                    {errors.city && <li>• City is required</li>}
+                    {errors.postalCode && <li>• Postal code is required</li>}
+                    {errors.country && <li>• Country is required</li>}
+                  </ul>
+                </div>
               )}
               <div className="flex justify-end">
                 <button

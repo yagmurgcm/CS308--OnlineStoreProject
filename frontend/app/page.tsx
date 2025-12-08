@@ -9,15 +9,15 @@ import { fetchProducts } from "@/lib/products";
 
 // --- SABİT DATA ---
 const featured = [
-  { title: "Women's Coats", img: "/images/1.jpg" },
-  { title: "Men's Knitwear", img: "/images/2.jpg" },
-  { title: "Home Fragrance", img: "/images/3.jpg" },
-  { title: "Storage Essentials", img: "/images/4.jpg" },
-  { title: "Beauty Picks", img: "/images/5.jpg" },
-  { title: "Desk Refresh", img: "/images/d1.jpg" },
-  { title: "Travel Organisers", img: "/images/d2.jpg" },
-  { title: "Soft Bedding", img: "/images/d3.png" },
-  { title: "Minimal Decor", img: "/images/d4.jpg" },
+  { title: "Women's Coats", img: "/images/1.jpg", url: "/women/coats" },
+  { title: "Men's Knitwear", img: "/images/2.jpg", url: "/men/knitwear" },
+  { title: "Home Fragrance", img: "/images/3.jpg", url: "/home/fragrance" },
+  { title: "Storage Essentials", img: "/images/4.jpg", url: "/home/storage" },
+  { title: "Beauty Picks", img: "/images/5.jpg", url: "/beauty" },
+  { title: "Desk Refresh", img: "/images/d1.jpg", url: "/home/desk" },
+  { title: "Travel Organisers", img: "/images/d2.jpg", url: "/travel" },
+  { title: "Soft Bedding", img: "/images/d3.png", url: "/home/bedding" },
+  { title: "Minimal Decor", img: "/images/d4.jpg", url: "/home/decor" },
 ];
 
 const explore = [
@@ -33,21 +33,25 @@ const stories = [
     title: "Autumn in Japan: Season of Quiet",
     cta: "Read the story",
     img: "/images/sonbahar.jpg",
+    url: "https://www.japan-guide.com/e/e2273.html",  // Working Autumn foliage in Japan guide
   },
   {
     title: "Inside the Atelier: Crafting Linen",
     cta: "Discover the process",
     img: "/images/d3.png",
+    url: "https://steamerystockholm.com/everything-you-need-to-know-linen",  // Linen care guide
   },
   {
     title: "Everyday Storage Tips",
     cta: "Get the guide",
     img: "/images/d4.jpg",
+    url: "https://www.theessentialman.com/blog/mens-style-beginners",  // Men's style beginners blog
   },
   {
     title: "Daily Rituals: Calm Mornings",
     cta: "Explore routines",
     img: "/images/d5.jpg",
+    url: "https://www.truehealthcorner.com/self-care-morning-routine",  // Updated to self-care morning routine guide
   },
 ];
 
@@ -106,7 +110,7 @@ export default function HomePage() {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl md:text-2xl font-semibold">Featured this week</h2>
-            <Link href="#" className="underline underline-offset-4 text-sm">
+            <Link href="/categories" className="underline underline-offset-4 text-sm">
               See all
             </Link>
           </div>
@@ -114,7 +118,7 @@ export default function HomePage() {
             {featured.map((item, i) => (
               <Link
                 key={i}
-                href="#"
+                href={item.url}
                 className="flex-none rounded-lg border border-[var(--line)] bg-white w-[280px] lg:w-[320px] p-4 snap-start"
               >
                 <div
@@ -125,24 +129,6 @@ export default function HomePage() {
               </Link>
             ))}
           </Scroller>
-        </section>
-
-        {/* Wide banner */}
-        <section>
-          <div className="rounded-lg border border-[var(--line)] overflow-hidden bg-white">
-            <div className="h-52 md:h-72 bg-[var(--background)] grid place-items-center border-b border-[var(--line)] text-[13px] tracking-[0.18em] text-[var(--muted)] uppercase">
-              Bedding / Linen / Towels
-            </div>
-            <div className="p-6 md:p-8 flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-semibold">A cosy autumn.</h3>
-                <p className="text-[var(--muted)]">Shop the edit / Home fragrance / Linen</p>
-              </div>
-              <Link href="#" className="underline underline-offset-4">
-                Shop now
-              </Link>
-            </div>
-          </div>
         </section>
 
         {/* New Arrivals */}
@@ -232,7 +218,9 @@ export default function HomePage() {
             {stories.map((story, i) => (
               <Link
                 key={i}
-                href="#"
+                href={story.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-lg border border-[var(--line)] overflow-hidden bg-white"
               >
                 <div
