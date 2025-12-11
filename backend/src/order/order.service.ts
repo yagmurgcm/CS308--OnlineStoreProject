@@ -118,15 +118,15 @@ export class OrderService {
 
       const detailEntities = cart.items.map((item) =>
         detailRepository.create({
-          order: { id: order.id } as Order,
-          product: { id: item.variant.product.id } as Product,
+          orderId: order.id,
+          productId: item.variant.product.id,
           quantity: item.quantity,
           price: Number(item.variant.price),
           lineTotal: Number(item.variant.price) * item.quantity,
         }),
       );
 
-      await detailRepository.insert(detailEntities);
+      await detailRepository.save(detailEntities);
       console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);
 
       // 5) Clear cart
