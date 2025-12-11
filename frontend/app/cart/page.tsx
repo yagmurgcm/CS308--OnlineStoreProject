@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import Toast from "../components/Toast";
-import { checkoutOrder } from "@/lib/orders";
 
 // 1. DÜZELTME: Değişken adını 'formatter' yaptık ve TRY (TL) ayarladık
 const formatter = new Intl.NumberFormat("tr-TR", {
@@ -18,12 +17,12 @@ const formatter = new Intl.NumberFormat("tr-TR", {
 export default function CartPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { items, subtotal, updateQuantity, removeItem, reload } = useCart();
+  const { items, subtotal, updateQuantity, removeItem } = useCart();
   const hasItems = items.length > 0;
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   const decrease = (id: number, quantity: number) => {
     handleQuantityChange(id, quantity - 1);
@@ -72,25 +71,12 @@ export default function CartPage() {
   const handleCheckout = async () => {
     setCartError(null);
     setToastMessage(null);
-    setCheckoutLoading(true);
-    try {
-      const order = await checkoutOrder();
-      await reload();
-      setToastMessage("Order placed successfully. Redirecting to invoice…");
-      if (order?.id) {
-        router.push(`/account/orders/${order.id}/invoice`);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Checkout failed";
-      const normalized =
-        message === CART_AUTH_ERROR
-          ? "Please sign in to checkout."
-          : message;
-      setToastMessage(normalized);
-    } finally {
-      setCheckoutLoading(false);
+    if (!user) {
+      setShowAuthPrompt(true);
+      return;
     }
+    // Ödeme bilgileri için yeni checkout sayfasına yönlendiriyoruz
+    router.push("/checkout");
   };
 
   return (
@@ -231,10 +217,10 @@ export default function CartPage() {
 
           <button
             className="btn btn-primary w-full"
-            disabled={!hasItems || checkoutLoading}
+            disabled={!hasItems}
             onClick={handleCheckout}
           >
-            {checkoutLoading ? "Processing..." : "Continue to checkout"}
+            Continue to checkout
           </button>
 
           <div className="text-center text-xs text-neutral-500">
@@ -252,6 +238,38 @@ export default function CartPage() {
           type={toastMessage.toLowerCase().includes("success") ? "success" : "error"}
           onDismiss={() => setToastMessage(null)}
         />
+      )}
+
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-neutral-900">Sign in to checkout</h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              You need an account to place an order. Your cart items are saved.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/?auth=signin&redirect=/checkout"
+                className="btn btn-primary w-full sm:w-auto text-center"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/sign-up?redirect=/checkout"
+                className="btn btn-secondary w-full sm:w-auto text-center"
+              >
+                Create account
+              </Link>
+              <button
+                type="button"
+                className="btn btn-ghost w-full sm:w-auto"
+                onClick={() => router.push("/")}
+              >
+                Keep browsing
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

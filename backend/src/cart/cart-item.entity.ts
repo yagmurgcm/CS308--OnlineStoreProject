@@ -17,12 +17,10 @@ export class CartItem {
   @JoinColumn({ name: 'cartId' })
   cart: Cart;
 
-  @ManyToOne(() => ProductVariant, { eager: true, onDelete: 'RESTRICT' })
+  @ManyToOne(() => ProductVariant, { eager: true})
   @JoinColumn({ name: 'variantId' })
   variant: ProductVariant;
 
   @Column('int', { default: 1 })
   quantity: number;
-
-  
 }

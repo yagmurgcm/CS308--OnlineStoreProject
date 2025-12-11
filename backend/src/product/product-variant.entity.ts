@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
-  JoinColumn
+  JoinColumn,
 } from 'typeorm';
 import { Product } from './entities/product.entity'; // Import yolunu projene göre kontrol et
 
@@ -15,10 +15,8 @@ export class ProductVariant {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Product, (product) => product.variants, {
-    onDelete: 'CASCADE', // Ürün silinirse varyantları da silinsin
-    eager: true, // 🔥 Sepete eklerken product bilgisi de gelsin
-  })
+@ManyToOne(() => Product, (product) => product.variants, { eager: true })
+
   @JoinColumn({ name: 'productId' }) // Veritabanında productId adında sütun oluşturur
   product: Product;
 

@@ -1,10 +1,11 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import Link from "next/link";
 import Header from "./components/Header";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "FATIH-style",
+  title: "MKN-style",
   description: "Simple, functional, affordable.",
 };
 
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <footer className="mt-16 bg-[#1f1f1f] text-white">
             <div className="container-base grid gap-8 md:grid-cols-4 py-12 text-sm">
               <div>
-                <div className="font-medium mb-2">FATIH Membership</div>
+                <div className="font-medium mb-2">MKN Membership</div>
                 <p className="text-white/70 mb-4">
                   Become a member and receive {`\u20BA`}300 off your first online purchase over {`\u20BA`}1500.
                 </p>
@@ -46,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </form>
               </div>
               <div>
-                <div className="font-medium mb-2">Shopping with FATIH</div>
+                <div className="font-medium mb-2">Shopping with MKN</div>
                 <ul className="space-y-1 text-white/70">
                   <li>
                     <a className="underline underline-offset-4" href="#">
@@ -70,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <ul className="space-y-1 text-white/70">
                   <li>
                     <a className="underline underline-offset-4" href="#">
-                      About FATIH
+                      About MKN
                     </a>
                   </li>
                   <li>
@@ -89,25 +90,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div className="font-medium mb-2">Sustainability</div>
                 <ul className="space-y-1 text-white/70">
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#philosophy">
                       Our Philosophy
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#materials">
                       Materials
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a className="underline underline-offset-4" href="#">
+                    <Link className="underline underline-offset-4" href="/sustainability#recycling">
                       Recycling
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>
             </div>
             <div className="border-t border-white/10 py-6 text-center text-xs text-white/60">
-              &copy; {currentYear} FATIH-style
+              &copy; {currentYear} MKN-style
             </div>
           </footer>
         </Providers>

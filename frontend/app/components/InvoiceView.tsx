@@ -1,6 +1,7 @@
 "use client";
 
-import { OrderSummary } from "@/lib/orders";
+import { useState } from "react";
+import { fetchInvoicePdf, OrderSummary } from "@/lib/orders";
 
 type InvoiceViewProps = {
   order: OrderSummary;
@@ -23,10 +24,30 @@ const coercePrice = (value: number | string | undefined): number => {
 export function InvoiceView({ order }: InvoiceViewProps) {
   const created = order.createdAt ? new Date(order.createdAt) : null;
   const totalPrice = coercePrice(order.totalPrice);
+  const recipientEmail = order.contactEmail ?? order.user?.email;
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
-  const handleDownload = () => {
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
+  const handleDownload = async () => {
+    if (!order?.id) return;
+    setDownloadError(null);
+    setDownloading(true);
+
+    try {
+      const pdfBlob = await fetchInvoicePdf(order.id);
+      const url = URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `invoice-${order.id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Invoice download failed", error);
+      setDownloadError("Unable to download invoice. Please try again.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -56,7 +77,7 @@ export function InvoiceView({ order }: InvoiceViewProps) {
             </p>
           )}
           <p className="text-sm text-emerald-700">
-            Invoice emailed to {order.user?.email || "your inbox"}.
+            Invoice emailed to {recipientEmail || "your inbox"}.
           </p>
         </div>
 
@@ -68,9 +89,13 @@ export function InvoiceView({ order }: InvoiceViewProps) {
             type="button"
             onClick={handleDownload}
             className="btn btn-primary"
+            disabled={downloading}
           >
-            Download PDF
+            {downloading ? "Preparing..." : "Download PDF"}
           </button>
+          {downloadError && (
+            <p className="text-xs text-red-600">{downloadError}</p>
+          )}
         </div>
       </header>
 

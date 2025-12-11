@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { SignUpDto } from './dto/signup.dto';
@@ -50,7 +54,9 @@ export class AuthService {
     // 2) Yoksa UsersService.findByEmail'i şunun gibi yazdığından emin ol:
     // findOne({ where: { email }, select: ['id','email','password','name', ...] })
 
-    const user = await this.usersService.findByEmail(dto.email, { withHash: true });
+    const user = await this.usersService.findByEmail(dto.email, {
+      withHash: true,
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(dto.password, user.password); // <-- düzeltildi

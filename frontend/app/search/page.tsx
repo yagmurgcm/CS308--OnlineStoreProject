@@ -32,7 +32,10 @@ export function SearchExperience({
   const lastSearchedRef = useRef<string>("");
 
   const runSearch = useCallback(
-    (term: string, options?: { immediate?: boolean }) => {
+    (
+      term: string,
+      options?: { immediate?: boolean; skipNavigate?: boolean },
+    ) => {
       setQuery(term);
 
       if (debounceRef.current) {
@@ -55,7 +58,9 @@ export function SearchExperience({
           setResults(data);
           setStatus("success");
           lastSearchedRef.current = trimmed;
-          onNavigate?.(trimmed);
+          if (!options?.skipNavigate) {
+            onNavigate?.(trimmed);
+          }
         } catch (error) {
           setStatus("error");
           lastSearchedRef.current = trimmed;
@@ -84,7 +89,7 @@ export function SearchExperience({
 
   useEffect(() => {
     if (initialQuery) {
-      runSearch(initialQuery, { immediate: true });
+      runSearch(initialQuery, { immediate: true, skipNavigate: true });
     } else {
       setResults([]);
       setStatus("idle");

@@ -1,9 +1,11 @@
 import { Type } from 'class-transformer';
 import {
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Min,
 } from 'class-validator';
 
 export class GetProductsQueryDto {
@@ -22,17 +24,12 @@ export class GetProductsQueryDto {
   size?: string;
 
   @IsOptional()
-  @IsIn(['price_asc', 'price_desc'])
-  sort?: 'price_asc' | 'price_desc';
+  @IsIn(['price_asc', 'price_desc', 'rating', 'popularity'])
+  sort?: 'price_asc' | 'price_desc' | 'rating' | 'popularity';
 
   @IsOptional()
   @IsString()
   category?: string;
-
-
-
-
-  
 
   @IsOptional()
   @IsString()
@@ -42,5 +39,15 @@ export class GetProductsQueryDto {
   @IsString()
   search?: string;
 
-}
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+}

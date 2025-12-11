@@ -1,6 +1,5 @@
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 
-
 // Signup data validation (name, email, password)
 
 export class SignUpDto {
@@ -13,4 +12,3 @@ export class SignUpDto {
   @MinLength(6)
   password: string;
 }
-

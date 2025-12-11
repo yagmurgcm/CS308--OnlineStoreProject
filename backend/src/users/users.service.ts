@@ -13,7 +13,10 @@ export class UsersService {
     return this.repo.findOne({ where: { id } });
   }
 
-  async findByEmail(email: string, opts?: { withHash?: boolean }): Promise<User | null> {
+  async findByEmail(
+    email: string,
+    opts?: { withHash?: boolean },
+  ): Promise<User | null> {
     if (opts?.withHash) {
       return this.repo.findOne({
         where: { email },

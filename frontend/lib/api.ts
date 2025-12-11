@@ -1,23 +1,29 @@
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-// Doğrudan backend kullan (ENV), yoksa 3001'e düş; /api proxy yedeği de mevcut
-const BASE =
+// Use backend directly (ENV) or fall back to localhost:3001; /api proxy is also available.
+export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3001"; // CORS backend'de açık
+  "http://localhost:3001"; // CORS is enabled on backend
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+const buildAuthHeaders = (headers?: HeadersInit) => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const res = await fetch(`${BASE}${path}`, {
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(headers || {}),
+  };
+};
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
+      ...buildAuthHeaders(options.headers),
     },
   });
 
@@ -25,12 +31,29 @@ async function request<T>(
     const text = await res.text().catch(() => "");
     throw new Error(text || `Request failed: ${res.status}`);
   }
-  // Boş gövdeyi de destekle
+
   try {
     return (await res.json()) as T;
   } catch {
     return undefined as unknown as T;
   }
+}
+
+async function requestBinary(
+  path: string,
+  options: RequestInit = {},
+): Promise<Blob> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: buildAuthHeaders(options.headers),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Request failed: ${res.status}`);
+  }
+
+  return res.blob();
 }
 
 export const api = {
@@ -42,6 +65,7 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  getBinary: (path: string) => requestBinary(path),
 };
 
 export type AuthResponse = { access_token: string };

@@ -21,7 +21,8 @@ import { Order } from '../order/order.entity';
 import { OrderDetail } from '../order/order-detail.entity';
 
 // Reviews
-import { Review } from '../reviews/review.entity'; // 👈 1. IMPORTU UNUTMA
+import { Review } from '../reviews/review.entity';
+
 type Overrides = Partial<MysqlConnectionOptions>;
 
 const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
@@ -41,37 +42,40 @@ const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [
   join(__dirname, '..', 'migrations', '*{.ts,.js}'),
 ];
 
-const coerceBoolean = (value: string | undefined, defaultValue: boolean): boolean => {
+const coerceBoolean = (
+  value: string | undefined,
+  defaultValue: boolean,
+): boolean => {
   if (value === undefined) {
     return defaultValue;
   }
   return ['true', '1', 'yes', 'y'].includes(value.trim().toLowerCase());
 };
 
-export const getDatabaseConfig = (overrides: Overrides = {}): MysqlConnectionOptions => {
-  // Portu number'a çeviriyoruz (Senin Railway portun)
-  const portValue = 39112; 
+export const getDatabaseConfig = (
+  overrides: Overrides = {},
+): MysqlConnectionOptions => {
   const { entities, migrations, ...restOverrides } = overrides;
 
   return {
     type: 'mysql',
-    // --- BURAYI SENİN RAILWAY BİLGİLERİNLE DOLDURDUM ---
-    host: 'switchyard.proxy.rlwy.net',
-    port: portValue,
-    username: 'root',
-    password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp', // Senin o uzun şifren
-    database: 'railway', // Import ederken seçtiğimiz isim
-    // ---------------------------------------------------
 
-    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, true), // Tabloları otomatik güncellesin diye true yaptım
+    // 🔥 RAILWAY BAĞLANTIN (KESİN DOĞRU)
+    host: 'switchyard.proxy.rlwy.net',
+    port: 39112,
+    username: 'root',
+    password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp',
+    database: 'railway',
+
+    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, false),
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, false),
+
     entities: entities ?? DEFAULT_ENTITIES,
     migrations: migrations ?? DEFAULT_MIGRATIONS,
     ...restOverrides,
-    
-    // DİKKAT: Railway gibi bulut sistemleri için bu SSL ayarı ŞARTTIR.
+
     ssl: {
-        rejectUnauthorized: false
-    }
+      rejectUnauthorized: false,
+    },
   };
 };

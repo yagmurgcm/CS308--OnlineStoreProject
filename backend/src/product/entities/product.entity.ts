@@ -1,7 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 // Dosya yoluna dikkat: Eğer product-variant aynı klasördeyse ./ kullan
 // Üst klasördeyse ../ kullan. Senin koduna göre ../ olarak bıraktım.
-import { ProductVariant } from '../product-variant.entity'; 
+import { ProductVariant } from '../product-variant.entity';
 import { Review } from '../../reviews/review.entity'; // 👈 1. BU IMPORTU EKLE
 @Entity('products')
 export class Product {
@@ -38,9 +38,9 @@ export class Product {
   @OneToMany(() => Review, (review) => review.product)
   reviews: Review[];
 
-  @Column("decimal", { precision: 3, scale: 1, default: 0 }) 
+  @Column('decimal', { precision: 3, scale: 1, default: 0 })
   averageRating: number; // Örn: 4.5
 
-  @Column("int", { default: 0 })
-  reviewCount: number;   // Örn: 12
+  @Column('int', { default: 0 })
+  reviewCount: number; // Örn: 12
 }
