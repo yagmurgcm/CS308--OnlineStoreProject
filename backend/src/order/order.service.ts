@@ -38,7 +38,15 @@ export class OrderService {
   // Checkout (clean version)
   // ---------------------------------------
   async checkout(userId: number, payload?: CheckoutDto) {
+    console.log("DEBUG >>> Checkout çağrıldı");
+    console.log("DEBUG >>> Backend'e gelen userId:", userId);
+    console.log("DEBUG >>> Using DB host:", process.env.DB_HOST);
+    console.log("DEBUG >>> Using DB username:", process.env.DB_USERNAME);
+    console.log("DEBUG >>> Using DB database:", process.env.DB_DATABASE);
+
     const user = await this.usersService.findById(userId);
+    console.log("DEBUG >>> DB'den bulunan user:", user?.id, user?.email);
+
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -72,6 +80,7 @@ export class OrderService {
       // 2) Build order shell
       const order = orderRepository.create({
         user,
+        userId,
         status: 'pending',
         totalPrice: 0,
         contactName: payload?.fullName,
@@ -84,6 +93,7 @@ export class OrderService {
         paymentBrand: payload?.cardBrand,
         paymentLast4: payload?.cardLast4,
       });
+      order.userId = userId;
 
       console.log('CHECKOUT STEP 2: computing total price');
 
@@ -174,7 +184,7 @@ export class OrderService {
 
   async getOrdersByUser(userId: number) {
     return this.orderRepo.find({
-      where: { user: { id: userId } },
+      where: { userId },
       order: { createdAt: 'DESC' },
       relations: ['details', 'details.product'],
     });

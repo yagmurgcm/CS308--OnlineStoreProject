@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import ProductRightSide from "../../components/ProductRightSide"; 
 // Yorum bileşenini çağırıyoruz
 import ProductReviews from "../../components/product/product-reviews";
+import ProductWarrantyDistributorTab from "../../components/product/product-warranty-distributor-tab";
 
 type Product = {
   id: number;
@@ -76,6 +77,10 @@ export default async function ProductDetailPage({ params }: Props) {
           Grid bittikten sonra buraya ekliyoruz.
           Böylece resim ve detayın altına iniyor.
       */}
+      <div className="mt-10">
+        <ProductWarrantyDistributorTab />
+      </div>
+
       <div className="mt-10">
         <ProductReviews productId={product.id} />
       </div>

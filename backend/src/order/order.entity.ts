@@ -6,58 +6,58 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
-
 import { User } from '../users/user.entity';
 import { OrderDetail } from './order-detail.entity';
-import { Cart } from '../cart/entities/cart.entity';
 
-@Entity()
+@Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.orders, { eager: true })
-  user: User;
-
-  @ManyToOne(() => Cart, { nullable: true, eager: true })
-  cart: Cart;
-
-  @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: false })
-  details: OrderDetail[];
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 2 })
   totalPrice: number;
 
-  @Column({ default: 'pending' })
+  @Column({ nullable: true })
   status: string;
 
-  @Column({ nullable: true, length: 120 })
-  contactName?: string;
+  @Column({ nullable: true })
+  shippingAddress: string;
 
-  @Column({ nullable: true, length: 255 })
-  contactEmail?: string;
+  @Column({ nullable: true })
+  shippingCity: string;
 
-  @Column({ nullable: true, length: 30 })
-  contactPhone?: string;
+  @Column({ nullable: true })
+  shippingPostalCode: string;
 
-  @Column({ nullable: true, length: 255 })
-  shippingAddress?: string;
+  @Column({ nullable: true })
+  shippingCountry: string;
 
-  @Column({ nullable: true, length: 120 })
-  shippingCity?: string;
+  @Column({ nullable: true })
+  paymentBrand: string;
 
-  @Column({ nullable: true, length: 20 })
-  shippingPostalCode?: string;
+  @Column({ nullable: true })
+  paymentLast4: string;
 
-  @Column({ nullable: true, length: 120 })
-  shippingCountry?: string;
+  @Column()
+  userId: number;
 
-  @Column({ nullable: true, length: 20 })
-  paymentBrand?: string;
+  @Column({ nullable: true })
+  contactName: string;
 
-  @Column({ nullable: true, length: 8 })
-  paymentLast4?: string;
+  @Column({ nullable: true })
+  contactEmail: string;
+
+  @Column({ nullable: true })
+  contactPhone: string;
+
+  @ManyToOne(() => User, (user) => user.orders)
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @OneToMany(() => OrderDetail, (detail) => detail.order, { cascade: true })
+  details: OrderDetail[];
 
   @CreateDateColumn()
   createdAt: Date;

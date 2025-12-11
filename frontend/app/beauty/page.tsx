@@ -4,11 +4,9 @@ import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
   "All",
-  "Skincare",
+  "Care",
   "Fragrance",
-  "Bath",
-  "Makeup",
-  
+  "Accessories",
 ];
 
 export default function BeautyCategoryPage() {
@@ -23,4 +21,3 @@ export default function BeautyCategoryPage() {
     />
   );
 }
-

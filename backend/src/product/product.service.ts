@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
 import { Product } from './entities/product.entity';
@@ -121,5 +121,21 @@ export class ProductService {
     if (result.affected === 0) {
       throw new NotFoundException(`Product #${id} not found`);
     }
+  }
+
+  async searchByKeyword(keyword?: string): Promise<Product[]> {
+    const term = keyword?.trim();
+    if (!term) {
+      return [];
+    }
+
+    return this.productRepository.find({
+      where: [
+        { name: ILike(`%${term}%`) },
+        { description: ILike(`%${term}%`) },
+      ],
+      order: { id: 'ASC' },
+      take: 20,
+    });
   }
 }
