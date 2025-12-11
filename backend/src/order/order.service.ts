@@ -88,6 +88,7 @@ export class OrderService {
       console.log('CHECKOUT STEP 2: computing total price');
 
       let totalPrice = 0;
+      const detailEntities: OrderDetail[] = [];
 
       for (const item of cart.items) {
         const variant = await variantRepository.findOne({
@@ -101,9 +102,28 @@ export class OrderService {
           );
         }
 
+        if (variant.stock < item.quantity) {
+          throw new BadRequestException(
+            `Insufficient stock for variant ${variant.id}`,
+          );
+        }
+
+        variant.stock -= item.quantity;
+        await variantRepository.save(variant);
+
         const price = Number(variant.price);
         const lineTotal = price * item.quantity;
         totalPrice += lineTotal;
+
+        detailEntities.push(
+          detailRepository.create({
+            orderId: order.id,
+            productId: variant.product.id,
+            quantity: item.quantity,
+            price,
+            lineTotal,
+          }),
+        );
       }
 
       order.totalPrice = totalPrice;
@@ -115,16 +135,6 @@ export class OrderService {
 
       // 4) Persist order details
       console.log('CHECKOUT STEP 4: inserting details...');
-
-      const detailEntities = cart.items.map((item) =>
-        detailRepository.create({
-          orderId: order.id,
-          productId: item.variant.product.id,
-          quantity: item.quantity,
-          price: Number(item.variant.price),
-          lineTotal: Number(item.variant.price) * item.quantity,
-        }),
-      );
 
       await detailRepository.save(detailEntities);
       console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);

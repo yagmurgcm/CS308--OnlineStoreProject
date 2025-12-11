@@ -6,6 +6,12 @@ import { OrderDetail } from './order-detail.entity';
 import { ProductVariant } from '../product/product-variant.entity';
 import { Cart } from '../cart/entities/cart.entity';
 
+jest.mock('./invoice.service', () => ({
+  InvoiceService: jest.fn().mockImplementation(() => ({
+    sendInvoiceEmail: jest.fn(),
+  })),
+}));
+
 class InMemoryOrderDetailRepository {
   data: OrderDetail[] = [];
   private seq = 1;
@@ -64,6 +70,7 @@ class InMemoryOrderRepository {
   constructor(
     private readonly detailRepo: InMemoryOrderDetailRepository,
     private readonly cartRepo: InMemoryCartRepository,
+    private readonly variantRepo: InMemoryVariantRepository,
   ) {}
 
   manager = {
@@ -73,6 +80,7 @@ class InMemoryOrderRepository {
           if (entity === Order) return this;
           if (entity === OrderDetail) return this.detailRepo;
           if (entity === Cart) return this.cartRepo;
+          if (entity === ProductVariant) return this.variantRepo;
           return null;
         },
       };
@@ -139,13 +147,18 @@ class InMemoryVariantRepository {
   async findOne(options: { where: { id: number }; relations?: string[] }): Promise<ProductVariant | null> {
     return this.data.get(options.where.id) ?? null;
   }
+
+  async save(variant: ProductVariant): Promise<ProductVariant> {
+    this.data.set(variant.id, variant);
+    return variant;
+  }
 }
 
 const createService = () => {
   const detailRepo = new InMemoryOrderDetailRepository();
   const cartRepo = new InMemoryCartRepository();
-  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo);
   const variantRepo = new InMemoryVariantRepository();
+  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo, variantRepo);
 
   const cartService = {
     getCart: jest.fn(),
@@ -155,7 +168,7 @@ const createService = () => {
     findById: jest.fn(),
   } as any;
   const invoiceService = {
-    sendInvoiceEmail: jest.fn(),
+    sendInvoiceEmail: jest.fn().mockResolvedValue(undefined),
   } as any;
 
   const service = new OrderService(
@@ -179,10 +192,16 @@ const createService = () => {
   };
 };
 
-const buildVariant = (id: number, price: number, productName = 'Demo Product'): ProductVariant =>
+const buildVariant = (
+  id: number,
+  price: number,
+  stock = 10,
+  productName = 'Demo Product',
+): ProductVariant =>
   ({
     id,
     price,
+    stock,
     product: { id: id * 10, name: productName } as any,
   }) as ProductVariant;
 
@@ -266,5 +285,40 @@ describe('OrderService.checkout', () => {
     cartService.getCart.mockResolvedValue(cartRepo.cart);
 
     await expect(service.checkout(5)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('decrements variant stock per line item', async () => {
+    const { service, variantRepo, cartRepo, cartService, usersService } = createService();
+    variantRepo.set(buildVariant(1, 50, 5));
+    variantRepo.set(buildVariant(2, 25, 3));
+
+    cartRepo.cart = {
+      id: 1,
+      items: [
+        { variant: { id: 1 }, quantity: 2 },
+        { variant: { id: 2 }, quantity: 3 },
+      ],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 7, email: 'stock@example.com' });
+
+    await service.checkout(7);
+
+    expect(variantRepo.data.get(1)?.stock).toBe(3);
+    expect(variantRepo.data.get(2)?.stock).toBe(0);
+  });
+
+  it('rejects checkout when stock is insufficient', async () => {
+    const { service, variantRepo, cartRepo, cartService, usersService } = createService();
+    variantRepo.set(buildVariant(5, 120, 1));
+
+    cartRepo.cart = {
+      id: 2,
+      items: [{ variant: { id: 5 }, quantity: 2 }],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 9, email: 'low@example.com' });
+
+    await expect(service.checkout(9)).rejects.toBeInstanceOf(BadRequestException);
   });
 });

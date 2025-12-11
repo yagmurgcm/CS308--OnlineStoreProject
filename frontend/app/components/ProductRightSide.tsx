@@ -31,6 +31,9 @@ const fmt = new Intl.NumberFormat("tr-TR", {
   currency: "TRY",
 });
 
+const STANDARD_SIZES = ["XS", "S", "M", "L", "XL"];
+const normalizeSize = (size?: string | null) => (size ?? "").trim().toUpperCase();
+
 export default function ProductRightSide({ product }: { product: Product }) {
   // Rating value
   const ratingValue = Number(product.averageRating || 0);
@@ -45,10 +48,39 @@ export default function ProductRightSide({ product }: { product: Product }) {
     return Array.from(new Set(colors)); // Unique yap
   }, [variants]);
 
-  // Mevcut tüm bedenleri bul (Tekrar edenleri temizle)
-  const availableSizes = useMemo(() => {
-    const sizes = variants.map((v) => v.size).filter(Boolean);
-    return Array.from(new Set(sizes)); // Unique yap
+  // Beden seçeneklerini standart listeye göre sırala; olmayanları disable et
+  const sizeOptions = useMemo(() => {
+    const variantMap = new Map<string, { label: string; variants: ProductVariant[] }>();
+
+    variants.forEach((variant) => {
+      const key = normalizeSize(variant.size);
+      if (!key) return;
+      const entry = variantMap.get(key) ?? { label: variant.size, variants: [] };
+      entry.variants.push(variant);
+      variantMap.set(key, entry);
+    });
+
+    const standard = STANDARD_SIZES.map((label) => {
+      const key = normalizeSize(label);
+      const entry = variantMap.get(key);
+      return {
+        key,
+        label,
+        hasVariant: Boolean(entry),
+        variants: entry?.variants ?? [],
+      };
+    });
+
+    const extras = Array.from(variantMap.entries())
+      .filter(([key]) => !STANDARD_SIZES.map(normalizeSize).includes(key))
+      .map(([key, entry]) => ({
+        key,
+        label: entry.label || key,
+        hasVariant: true,
+        variants: entry.variants,
+      }));
+
+    return [...standard, ...extras];
   }, [variants]);
 
   // Varsayılan seçimleri yap (Listenin ilk elemanını seç)
@@ -62,18 +94,22 @@ export default function ProductRightSide({ product }: { product: Product }) {
     if (availableColors.length > 0 && !selectedColor) {
       setSelectedColor(availableColors[0]);
     }
-    if (availableSizes.length > 0 && !selectedSize) {
-      // Hatalı satır silindi, sadece bu kalmalı:
-      setSelectedSize(availableSizes[0]);
+    if (!selectedSize) {
+      const firstWithVariant = sizeOptions.find((opt) => opt.hasVariant);
+      if (firstWithVariant) {
+        setSelectedSize(firstWithVariant.key);
+      }
     }
-  }, [availableColors, availableSizes]); // Dependency array'i de bu şekilde sadeleştirebilirsin
+  }, [availableColors, selectedColor, selectedSize, sizeOptions]); // Dependency array'i de bu şekilde sadeleştirebilirsin
 
   const { addItemToWishlist } = useWishlist();
   const [isInWishlist, setIsInWishlist] = useState(false);
 
   // Seçili varyantı bul
   const selectedVariant = variants.find(
-    (v) => v.color === selectedColor && v.size === selectedSize
+    (v) =>
+      v.color === selectedColor &&
+      normalizeSize(v.size) === normalizeSize(selectedSize)
   );
 
   // Stok ve Fiyat Belirle
@@ -207,26 +243,31 @@ export default function ProductRightSide({ product }: { product: Product }) {
         </div>
       )}
 
-      {/* BEDEN SEÇİMİ (Database'den gelenler) */}
-      {availableSizes.length > 0 && (
+      {/* BEDEN SEÇİMİ (Standart + mevcut varyantlar) */}
+      {sizeOptions.length > 0 && (
         <div className="mb-8">
           <div className="flex justify-between items-end mb-3">
              <p className="text-sm font-bold">Size: <span className="font-normal text-gray-600 ml-1">{selectedSize}</span></p>
              <button className="text-xs text-gray-500 underline decoration-gray-400">Size Chart</button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {availableSizes.map((size) => (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(size)}
-                className={`h-12 w-14 flex items-center justify-center text-sm font-medium border transition-colors
-                  ${selectedSize === size 
-                    ? 'border-black bg-black text-white' 
-                    : 'border-gray-300 bg-white text-gray-900 hover:border-black'}`}
-              >
-                {size}
-              </button>
-            ))}
+            {sizeOptions.map((option) => {
+              const isActive = selectedSize === option.key;
+              return (
+                <button
+                  key={option.key}
+                  onClick={() => option.hasVariant && setSelectedSize(option.key)}
+                  disabled={!option.hasVariant}
+                  className={`h-12 w-14 flex items-center justify-center text-sm font-medium border transition-colors
+                    ${isActive 
+                      ? 'border-black bg-black text-white' 
+                      : 'border-gray-300 bg-white text-gray-900 hover:border-black'}
+                    ${!option.hasVariant ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
