@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import nodemailer, { Transporter } from 'nodemailer';
-import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
 
 import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
@@ -307,7 +307,7 @@ export class InvoiceService {
     return lines.join('\n');
   }
 
-  private async sendViaResend(params: {
+  private async sendViaSendGrid(params: {
     to: string;
     from: string;
     subject: string;
@@ -315,24 +315,34 @@ export class InvoiceService {
     html: string;
     pdf: Buffer;
   }): Promise<boolean> {
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = process.env.SENDGRID_API_KEY;
     if (!apiKey) return false;
-    const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from: params.from,
-      to: params.to,
-      subject: params.subject,
-      text: params.text,
-      html: params.html,
-      attachments: [
-        {
-          filename: `invoice-${params.subject.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`,
-          content: params.pdf, // Buffer is accepted by Resend SDK
-        },
-      ],
-    });
-    console.log('[Resend] Invoice email sent to', params.to);
-    return true;
+
+    try {
+      sgMail.setApiKey(apiKey);
+      await sgMail.send({
+        to: params.to,
+        from: params.from,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+        attachments: [
+          {
+            filename: `invoice-${params.subject.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`,
+            content: params.pdf.toString('base64'),
+            type: 'application/pdf',
+            disposition: 'attachment',
+          },
+        ],
+      });
+      console.log('[SendGrid] Invoice email sent to', params.to);
+      return true;
+    } catch (err) {
+      const responseBody =
+        (err as { response?: { body?: unknown } })?.response?.body;
+      console.error('SendGrid invoice email failed', responseBody ?? err);
+      return false;
+    }
   }
 
   async sendInvoiceEmail(
@@ -350,23 +360,35 @@ export class InvoiceService {
     const subject = `Order #${summary.orderId} invoice`;
     const from =
       options.from ??
-      process.env.RESEND_FROM ??
+      process.env.SENDGRID_FROM_EMAIL ??
       process.env.SMTP_FROM ??
       'onboarding@resend.dev';
     const text = this.buildInvoiceEmailText(summary, options);
     const html = `<p>${text.replace(/\n/g, '<br/>')}</p>`;
 
-    if (!process.env.RESEND_API_KEY && !this.createTransport()) {
-      console.warn('No email transport available (Resend and SMTP missing).');
+    if (
+      !process.env.SENDGRID_API_KEY &&
+      !this.createTransport()
+    ) {
+      console.warn(
+        'No email transport available (SendGrid and SMTP missing).',
+      );
       return;
     }
 
-    // Try Resend first
+    // Try SendGrid
     try {
-      const sent = await this.sendViaResend({ to, from, subject, text, html, pdf });
+      const sent = await this.sendViaSendGrid({
+        to,
+        from,
+        subject,
+        text,
+        html,
+        pdf,
+      });
       if (sent) return;
     } catch (err) {
-      console.error('Resend invoice email failed, falling back to SMTP', err);
+      console.error('SendGrid invoice email failed, falling back to SMTP', err);
     }
 
     // Fallback to SMTP if configured
