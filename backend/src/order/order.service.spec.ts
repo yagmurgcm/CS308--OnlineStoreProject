@@ -48,6 +48,10 @@ class InMemoryOrderDetailRepository {
   async find(): Promise<OrderDetail[]> {
     return this.data;
   }
+
+  async insert(details: OrderDetail[]): Promise<void> {
+    await this.save(details);
+  }
 }
 
 class InMemoryCartRepository {
@@ -58,12 +62,31 @@ class InMemoryCartRepository {
   }
 }
 
+class InMemoryProductRepository {
+  data = new Map<number, any>();
+
+  set(product: any) {
+    this.data.set(product.id, product);
+  }
+
+  async findOne(options: { where: { id: number } }): Promise<any | null> {
+    return this.data.get(options.where.id) ?? null;
+  }
+
+  async save(product: any): Promise<any> {
+    this.data.set(product.id, product);
+    return product;
+  }
+}
+
 class InMemoryOrderRepository {
   data: Order[] = [];
   private seq = 1;
   constructor(
     private readonly detailRepo: InMemoryOrderDetailRepository,
     private readonly cartRepo: InMemoryCartRepository,
+    private readonly variantRepo: InMemoryVariantRepository,
+    private readonly productRepo: InMemoryProductRepository,
   ) {}
 
   manager = {
@@ -73,6 +96,8 @@ class InMemoryOrderRepository {
           if (entity === Order) return this;
           if (entity === OrderDetail) return this.detailRepo;
           if (entity === Cart) return this.cartRepo;
+          if (entity?.name === 'ProductVariant') return this.variantRepo;
+          if (entity?.name === 'Product') return this.productRepo;
           return null;
         },
       };
@@ -139,13 +164,19 @@ class InMemoryVariantRepository {
   async findOne(options: { where: { id: number }; relations?: string[] }): Promise<ProductVariant | null> {
     return this.data.get(options.where.id) ?? null;
   }
+
+  async save(variant: ProductVariant): Promise<ProductVariant> {
+    this.data.set(variant.id, variant);
+    return variant;
+  }
 }
 
 const createService = () => {
   const detailRepo = new InMemoryOrderDetailRepository();
   const cartRepo = new InMemoryCartRepository();
-  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo);
   const variantRepo = new InMemoryVariantRepository();
+  const productRepo = new InMemoryProductRepository();
+  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo, variantRepo, productRepo);
 
   const cartService = {
     getCart: jest.fn(),
@@ -176,14 +207,21 @@ const createService = () => {
     cartService,
     usersService,
     invoiceService,
+    productRepo,
   };
 };
 
-const buildVariant = (id: number, price: number, productName = 'Demo Product'): ProductVariant =>
+const buildVariant = (
+  id: number,
+  price: number,
+  stock = 10,
+  productName = 'Demo Product',
+): ProductVariant =>
   ({
     id,
     price,
-    product: { id: id * 10, name: productName } as any,
+    stock,
+    product: { id: id * 10, name: productName, stock: 100 } as any,
   }) as ProductVariant;
 
 describe('OrderService.checkout', () => {
@@ -266,5 +304,74 @@ describe('OrderService.checkout', () => {
     cartService.getCart.mockResolvedValue(cartRepo.cart);
 
     await expect(service.checkout(5)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('decrements variant and product stock on checkout', async () => {
+    const { service, variantRepo, productRepo, cartRepo, cartService, usersService } = createService();
+    const variant = buildVariant(1, 100, 5);
+    variantRepo.set(variant);
+    productRepo.set({ id: variant.product.id, stock: 10 });
+
+    cartRepo.cart = {
+      id: 1,
+      items: [{ variant: { id: variant.id }, quantity: 2 }],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 1, email: 'buyer@example.com' });
+
+    await service.checkout(1);
+
+    expect(variantRepo.data.get(variant.id)?.stock).toBe(3);
+    expect(productRepo.data.get(variant.product.id)?.stock).toBe(8);
+  });
+
+  it('throws when requested quantity exceeds stock', async () => {
+    const { service, variantRepo, cartRepo, cartService, usersService } = createService();
+    variantRepo.set(buildVariant(1, 50, 1));
+
+    cartRepo.cart = {
+      id: 1,
+      items: [{ variant: { id: 1 }, quantity: 2 }],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 1 });
+
+    await expect(service.checkout(1)).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('OrderService.updateStatus', () => {
+  it('updates status when order exists and status is allowed', async () => {
+    const { service, orderRepo } = createService();
+    const order = await orderRepo.save({
+      id: 0,
+      status: 'processing',
+      user: { id: 1 } as any,
+      cart: null as any,
+      totalPrice: 0,
+    } as any);
+
+    const updated = await service.updateStatus(order.id, { status: 'in-transit' });
+    expect(updated.status).toBe('in-transit');
+  });
+
+  it('throws when status is invalid', async () => {
+    const { service, orderRepo } = createService();
+    const order = await orderRepo.save({
+      id: 0,
+      status: 'processing',
+      user: { id: 1 } as any,
+      cart: null as any,
+      totalPrice: 0,
+    } as any);
+
+    await expect(service.updateStatus(order.id, { status: 'bad-status' } as any)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('throws when order is not found', async () => {
+    const { service } = createService();
+    await expect(service.updateStatus(999, { status: 'delivered' })).rejects.toBeInstanceOf(NotFoundException);
   });
 });
