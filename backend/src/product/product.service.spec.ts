@@ -219,4 +219,31 @@ describe('ProductService - pagination and sorting', () => {
 
     expect(result.items.map((p) => p.id)).toEqual([2, 3, 1]);
   });
+
+  it('applies price range filters together', async () => {
+    const products = [
+      buildProduct(1, { variants: [{ id: 1, color: 'Red', size: 'M', price: 50, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(2, { variants: [{ id: 2, color: 'Red', size: 'M', price: 120, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(3, { variants: [{ id: 3, color: 'Red', size: 'M', price: 200, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+    ];
+    const { service } = createService(products);
+
+    const result = await service.findAll({ minPrice: 100, maxPrice: 150 });
+
+    expect(result.items.map((p) => p.id)).toEqual([2]);
+    expect(result.totalCount).toBe(1);
+  });
+
+  it('sorts by rating descending', async () => {
+    const products = [
+      buildProduct(1, { averageRating: 3.2 }),
+      buildProduct(2, { averageRating: 4.8 }),
+      buildProduct(3, { averageRating: 4.1 }),
+    ];
+    const { service } = createService(products);
+
+    const result = await service.findAll({ sort: 'rating' });
+
+    expect(result.items.map((p) => p.id)).toEqual([2, 3, 1]);
+  });
 });
