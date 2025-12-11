@@ -16,6 +16,7 @@ import { ProductVariant } from '../product/product-variant.entity';
 import { Cart } from '../cart/entities/cart.entity';
 import { CheckoutDto } from './dto/checkout.dto';
 import { InvoiceService } from './invoice.service';
+import { UpdateOrderStatusDto } from './dto/update-status.dto';
 
 @Injectable()
 export class OrderService {
@@ -50,6 +51,7 @@ export class OrderService {
       const detailRepository = manager.getRepository(OrderDetail);
       const cartRepository = manager.getRepository(Cart);
       const variantRepository = manager.getRepository(ProductVariant);
+      const productRepository = manager.getRepository(Product);
 
       // 1) Load user's cart with full relations
       console.log('CHECKOUT STEP 1: loading cart for user', userId);
@@ -72,7 +74,7 @@ export class OrderService {
       // 2) Build order shell
       const order = orderRepository.create({
         user,
-        status: 'pending',
+        status: 'processing', // sipariş sonrası işleme alındı
         totalPrice: 0,
         contactName: payload?.fullName,
         contactEmail: payload?.email ?? user.email,
@@ -101,9 +103,28 @@ export class OrderService {
           );
         }
 
+        if (item.quantity > variant.stock) {
+          throw new BadRequestException(
+            `Insufficient stock for variant ${variant.id}`,
+          );
+        }
+
         const price = Number(variant.price);
         const lineTotal = price * item.quantity;
         totalPrice += lineTotal;
+
+        // stok düşümü
+        variant.stock -= item.quantity;
+        await variantRepository.save(variant);
+
+        // ürün toplam stokunu da azalt (0 altına düşmesin)
+        const product = await productRepository.findOne({
+          where: { id: variant.product.id },
+        });
+        if (product) {
+          product.stock = Math.max(0, (product.stock ?? 0) - item.quantity);
+          await productRepository.save(product);
+        }
       }
 
       order.totalPrice = totalPrice;
@@ -170,6 +191,20 @@ export class OrderService {
       });
 
     return finalizedOrder;
+  }
+
+  async updateStatus(id: number, dto: UpdateOrderStatusDto) {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const allowed = ['processing', 'in-transit', 'delivered'];
+    if (!allowed.includes(dto.status)) {
+      throw new BadRequestException('Invalid status');
+    }
+    order.status = dto.status;
+    await this.orderRepo.save(order);
+    return order;
   }
 
   async getOrdersByUser(userId: number) {

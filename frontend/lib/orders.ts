@@ -49,10 +49,19 @@ export type CheckoutPayload = {
   cardLast4?: string;
 };
 
+export type OrderStatus = "processing" | "in-transit" | "delivered";
+
 export async function fetchOrderById(orderId: number | string) {
   return api.get<OrderSummary>(`/orders/${orderId}`);
 }
 
 export async function checkoutOrder(payload?: CheckoutPayload) {
   return api.post<OrderSummary>("/orders/checkout", payload);
+}
+
+export async function updateOrderStatus(
+  orderId: number | string,
+  status: OrderStatus
+) {
+  return api.patch<OrderSummary>(`/orders/${orderId}/status`, { status });
 }

@@ -6,6 +6,8 @@ import {
   Param,
   UseGuards,
   Request,
+  Patch,
+  NotFoundException,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -35,5 +37,33 @@ export class ReviewsController {
   @Get(':productId')
   findAll(@Param('productId') productId: string) {
     return this.reviewsService.findAllByProduct(+productId);
+  }
+
+  // Onay bekleyen yorumları listele (demo için)
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findPending() {
+    return this.reviewsService.findPending();
+  }
+
+  // Onaylama / reddetme (demo için auth ile kısıtlı)
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/approve')
+  async approve(@Param('id') id: string) {
+    try {
+      return await this.reviewsService.approve(+id);
+    } catch (e) {
+      throw new NotFoundException(e.message);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/decline')
+  async decline(@Param('id') id: string) {
+    try {
+      return await this.reviewsService.decline(+id);
+    } catch (e) {
+      throw new NotFoundException(e.message);
+    }
   }
 }

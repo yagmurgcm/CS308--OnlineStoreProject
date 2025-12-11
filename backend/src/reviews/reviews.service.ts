@@ -25,7 +25,7 @@ export class ReviewsService {
     const newReview = this.reviewsRepository.create({
       rating,
       comment,
-      isApproved: true, // ⚠️ DİKKAT: Test için şimdilik 'true' yap, yoksa puan hesaplanmaz
+      isApproved: false, // yorum onay beklesin
       productId: productId,
       product: { id: productId },
       userId: userId,
@@ -34,7 +34,7 @@ export class ReviewsService {
 
     const savedReview = await this.reviewsRepository.save(newReview);
 
-    // 🔥 EKLENDİ: Yorum kaydedilince Ürünün Puanını Güncelle
+    // Puanı hemen yansıt
     await this.updateProductStats(productId);
 
     return savedReview;
@@ -55,12 +55,11 @@ export class ReviewsService {
   // 👇 EKLENDİ: İŞTE SİHRİ YAPAN FONKSİYON BU
   // Bu fonksiyon veritabanındaki tüm yorumları tarar, ortalamayı bulur ve Ürüne yazar.
   private async updateProductStats(productId: number) {
-    const stats = await this.reviewsRepository // reviewsRepository kullanıyoruz çünkü yorumları sayacağız
+    const stats = await this.reviewsRepository
       .createQueryBuilder('review')
       .select('AVG(review.rating)', 'avg')
       .addSelect('COUNT(review.id)', 'count')
       .where('review.productId = :id', { id: productId })
-      .andWhere('review.isApproved = :approved', { approved: true }) // Sadece onaylılar puana etki etsin
       .getRawOne();
 
     const avgRating = stats.avg ? parseFloat(stats.avg).toFixed(1) : 0;
@@ -75,5 +74,35 @@ export class ReviewsService {
     console.log(
       `✅ Ürün #${productId} güncellendi -> Puan: ${avgRating}, Sayı: ${reviewCount}`,
     );
+  }
+
+  async findPending() {
+    return this.reviewsRepository.find({
+      where: { isApproved: false },
+      order: { createdAt: 'DESC' },
+      relations: ['user', 'product'],
+    });
+  }
+
+  async approve(id: number) {
+    const review = await this.reviewsRepository.findOne({ where: { id } });
+    if (!review) {
+      throw new Error('Review not found');
+    }
+    review.isApproved = true;
+    await this.reviewsRepository.save(review);
+    await this.updateProductStats(review.productId);
+    return review;
+  }
+
+  async decline(id: number) {
+    const review = await this.reviewsRepository.findOne({ where: { id } });
+    if (!review) {
+      throw new Error('Review not found');
+    }
+    review.isApproved = false;
+    await this.reviewsRepository.save(review);
+    await this.updateProductStats(review.productId);
+    return review;
   }
 }

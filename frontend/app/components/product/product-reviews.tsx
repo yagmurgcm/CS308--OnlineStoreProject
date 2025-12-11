@@ -118,21 +118,21 @@ export default function ProductReviews({ productId }: { productId: number }) {
               <p className="text-sm">Please sign in to write a review.</p>
             </div>
           ) : submitStatus === "success" ? (
-             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <div className="flex justify-center mb-2">
-                    <CheckCircle className="text-green-600" />
-                </div>
-                <h4 className="text-green-800 font-medium">Thank you!</h4>
-                <p className="text-green-700 text-sm mt-1">
-                    Your review has been submitted successfully!
-                </p>
-                <button 
-                    onClick={() => setSubmitStatus("idle")}
-                    className="mt-4 text-xs text-green-800 underline hover:text-green-900"
-                >
-                    Write another review
-                </button>
-             </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="flex justify-center mb-2">
+                <CheckCircle className="text-green-600" />
+              </div>
+              <h4 className="text-green-800 font-medium">Thank you!</h4>
+              <p className="text-green-700 text-sm mt-1">
+                Your review is submitted and will appear after approval.
+              </p>
+              <button
+                onClick={() => setSubmitStatus("idle")}
+                className="mt-4 text-xs text-green-800 underline hover:text-green-900"
+              >
+                Write another review
+              </button>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {submitStatus === "error" && (

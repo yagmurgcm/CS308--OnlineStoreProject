@@ -8,12 +8,14 @@ import {
   UseGuards,
   ParseIntPipe,
   Body,
+  Patch,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InvoiceService } from './invoice.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { UpdateOrderStatusDto } from './dto/update-status.dto';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -36,6 +38,14 @@ export class OrderController {
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.getOrderById(id);
+  }
+
+  @Patch(':id/status')
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    return this.orderService.updateStatus(id, dto);
   }
 
   @Get(':id/invoice')
