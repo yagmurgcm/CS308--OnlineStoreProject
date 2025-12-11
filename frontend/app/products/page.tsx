@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import Toast from "../components/Toast";
+import { fetchProducts, type ProductSort } from "@/lib/products";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 
 type Product = {
@@ -21,6 +22,30 @@ const fmt = new Intl.NumberFormat("tr-TR", {
   currency: "TRY",
 });
 
+export function SortSelect({
+  value,
+  onChange,
+}: {
+  value: ProductSort | "";
+  onChange: (val: ProductSort | "") => void;
+}) {
+  return (
+    <select
+      className="select select-bordered select-sm"
+      value={value}
+      onChange={(e) => onChange(e.target.value as ProductSort | "")}
+      aria-label="Sort products"
+      data-testid="sort-select"
+    >
+      <option value="">Sort</option>
+      <option value="price_asc">Price: Low to High</option>
+      <option value="price_desc">Price: High to Low</option>
+      <option value="popularity">Popularity</option>
+      <option value="rating">Rating</option>
+    </select>
+  );
+}
+
 export default function ProductsPage() {
   const router = useRouter();
   const { addItem } = useCart();
@@ -29,6 +54,9 @@ export default function ProductsPage() {
   const [loadError, setLoadError] = useState<string>("");
   const [actionError, setActionError] = useState<string>("");
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<ProductSort | "">("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -36,7 +64,11 @@ export default function ProductsPage() {
       setLoadError("");
       setActionError("");
       try {
-        const data = await api.get<Product[]>("/products");
+        const data = await fetchProducts({
+          search: search.trim() || undefined,
+          sort: sort || undefined,
+          limit: 100,
+        });
         setProducts(data);
       } catch (e) {
         setLoadError(e instanceof Error ? e.message : "Failed to load products");
@@ -45,13 +77,15 @@ export default function ProductsPage() {
       }
     };
     load();
-  }, []);
+  }, [search, sort]);
 
   async function addToCart(productId: number) {
+    const product = products.find((p) => p.id === productId);
     try {
       setActionError("");
       setAddingId(productId);
       await addItem({ productId, quantity: 1 });
+      setToastMessage(product ? `Added ${product.name} to cart` : "Added to cart");
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to add to cart";
       if (message === CART_AUTH_ERROR) {
@@ -94,9 +128,21 @@ export default function ProductsPage() {
               Browse everything in one place. Add items to your cart without leaving the grid.
             </p>
           </div>
-          <Link href="/cart" className="btn btn-primary">
-            Go to cart
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--line)] bg-white px-3 py-2 shadow-sm">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products..."
+                className="w-48 bg-transparent text-sm outline-none"
+                aria-label="Search products"
+              />
+            </div>
+            <SortSelect value={sort} onChange={(v) => setSort(v)} />
+            <Link href="/cart" className="btn btn-primary">
+              Go to cart
+            </Link>
+          </div>
         </header>
 
         {products.length === 0 ? (
@@ -178,6 +224,14 @@ export default function ProductsPage() {
           </>
         )}
       </section>
+
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type="success"
+          onDismiss={() => setToastMessage(null)}
+        />
+      )}
     </main>
   );
 }

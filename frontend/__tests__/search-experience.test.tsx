@@ -42,4 +42,24 @@ describe("SearchExperience", () => {
     expect(searchFn).toHaveBeenCalledWith("shoes");
     expect(onNavigate).toHaveBeenCalledWith("shoes");
   });
+
+  it("does not call search when input is cleared", async () => {
+    const searchFn = jest.fn().mockResolvedValue([]);
+    render(<SearchExperience initialQuery="" searchFn={searchFn} />);
+    const input = screen.getByTestId("search-input");
+
+    fireEvent.change(input, { target: { value: "bag" } });
+    act(() => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS + 10);
+    });
+    await waitFor(() => expect(searchFn).toHaveBeenCalledWith("bag"));
+
+    fireEvent.change(input, { target: { value: " " } });
+    act(() => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS + 10);
+    });
+
+    // no new call after clearing
+    expect(searchFn).toHaveBeenCalledTimes(1);
+  });
 });

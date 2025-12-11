@@ -72,8 +72,19 @@ const toProductList = (
   return data?.items ?? [];
 };
 
-export async function fetchProducts(): Promise<ProductRecord[]> {
-  const data = await api.get<ProductDto[] | PagedProductsResponse>("/products?limit=100");
+export type ProductSort = "price_asc" | "price_desc" | "rating" | "popularity";
+
+export async function fetchProducts(params?: {
+  search?: string;
+  sort?: ProductSort;
+  limit?: number;
+}): Promise<ProductRecord[]> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.search) query.set("search", params.search);
+  if (params?.sort) query.set("sort", params.sort);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const data = await api.get<ProductDto[] | PagedProductsResponse>(`/products${suffix || "?limit=100"}`);
   const list = toProductList(data);
   return list.map(normalizeProduct);
 }
@@ -106,8 +117,5 @@ export async function searchProducts(query: string): Promise<ProductRecord[]> {
   const term = query.trim();
   if (!term) return [];
 
-  const data = await api.get<ProductDto[] | PagedProductsResponse>(
-    `/products?search=${encodeURIComponent(term)}&limit=100`,
-  );
-  return toProductList(data).map(normalizeProduct);
+  return fetchProducts({ search: term, limit: 100 });
 }
