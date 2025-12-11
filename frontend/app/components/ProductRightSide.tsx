@@ -154,16 +154,31 @@ export default function ProductRightSide({ product }: { product: Product }) {
           </span>
         </div>
         
-        {/* STOK BİLGİSİ */}
-        <div className="mt-2 text-sm transition-all duration-300">
-             {/* Varyant seçili değilse veya stok yoksa */}
-             {!selectedVariant || isOutOfStock ? (
-                <span className="text-red-600 font-bold">⚠️ Out of Stock</span>
-             ) : (
-                <span className="text-green-700 font-medium">
-                   ✅ In Stock: <span className="font-bold text-lg">{currentStock}</span> items left
-                </span>
-             )}
+        {/* STOK BİLGİSİ - Demo Senaryosuna Uygun */}
+        <div className="mt-3 text-sm">
+          {!selectedVariant || isOutOfStock ? (
+            // OUT OF STOCK
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+              <span className="text-red-700 font-bold">Out of Stock</span>
+            </div>
+          ) : currentStock <= 5 ? (
+            // LOW STOCK - Turuncu uyarı
+            <div className="flex items-center gap-2 bg-orange-50 border border-orange-300 rounded-lg px-4 py-3">
+              <span className="inline-block w-3 h-3 rounded-full bg-orange-500 animate-pulse"></span>
+              <span className="text-orange-700 font-bold">
+                ⚠️ Hurry! Only {currentStock} {currentStock === 1 ? 'unit' : 'units'} left in stock!
+              </span>
+            </div>
+          ) : (
+            // HIGH STOCK
+            <div className="flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span>
+              <span className="text-green-700 font-medium">
+                In Stock <span className="text-gray-500">({currentStock} available)</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

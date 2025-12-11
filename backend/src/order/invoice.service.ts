@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import nodemailer, { Transporter } from 'nodemailer';
 import sgMail from '@sendgrid/mail';
-import PDFDocument from 'pdfkit';
 
 import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
@@ -27,19 +26,10 @@ type InvoiceEmailOptions = InvoiceBuildOptions & {
   paymentLast4?: string | null;
 };
 
-// MKN Brand Colors
-const BRAND_COLOR = '#8a0012'; // Bordo
-const TEXT_COLOR = '#111111';
-const MUTED_COLOR = '#6b7280';
-const LINE_COLOR = '#eaeaea';
-
-// Currency formatter - TL
-const formatCurrency = (amount: number): string => {
-  return `${amount.toFixed(2)} TL`;
-};
-
 @Injectable()
 export class InvoiceService {
+  private readonly defaultTaxRate = 0.18;
+
   constructor(
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
@@ -61,7 +51,7 @@ export class InvoiceService {
     }
 
     const details = await this.orderDetailRepo.find({
-      where: { orderId },
+      where: { order: { id: orderId } },
       relations: ['product'],
       order: { id: 'ASC' },
     });
@@ -103,10 +93,11 @@ export class InvoiceService {
     const subtotal = this.roundCurrency(
       items.reduce((acc, item) => acc + item.lineTotal, 0),
     );
-    const tax = 0;
+    const taxRate = options.taxRate ?? this.defaultTaxRate;
+    const tax = this.roundCurrency(subtotal * taxRate);
     const discount = this.roundCurrency(options.discount ?? 0);
     const shipment = this.roundCurrency(options.shipment ?? 0);
-    const grandTotal = this.roundCurrency(subtotal + shipment - discount);
+    const grandTotal = this.roundCurrency(subtotal + tax + shipment - discount);
 
     return {
       subtotal,
@@ -130,305 +121,122 @@ export class InvoiceService {
     return Math.round(value * 100) / 100;
   }
 
+  private buildInvoiceLines(
+    summary: InvoiceSummaryDto,
+    options: InvoiceEmailOptions = {},
+  ): string[] {
+    const lines: string[] = [];
+
+    lines.push(`Invoice #${summary.orderId}`);
+    lines.push(`Date: ${summary.createdAt.toISOString().substring(0, 10)}`);
+    lines.push(`Customer: ${summary.customer.email ?? 'N/A'}`);
+    if (options.contactName) {
+      lines.push(`Name: ${options.contactName}`);
+    }
+    if (options.contactPhone) {
+      lines.push(`Phone: ${options.contactPhone}`);
+    }
+    if (
+      options.shippingAddress ||
+      options.shippingCity ||
+      options.shippingPostalCode ||
+      options.shippingCountry
+    ) {
+      lines.push(
+        `Ship to: ${[
+          options.shippingAddress,
+          options.shippingCity,
+          options.shippingPostalCode,
+          options.shippingCountry,
+        ]
+          .filter(Boolean)
+          .join(', ')}`,
+      );
+    }
+    lines.push(' ');
+    lines.push('Items:');
+    summary.items.forEach((item) => {
+      lines.push(
+        `${item.productName} x${item.quantity} @ ${item.unitPrice.toFixed(2)} = ${item.lineTotal.toFixed(2)}`,
+      );
+    });
+    lines.push(' ');
+    lines.push(
+      `Subtotal: ${summary.totals.subtotal.toFixed(2)}, Tax: ${summary.totals.tax.toFixed(2)}, Shipment: ${summary.totals.shipment.toFixed(2)}, Discount: ${summary.totals.discount.toFixed(2)}`,
+    );
+    lines.push(`Total: ${summary.totals.grandTotal.toFixed(2)}`);
+
+    if (options.paymentBrand || options.paymentLast4) {
+      lines.push(
+        `Paid with: ${options.paymentBrand ?? 'Card'} ${
+          options.paymentLast4 ? `•••• ${options.paymentLast4}` : ''
+        }`,
+      );
+    }
+
+    return lines;
+  }
+
   async generateInvoicePdf(
     orderId: number,
     options: InvoiceEmailOptions = {},
   ): Promise<Buffer> {
     const summary = await this.buildInvoiceSummary(orderId, options);
+    const lines = this.buildInvoiceLines(summary, options);
 
-    // Order'dan bilgileri al (options boşsa)
-    const order = await this.orderRepo.findOne({
-      where: { id: orderId },
-      relations: ['user'],
-    });
+    return this.buildMinimalPdf(lines);
+  }
 
-    const contactName = options.contactName ?? order?.contactName ?? '';
-    const contactPhone = options.contactPhone ?? order?.contactPhone ?? '';
-    const contactEmail = options.to ?? order?.contactEmail ?? summary.customer.email ?? '';
-    const shippingAddress = options.shippingAddress ?? order?.shippingAddress ?? '';
-    const shippingCity = options.shippingCity ?? order?.shippingCity ?? '';
-    const shippingPostalCode = options.shippingPostalCode ?? order?.shippingPostalCode ?? '';
-    const shippingCountry = options.shippingCountry ?? order?.shippingCountry ?? '';
-    const paymentBrand = options.paymentBrand ?? order?.paymentBrand ?? '';
-    const paymentLast4 = options.paymentLast4 ?? order?.paymentLast4 ?? '';
+  private escapePdfText(text: string): string {
+    return text.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+  }
 
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        info: {
-          Title: `Invoice #${summary.orderId}`,
-          Author: 'MKN Store',
-        },
-      });
-
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-
-      const pageWidth = doc.page.width;
-      const marginLeft = 50;
-      const marginRight = 50;
-      const contentWidth = pageWidth - marginLeft - marginRight;
-
-      // ========== HEADER ==========
-      // Bordo banner
-      doc.rect(0, 0, pageWidth, 80).fill(BRAND_COLOR);
-
-      // MKN Logo
-      doc.fontSize(28).fillColor('#ffffff').font('Helvetica-Bold');
-      doc.text('MKN', marginLeft, 28, { characterSpacing: 8 });
-
-      // Invoice title
-      doc.fontSize(12).fillColor('#ffffff').font('Helvetica');
-      doc.text('INVOICE', pageWidth - marginRight - 80, 32, { width: 80, align: 'right' });
-
-      // ========== INVOICE INFO ==========
-      let y = 110;
-
-      doc.fillColor(TEXT_COLOR).font('Helvetica-Bold').fontSize(11);
-      doc.text(`Invoice #${summary.orderId}`, marginLeft, y);
-
-      doc.font('Helvetica').fontSize(10).fillColor(MUTED_COLOR);
-      doc.text(
-        `Date: ${summary.createdAt.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        })}`,
-        marginLeft,
-        y + 18,
-      );
-
-      // ========== BILLING / SHIPPING INFO ==========
-      y = 170;
-
-      // Left column - Bill To
-      doc.fillColor(TEXT_COLOR).font('Helvetica-Bold').fontSize(10);
-      doc.text('BILL TO', marginLeft, y);
-
-      doc.font('Helvetica').fontSize(10).fillColor(TEXT_COLOR);
-      y += 18;
-      
-      if (contactName) {
-        doc.text(contactName, marginLeft, y);
-        y += 14;
-      }
-      if (contactEmail) {
-        doc.text(contactEmail, marginLeft, y);
-        y += 14;
-      }
-      if (contactPhone) {
-        doc.text(contactPhone, marginLeft, y);
-        y += 14;
-      }
-
-      // Right column - Ship To
-      const rightColX = pageWidth / 2 + 20;
-      let yRight = 170;
-
-      doc.fillColor(TEXT_COLOR).font('Helvetica-Bold').fontSize(10);
-      doc.text('SHIP TO', rightColX, yRight);
-
-      doc.font('Helvetica').fontSize(10).fillColor(TEXT_COLOR);
-      yRight += 18;
-
-      const hasShippingInfo = shippingAddress || shippingCity || shippingPostalCode || shippingCountry;
-
-      if (hasShippingInfo) {
-        if (shippingAddress) {
-          doc.text(shippingAddress, rightColX, yRight, { width: 200 });
-          yRight += 14;
+  private buildMinimalPdf(lines: string[]): Buffer {
+    const textCommands = lines
+      .map((line, idx) => {
+        const escaped = this.escapePdfText(line);
+        if (idx === 0) {
+          return `(${escaped}) Tj`;
         }
-        if (shippingCity) {
-          doc.text(shippingCity, rightColX, yRight);
-          yRight += 14;
-        }
-        if (shippingPostalCode) {
-          doc.text(shippingPostalCode, rightColX, yRight);
-          yRight += 14;
-        }
-        if (shippingCountry) {
-          doc.text(shippingCountry, rightColX, yRight);
-          yRight += 14;
-        }
-      } else {
-        doc.fillColor(MUTED_COLOR).text('Same as billing', rightColX, yRight);
-        yRight += 14;
-      }
+        return `T* (${escaped}) Tj`;
+      })
+      .join('\n');
 
-      // ========== ITEMS TABLE ==========
-      y = Math.max(y, yRight) + 30;
+    const contentStream = `BT /F1 12 Tf 50 750 Td 14 TL ${textCommands} ET`;
+    const contentLength = Buffer.byteLength(contentStream, 'utf8');
 
-      // Table header background
-      doc.rect(marginLeft, y, contentWidth, 28).fill('#f7f7f5');
+    const objects: string[] = [];
+    objects.push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj');
+    objects.push(
+      '2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj',
+    );
+    objects.push(
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj',
+    );
+    objects.push(
+      `4 0 obj\n<< /Length ${contentLength} >>\nstream\n${contentStream}\nendstream\nendobj`,
+    );
+    objects.push(
+      '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+    );
 
-      // Table header text
-      doc.fillColor(MUTED_COLOR).font('Helvetica-Bold').fontSize(9);
-      doc.text('PRODUCT', marginLeft + 10, y + 9);
-      doc.text('QTY', marginLeft + contentWidth - 180, y + 9, { width: 40, align: 'center' });
-      doc.text('PRICE', marginLeft + contentWidth - 130, y + 9, { width: 60, align: 'right' });
-      doc.text('TOTAL', marginLeft + contentWidth - 60, y + 9, { width: 50, align: 'right' });
+    let pdf = '%PDF-1.4\n';
+    const offsets: number[] = [];
+    for (const obj of objects) {
+      offsets.push(Buffer.byteLength(pdf, 'utf8'));
+      pdf += `${obj}\n`;
+    }
 
-      y += 28;
+    const xrefStart = Buffer.byteLength(pdf, 'utf8');
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += '0000000000 65535 f \n';
+    for (const offset of offsets) {
+      pdf += `${offset.toString().padStart(10, '0')} 00000 n \n`;
+    }
+    pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+    pdf += `startxref\n${xrefStart}\n%%EOF`;
 
-      // Table rows
-      doc.font('Helvetica').fontSize(10).fillColor(TEXT_COLOR);
-
-      summary.items.forEach((item, index) => {
-        const rowHeight = 35;
-        const rowY = y + index * rowHeight;
-
-        // Alternating row background
-        if (index % 2 === 1) {
-          doc.rect(marginLeft, rowY, contentWidth, rowHeight).fill('#fafafa');
-        }
-
-        // Row border bottom
-        doc
-          .moveTo(marginLeft, rowY + rowHeight)
-          .lineTo(marginLeft + contentWidth, rowY + rowHeight)
-          .strokeColor(LINE_COLOR)
-          .lineWidth(0.5)
-          .stroke();
-
-        // Product name
-        doc.fillColor(TEXT_COLOR).font('Helvetica').fontSize(10);
-        doc.text(item.productName, marginLeft + 10, rowY + 8, {
-          width: contentWidth - 200,
-          ellipsis: true,
-        });
-
-        // Variant (if exists)
-        if (item.variant) {
-          doc.fillColor(MUTED_COLOR).fontSize(8);
-          doc.text(item.variant, marginLeft + 10, rowY + 22, {
-            width: contentWidth - 200,
-            ellipsis: true,
-          });
-        }
-
-        // Quantity
-        doc.fillColor(TEXT_COLOR).fontSize(10);
-        doc.text(`${item.quantity}`, marginLeft + contentWidth - 180, rowY + 12, {
-          width: 40,
-          align: 'center',
-        });
-
-        // Unit price
-        doc.text(formatCurrency(item.unitPrice), marginLeft + contentWidth - 140, rowY + 12, {
-          width: 70,
-          align: 'right',
-        });
-
-        // Line total
-        doc.font('Helvetica-Bold');
-        doc.text(formatCurrency(item.lineTotal), marginLeft + contentWidth - 65, rowY + 12, {
-          width: 55,
-          align: 'right',
-        });
-      });
-
-      y += summary.items.length * 35 + 20;
-
-      // ========== TOTALS ==========
-      const totalsX = marginLeft + contentWidth - 200;
-      const totalsWidth = 200;
-
-      // Subtotal
-      doc.font('Helvetica').fontSize(10).fillColor(MUTED_COLOR);
-      doc.text('Subtotal', totalsX, y);
-      doc.fillColor(TEXT_COLOR);
-      doc.text(formatCurrency(summary.totals.subtotal), totalsX + 80, y, {
-        width: 120,
-        align: 'right',
-      });
-
-      y += 20;
-
-      // Shipping
-      if (summary.totals.shipment > 0) {
-        doc.fillColor(MUTED_COLOR);
-        doc.text('Shipping', totalsX, y);
-        doc.fillColor(TEXT_COLOR);
-        doc.text(formatCurrency(summary.totals.shipment), totalsX + 80, y, {
-          width: 120,
-          align: 'right',
-        });
-        y += 20;
-      }
-
-      // Discount
-      if (summary.totals.discount > 0) {
-        doc.fillColor(MUTED_COLOR);
-        doc.text('Discount', totalsX, y);
-        doc.fillColor('#16a34a'); // green
-        doc.text(`-${formatCurrency(summary.totals.discount)}`, totalsX + 80, y, {
-          width: 120,
-          align: 'right',
-        });
-        y += 20;
-      }
-
-      // Divider line
-      doc
-        .moveTo(totalsX, y)
-        .lineTo(totalsX + totalsWidth, y)
-        .strokeColor(TEXT_COLOR)
-        .lineWidth(1)
-        .stroke();
-
-      y += 12;
-
-      // Grand Total
-      doc.font('Helvetica-Bold').fontSize(14).fillColor(TEXT_COLOR);
-      doc.text('Total', totalsX, y);
-      doc.text(formatCurrency(summary.totals.grandTotal), totalsX + 60, y, {
-        width: 140,
-        align: 'right',
-      });
-
-      // ========== PAYMENT INFO ==========
-      if (paymentBrand || paymentLast4) {
-        y += 40;
-        doc.font('Helvetica').fontSize(10).fillColor(MUTED_COLOR);
-        doc.text(
-          `Paid with ${paymentBrand || 'Card'} ${paymentLast4 ? `**** ${paymentLast4}` : ''}`,
-          marginLeft,
-          y,
-        );
-      }
-
-      // ========== FOOTER ==========
-      const footerY = doc.page.height - 80;
-
-      // Footer line
-      doc
-        .moveTo(marginLeft, footerY)
-        .lineTo(pageWidth - marginRight, footerY)
-        .strokeColor(LINE_COLOR)
-        .lineWidth(0.5)
-        .stroke();
-
-      // Footer text
-      doc.font('Helvetica').fontSize(9).fillColor(MUTED_COLOR);
-      doc.text('Thank you for shopping with MKN', marginLeft, footerY + 15, {
-        width: contentWidth,
-        align: 'center',
-      });
-      doc.text(
-        'For questions, contact support@mkn.com',
-        marginLeft,
-        footerY + 30,
-        {
-          width: contentWidth,
-          align: 'center',
-        },
-      );
-
-      doc.end();
-    });
+    return Buffer.from(pdf, 'utf8');
   }
 
   private createTransport(): Transporter | null {
@@ -462,7 +270,7 @@ export class InvoiceService {
     if (options.shippingAddress || options.shippingCity || options.shippingCountry) {
       lines.push('Shipping details:');
       lines.push(
-        `${[
+        `  ${[
           options.shippingAddress,
           options.shippingCity,
           options.shippingPostalCode,
@@ -476,15 +284,19 @@ export class InvoiceService {
     lines.push('Order summary:');
     summary.items.forEach((item) =>
       lines.push(
-        `• ${item.productName} x${item.quantity} = ${formatCurrency(item.lineTotal)}`,
+        `  • ${item.productName} x${item.quantity} = ${item.lineTotal.toFixed(2)}`,
       ),
     );
     lines.push('');
-    lines.push(`Total: ${formatCurrency(summary.totals.grandTotal)}`);
+    lines.push(
+      `Total: ${summary.totals.grandTotal.toFixed(
+        2,
+      )} (incl. tax ${summary.totals.tax.toFixed(2)})`,
+    );
     if (options.paymentBrand || options.paymentLast4) {
       lines.push(
         `Paid with ${options.paymentBrand ?? 'Card'} ${
-          options.paymentLast4 ? `**** ${options.paymentLast4}` : ''
+          options.paymentLast4 ? `•••• ${options.paymentLast4}` : ''
         }`,
       );
     }
@@ -544,9 +356,8 @@ export class InvoiceService {
       return;
     }
 
-    // Yeni PDF oluştur
     const pdf = await this.generateInvoicePdf(orderId, options);
-    const subject = `Order #${summary.orderId} Invoice - MKN`;
+    const subject = `Order #${summary.orderId} invoice`;
     const from =
       options.from ??
       process.env.SENDGRID_FROM_EMAIL ??

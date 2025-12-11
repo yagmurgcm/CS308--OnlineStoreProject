@@ -49,10 +49,6 @@ export type CheckoutPayload = {
   cardLast4?: string;
 };
 
-export async function fetchUserOrders() {
-  return api.get<OrderSummary[]>("/orders");
-}
-
 export async function fetchOrderById(orderId: number | string) {
   return api.get<OrderSummary>(`/orders/${orderId}`);
 }
