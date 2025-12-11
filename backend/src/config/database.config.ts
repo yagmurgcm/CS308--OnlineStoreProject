@@ -67,7 +67,7 @@ export const getDatabaseConfig = (
     password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp',
     database: 'railway',
 
-    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, true),
+    synchronize: coerceBoolean(process.env.TYPEORM_SYNC, false),
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, false),
 
     entities: entities ?? DEFAULT_ENTITIES,

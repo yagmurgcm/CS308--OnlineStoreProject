@@ -8,7 +8,7 @@ export class OrderDetail {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, (order) => order.details, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Order, (order) => order.details)
   order: Order;
 
   @ManyToOne(() => Product, { eager: true })
