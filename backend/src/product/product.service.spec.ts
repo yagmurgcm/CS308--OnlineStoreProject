@@ -192,4 +192,31 @@ describe('ProductService - pagination and sorting', () => {
     expect(result.page).toBe(1);
     expect(result.pageSize).toBe(1);
   });
+
+  it('filters by size across variants', async () => {
+    const products = [
+      buildProduct(1, { variants: [{ id: 1, color: 'Red', size: 'S', price: 10, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(2, { variants: [{ id: 2, color: 'Blue', size: 'XL', price: 20, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(3, { variants: [{ id: 3, color: 'Green', size: 'M', price: 30, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+    ];
+    const { service } = createService(products);
+
+    const result = await service.findAll({ size: 'XL' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe(2);
+  });
+
+  it('sorts by price descending', async () => {
+    const products = [
+      buildProduct(1, { variants: [{ id: 1, color: 'Red', size: 'M', price: 50, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(2, { variants: [{ id: 2, color: 'Blue', size: 'M', price: 150, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+      buildProduct(3, { variants: [{ id: 3, color: 'Green', size: 'M', price: 100, stock: 3, image: null, product: undefined as any, createdAt: new Date() }] }),
+    ];
+    const { service } = createService(products);
+
+    const result = await service.findAll({ sort: 'price_desc' });
+
+    expect(result.items.map((p) => p.id)).toEqual([2, 3, 1]);
+  });
 });
