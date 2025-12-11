@@ -1,56 +1,87 @@
+// frontend/app/account/information/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+
+type Profile = {
+  id: number;
+  name?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+};
 
 export default function AccountInformationPage() {
-  // örnek user verisi – backend bağlayınca buraya GET request atacaz
-  const [user, setUser] = useState({
-    firstName: "Arda",
-    lastName: "Karayel",
-    email: "ardakarayel033@gmail.com",
-    phone: "+90 555 000 0000",
-    company: "Will be fetched from backend",
-  });
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // ileride backend'den /users/me çekilecek
-    // fetch("http://localhost:3001/users/me")
-    //   .then((res) => res.json())
-    //   .then((data) => setUser(data));
-  }, []);
+    if (!user?.id) return;
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        const data = await api.get<Profile>(`/users/${user.id}`);
+        if (!cancelled) setProfile(data);
+      } catch (error) {
+        console.error("Failed to load account info", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  if (!user) {
+    return <div className="text-sm text-neutral-600">Please sign in to view your account.</div>;
+  }
+
+  const fullName = profile?.name ?? user.name ?? "";
+  const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
+  const lastName = rest.join(" ");
+  const email = profile?.email ?? user.email ?? "—";
+  const phone = profile?.phone ?? "—";
+  const company = profile?.company ?? "—";
 
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-semibold mb-6">My Account</h1>
       <h2 className="text-xl font-semibold mb-6">Account Information</h2>
 
-      {/* USER INFO LIST */}
-      <div className="space-y-4 text-sm">
-        <div>
-          <div className="text-gray-500">First Name</div>
-          <div className="font-medium">{user.firstName}</div>
+      {loading ? (
+        <div className="text-sm text-neutral-500">Loading account info…</div>
+      ) : (
+        <div className="space-y-4 text-sm">
+          <div>
+            <div className="text-gray-500">First Name</div>
+            <div className="font-medium">{firstName || "—"}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">Last Name</div>
+            <div className="font-medium">{lastName || "—"}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">Email Address</div>
+            <div className="font-medium">{email}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">Phone Number</div>
+            <div className="font-medium">{phone}</div>
+          </div>
+          <div>
+            <div className="text-gray-500">Company</div>
+            <div className="font-medium">{company}</div>
+          </div>
         </div>
-
-        <div>
-          <div className="text-gray-500">Last Name</div>
-          <div className="font-medium">{user.lastName}</div>
-        </div>
-
-        <div>
-          <div className="text-gray-500">Email Address</div>
-          <div className="font-medium">{user.email}</div>
-        </div>
-
-        <div>
-          <div className="text-gray-500">Phone Number</div>
-          <div className="font-medium">{user.phone}</div>
-        </div>
-
-        <div>
-          <div className="text-gray-500">Company</div>
-          <div className="font-medium">{user.company}</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
