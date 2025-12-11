@@ -52,6 +52,24 @@ describe('UsersService', () => {
     expect(result).toBe(user);
   });
 
+  it('findById returns null when repository returns null', async () => {
+    repo.findOne!.mockResolvedValue(null);
+
+    const result = await service.findById(99);
+
+    expect(repo.findOne).toHaveBeenCalledWith({ where: { id: 99 } });
+    expect(result).toBeNull();
+  });
+
+  it('findByEmail returns null when user is not found', async () => {
+    repo.findOne!.mockResolvedValue(null);
+
+    const result = await service.findByEmail('missing@test.com');
+
+    expect(repo.findOne).toHaveBeenCalledWith({ where: { email: 'missing@test.com' } });
+    expect(result).toBeNull();
+  });
+
   it('create should instantiate and persist user', async () => {
     const payload = { email: 'new@test.com', name: 'New User' };
     const created = { ...payload } as User;
