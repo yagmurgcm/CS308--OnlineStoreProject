@@ -321,4 +321,50 @@ describe('OrderService.checkout', () => {
 
     await expect(service.checkout(9)).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('sends invoice to payload email when provided', async () => {
+    const { service, variantRepo, cartRepo, cartService, usersService, invoiceService } = createService();
+    variantRepo.set(buildVariant(11, 80, 2));
+    cartRepo.cart = {
+      id: 5,
+      items: [{ variant: { id: 11 }, quantity: 1 }],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 3, email: 'user@example.com' });
+
+    const order = await service.checkout(3, {
+      email: 'override@example.com',
+      fullName: 'Override',
+      phone: '123',
+      address: 'Addr',
+      city: 'City',
+      postalCode: '00000',
+      country: 'TR',
+    });
+
+    expect(invoiceService.sendInvoiceEmail).toHaveBeenCalledWith(order?.id, expect.objectContaining({
+      to: 'override@example.com',
+      contactName: 'Override',
+    }));
+  });
+
+  it('falls back to user email when payload email missing', async () => {
+    const { service, variantRepo, cartRepo, cartService, usersService, invoiceService } = createService();
+    variantRepo.set(buildVariant(12, 40, 2));
+    cartRepo.cart = {
+      id: 6,
+      items: [{ variant: { id: 12 }, quantity: 1 }],
+    } as any;
+    cartService.getCart.mockResolvedValue(cartRepo.cart);
+    usersService.findById.mockResolvedValue({ id: 4, email: 'user-only@example.com' });
+
+    const order = await service.checkout(4, {
+      fullName: 'No Email',
+    });
+
+    expect(invoiceService.sendInvoiceEmail).toHaveBeenCalledWith(order?.id, expect.objectContaining({
+      to: 'user-only@example.com',
+      contactName: 'No Email',
+    }));
+  });
 });
