@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
-import { fetchOrderById, type OrderSummary } from "@/lib/orders";
+import { useParams } from "next/navigation";
+import { fetchInvoicePdf, fetchOrderById, type OrderSummary } from "@/lib/orders";
 
 const priceFmt = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -11,13 +11,14 @@ const priceFmt = new Intl.NumberFormat("tr-TR", {
 });
 
 export default function OrderConfirmedPage() {
-  const router = useRouter();
   const params = useParams();
   const orderId = params?.id;
 
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -50,6 +51,28 @@ export default function OrderConfirmedPage() {
       </main>
     );
   }
+
+  const handleDownload = async () => {
+    if (!order?.id) return;
+    setDownloadError(null);
+    setDownloading(true);
+    try {
+      const pdfBlob = await fetchInvoicePdf(order.id);
+      const url = URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `invoice-${order.id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Invoice download failed", err);
+      setDownloadError("Unable to download invoice. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <main className="container-base py-10 space-y-6">
@@ -123,10 +146,14 @@ export default function OrderConfirmedPage() {
             <Link href="/" className="btn btn-primary">Continue shopping</Link>
             <button
               className="btn btn-ghost"
-              onClick={() => router.push(`/account/orders/${order.id}/invoice`)}
+              onClick={handleDownload}
+              disabled={downloading}
             >
-              Download invoice
+              {downloading ? "Preparing..." : "Download invoice"}
             </button>
+            {downloadError && (
+              <p className="text-xs text-red-600">{downloadError}</p>
+            )}
           </div>
         </aside>
       </div>

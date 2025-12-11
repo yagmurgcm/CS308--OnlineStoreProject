@@ -56,3 +56,7 @@ export async function fetchOrderById(orderId: number | string) {
 export async function checkoutOrder(payload?: CheckoutPayload) {
   return api.post<OrderSummary>("/orders/checkout", payload);
 }
+
+export async function fetchInvoicePdf(orderId: number | string) {
+  return api.getBinary(`/orders/${orderId}/invoice`);
+}
