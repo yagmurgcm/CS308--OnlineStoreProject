@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, Max, IsOptional } from 'class-validator';
 
 export class CreateReviewDto {
   @IsNotEmpty()
@@ -11,7 +11,7 @@ export class CreateReviewDto {
   @Max(5)
   rating: number; // 1 ile 5 arası sayı olmalı
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  comment: string;
+  comment?: string; // Opsiyonel - sadece rating gönderilebilir
 }

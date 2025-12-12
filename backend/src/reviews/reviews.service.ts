@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './review.entity';
-import { Product } from '../product/entities/product.entity'; // 👈 EKLENDİ
+import { Product } from '../product/entities/product.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
@@ -11,21 +11,24 @@ export class ReviewsService {
     @InjectRepository(Review)
     private reviewsRepository: Repository<Review>,
 
-    // 👇 EKLENDİ: Ürün tablosunu güncellemek için buna ihtiyacımız var
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
   ) {}
 
-  // Yorum Ekleme
+  // Yorum/Rating Ekleme
+  // KURAL: Rating HEMEN eklenir, Comment ise ADMIN ONAYI bekler
   async create(createReviewDto: CreateReviewDto, userId: number) {
     console.log("Service'e gelen User ID:", userId);
 
     const { productId, rating, comment } = createReviewDto;
 
+    // Comment varsa onay bekleyecek, yoksa (sadece rating) hemen onaylı
+    const hasComment = comment && comment.trim().length > 0;
+
     const newReview = this.reviewsRepository.create({
       rating,
-      comment,
-      isApproved: true, // ⚠️ DİKKAT: Test için şimdilik 'true' yap, yoksa puan hesaplanmaz
+      comment: comment || '',
+      isApproved: !hasComment, // Comment yoksa true, varsa false (admin onayı bekle)
       productId: productId,
       product: { id: productId },
       userId: userId,
@@ -34,13 +37,13 @@ export class ReviewsService {
 
     const savedReview = await this.reviewsRepository.save(newReview);
 
-    // 🔥 EKLENDİ: Yorum kaydedilince Ürünün Puanını Güncelle
+    // Rating her zaman hemen ürüne yansısın (tüm rating'leri say, onay durumuna bakma)
     await this.updateProductStats(productId);
 
     return savedReview;
   }
 
-  // Sadece ONAYLI yorumları getir
+  // Sadece ONAYLI yorumları getir (public endpoint)
   async findAllByProduct(productId: number) {
     return this.reviewsRepository.find({
       where: {
@@ -52,28 +55,94 @@ export class ReviewsService {
     });
   }
 
-  // 👇 EKLENDİ: İŞTE SİHRİ YAPAN FONKSİYON BU
-  // Bu fonksiyon veritabanındaki tüm yorumları tarar, ortalamayı bulur ve Ürüne yazar.
+  // ============ ADMIN FONKSİYONLARI ============
+
+  // Onay bekleyen tüm yorumları getir
+  async findPendingReviews() {
+    return this.reviewsRepository.find({
+      where: { isApproved: false },
+      order: { createdAt: 'DESC' },
+      relations: ['user', 'product'],
+    });
+  }
+
+  // Tüm yorumları getir (admin için)
+  async findAllReviews() {
+    return this.reviewsRepository.find({
+      order: { createdAt: 'DESC' },
+      relations: ['user', 'product'],
+    });
+  }
+
+  // Yorumu onayla
+  async approveReview(reviewId: number) {
+    const review = await this.reviewsRepository.findOne({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundException(`Review #${reviewId} not found`);
+    }
+
+    review.isApproved = true;
+    await this.reviewsRepository.save(review);
+
+    // Ürün istatistiklerini güncelle
+    await this.updateProductStats(review.productId);
+
+    console.log(`✅ Review #${reviewId} ONAYLANDI`);
+    return review;
+  }
+
+  // Yorumu reddet (sil)
+  async rejectReview(reviewId: number) {
+    const review = await this.reviewsRepository.findOne({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundException(`Review #${reviewId} not found`);
+    }
+
+    const productId = review.productId;
+    await this.reviewsRepository.remove(review);
+
+    // Ürün istatistiklerini güncelle
+    await this.updateProductStats(productId);
+
+    console.log(`❌ Review #${reviewId} REDDEDİLDİ ve silindi`);
+    return { message: `Review #${reviewId} rejected and deleted` };
+  }
+
+  // Ürün istatistiklerini güncelle
+  // Rating'ler HER ZAMAN sayılır (onay durumuna bakılmaz)
+  // Ama reviewCount sadece onaylı yorumları sayar
   private async updateProductStats(productId: number) {
-    const stats = await this.reviewsRepository // reviewsRepository kullanıyoruz çünkü yorumları sayacağız
+    // Tüm rating'lerin ortalaması (onay durumuna bakılmaz - rating hemen yansımalı)
+    const ratingStats = await this.reviewsRepository
       .createQueryBuilder('review')
       .select('AVG(review.rating)', 'avg')
-      .addSelect('COUNT(review.id)', 'count')
       .where('review.productId = :id', { id: productId })
-      .andWhere('review.isApproved = :approved', { approved: true }) // Sadece onaylılar puana etki etsin
       .getRawOne();
 
-    const avgRating = stats.avg ? parseFloat(stats.avg).toFixed(1) : 0;
-    const reviewCount = stats.count ? parseInt(stats.count) : 0;
+    // Sadece onaylı yorumların sayısı (comment count için)
+    const countStats = await this.reviewsRepository
+      .createQueryBuilder('review')
+      .select('COUNT(review.id)', 'count')
+      .where('review.productId = :id', { id: productId })
+      .andWhere('review.isApproved = :approved', { approved: true })
+      .getRawOne();
 
-    // Product tablosunu güncelle
+    const avgRating = ratingStats.avg ? parseFloat(ratingStats.avg).toFixed(1) : 0;
+    const reviewCount = countStats.count ? parseInt(countStats.count) : 0;
+
     await this.productRepository.update(productId, {
       averageRating: Number(avgRating),
       reviewCount: reviewCount,
     });
 
     console.log(
-      `✅ Ürün #${productId} güncellendi -> Puan: ${avgRating}, Sayı: ${reviewCount}`,
+      `✅ Ürün #${productId} güncellendi -> Puan: ${avgRating}, Onaylı Yorum Sayısı: ${reviewCount}`,
     );
   }
 }
