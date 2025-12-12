@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Param,
   Req,
   Res,
@@ -32,6 +33,25 @@ export class OrderController {
   async getUserOrders(@Req() req) {
     return this.orderService.getOrdersByUser(req.user.userId);
   }
+
+  // ============ ADMIN ENDPOINT'LERİ ============
+
+  // GET: Tüm siparişler (Admin)
+  @Get('admin/all')
+  async getAllOrders() {
+    return this.orderService.getAllOrders();
+  }
+
+  // PATCH: Sipariş durumunu güncelle (Admin)
+  @Patch('admin/:id/status')
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+  ) {
+    return this.orderService.updateOrderStatus(id, status);
+  }
+
+  // ============ NORMAL ENDPOINT'LER ============
 
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {

@@ -220,4 +220,38 @@ export class OrderService {
     }
     return order;
   }
+
+  // ============ ADMIN FONKSİYONLARI ============
+
+  // Tüm siparişleri getir (admin için)
+  async getAllOrders() {
+    return this.orderRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: ['details', 'details.product', 'user'],
+    });
+  }
+
+  // Sipariş durumunu güncelle
+  async updateOrderStatus(orderId: number, newStatus: string) {
+    const validStatuses = ['pending', 'processing', 'in-transit', 'delivered', 'cancelled'];
+    
+    if (!validStatuses.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid status. Valid statuses are: ${validStatuses.join(', ')}`,
+      );
+    }
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    
+    if (!order) {
+      throw new NotFoundException(`Order #${orderId} not found`);
+    }
+
+    order.status = newStatus;
+    await this.orderRepo.save(order);
+
+    console.log(`✅ Order #${orderId} status updated to: ${newStatus}`);
+    
+    return this.getOrderById(orderId);
+  }
 }

@@ -114,9 +114,14 @@ export default function SignInSheet({ open, onClose }: Props) {
                 email: resolvedEmail,
                 accessToken: payloadToken,
               });
-                const redirectTo = searchParams.get("redirect") || "/";
+                
+                // Admin kontrolü - admin@gmail.com ise admin paneline yönlendir
+                const isAdmin = resolvedEmail.toLowerCase() === "admin@gmail.com";
+                const redirectTo = isAdmin 
+                  ? "/admin/orders" 
+                  : (searchParams.get("redirect") || "/");
                 router.push(redirectTo);
-                setMessage("Sign in successful");
+                setMessage(isAdmin ? "Welcome Admin!" : "Sign in successful");
                 setEmail("");
                 setPassword("");
                 setTimeout(() => {

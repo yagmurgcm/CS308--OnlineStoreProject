@@ -261,12 +261,6 @@ export default function Header() {
             <Link href="/beauty" className="text-sm hover:underline underline-offset-4">
               Beauty
             </Link>
-            <Link 
-              href="/admin/reviews" 
-              className="text-sm px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
-            >
-              🛡️ Admin
-            </Link>
           </nav>
         </div>
       </header>
