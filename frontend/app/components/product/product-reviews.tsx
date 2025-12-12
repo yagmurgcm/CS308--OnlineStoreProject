@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Star, User, Lock, CheckCircle, AlertCircle } from "lucide-react";
+import { Star, User, Lock, CheckCircle, AlertCircle, ShoppingBag } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 
@@ -25,6 +25,8 @@ export default function ProductReviews({ productId }: { productId: number }) {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [ratingStatus, setRatingStatus] = useState<"idle" | "success" | "error">("idle");
   const [commentStatus, setCommentStatus] = useState<"idle" | "success" | "error">("idle");
+  const [canReview, setCanReview] = useState<boolean | null>(null);
+  const [checkingPurchase, setCheckingPurchase] = useState(false);
 
   // 1. Fetch reviews from Backend
   const fetchReviews = useCallback(async () => {
@@ -36,9 +38,28 @@ export default function ProductReviews({ productId }: { productId: number }) {
     }
   }, [productId]);
 
+  // 2. Check if user has purchased this product
+  const checkCanReview = useCallback(async () => {
+    if (!user) {
+      setCanReview(null);
+      return;
+    }
+    setCheckingPurchase(true);
+    try {
+      const data = await api.get<{ canReview: boolean }>(`/reviews/can-review/${productId}`);
+      setCanReview(data.canReview);
+    } catch (error) {
+      console.error("Failed to check purchase status:", error);
+      setCanReview(false);
+    } finally {
+      setCheckingPurchase(false);
+    }
+  }, [productId, user]);
+
   useEffect(() => {
     fetchReviews();
-  }, [fetchReviews]);
+    checkCanReview();
+  }, [fetchReviews, checkCanReview]);
 
   // 2. Submit RATING only (yıldıza tıklayınca hemen gönder)
   const handleRatingClick = async (rating: number) => {
@@ -148,6 +169,13 @@ export default function ProductReviews({ productId }: { productId: number }) {
                 <Lock size={16} />
                 <span className="text-sm">Sign in to rate</span>
               </div>
+            ) : checkingPurchase ? (
+              <p className="text-sm text-neutral-500">Checking purchase status...</p>
+            ) : canReview === false ? (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg">
+                <ShoppingBag size={18} />
+                <span className="text-sm font-medium">Please purchase this product first to leave a rating</span>
+              </div>
             ) : (
               <>
                 <div className="flex gap-2">
@@ -199,6 +227,13 @@ export default function ProductReviews({ productId }: { productId: number }) {
               <div className="flex items-center gap-2 text-neutral-500">
                 <Lock size={16} />
                 <span className="text-sm">Sign in to comment</span>
+              </div>
+            ) : checkingPurchase ? (
+              <p className="text-sm text-neutral-500">Checking purchase status...</p>
+            ) : canReview === false ? (
+              <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg">
+                <ShoppingBag size={18} />
+                <span className="text-sm font-medium">Please purchase this product first to leave a comment</span>
               </div>
             ) : commentStatus === "success" ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">

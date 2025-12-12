@@ -39,6 +39,18 @@ export class ReviewsController {
     return this.reviewsService.findAllByProduct(productId);
   }
 
+  // GET: Kullanıcının bu ürünü satın alıp almadığını kontrol et
+  @UseGuards(JwtAuthGuard)
+  @Get('can-review/:productId')
+  async canReview(@Param('productId', ParseIntPipe) productId: number, @Request() req) {
+    const userId = req.user?.id ?? req.user?.userId ?? req.user?.sub;
+    if (!userId) {
+      return { canReview: false };
+    }
+    const hasPurchased = await this.reviewsService.hasPurchasedProduct(+userId, productId);
+    return { canReview: hasPurchased };
+  }
+
   // ============ ADMIN ENDPOINT'LERİ ============
 
   // GET: Onay bekleyen yorumlar (Admin)

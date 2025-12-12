@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Review } from './review.entity';
 import { Product } from '../product/entities/product.entity';
+import { OrderDetail } from '../order/order-detail.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
@@ -13,14 +14,36 @@ export class ReviewsService {
 
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
+
+    @InjectRepository(OrderDetail)
+    private orderDetailRepository: Repository<OrderDetail>,
   ) {}
+
+  // Kullanıcının bu ürünü satın alıp almadığını kontrol et
+  async hasPurchasedProduct(userId: number, productId: number): Promise<boolean> {
+    const purchase = await this.orderDetailRepository
+      .createQueryBuilder('od')
+      .innerJoin('od.order', 'o')
+      .where('o.userId = :userId', { userId })
+      .andWhere('od.productId = :productId', { productId })
+      .getOne();
+
+    return !!purchase;
+  }
 
   // Yorum/Rating Ekleme
   // KURAL: Rating HEMEN eklenir, Comment ise ADMIN ONAYI bekler
+  // KURAL: Sadece ürünü satın alan kullanıcılar yorum/rating yapabilir
   async create(createReviewDto: CreateReviewDto, userId: number) {
     console.log("Service'e gelen User ID:", userId);
 
     const { productId, rating, comment } = createReviewDto;
+
+    // Satın alma kontrolü
+    const hasPurchased = await this.hasPurchasedProduct(userId, productId);
+    if (!hasPurchased) {
+      throw new ForbiddenException('You must purchase this product before leaving a review');
+    }
 
     // Comment varsa onay bekleyecek, yoksa (sadece rating) hemen onaylı
     const hasComment = comment && comment.trim().length > 0;
