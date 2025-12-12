@@ -167,12 +167,18 @@ export default function ProductRightSide({ product }: { product: Product }) {
         
         {/* STOK BİLGİSİ */}
         <div className="mt-2 text-sm transition-all duration-300">
-             {/* Varyant seçili değilse veya stok yoksa */}
+             {/* Varyant seçili değilse veya stok 0 ise */}
              {!selectedVariant || isOutOfStock ? (
                 <span className="text-red-600 font-bold">⚠️ Out of Stock</span>
+             ) : currentStock <= 5 ? (
+                /* Stok 5 veya daha az ise - Turuncu uyarı */
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 font-semibold animate-pulse">
+                   🔥 Hurry! Only {currentStock} {currentStock === 1 ? 'item' : 'items'} left in stock!
+                </span>
              ) : (
+                /* Stok 5'ten fazla ise - Normal yeşil */
                 <span className="text-green-700 font-medium">
-                   ✅ In Stock: <span className="font-bold text-lg">{currentStock}</span> items left
+                   ✅ In Stock: <span className="font-bold text-lg">{currentStock}</span> items available
                 </span>
              )}
         </div>
