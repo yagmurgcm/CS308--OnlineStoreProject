@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { fetchInvoicePdf, OrderSummary } from "@/lib/orders";
 
 type InvoiceViewProps = {
@@ -116,9 +117,18 @@ export function InvoiceView({ order }: InvoiceViewProps) {
                 className="grid grid-cols-[2fr_1fr_1fr] items-center gap-2 py-3 text-sm"
               >
                 <div className="space-y-1">
-                  <p className="font-medium text-neutral-900">
-                    {detail.product?.name || "Product"}
-                  </p>
+                  {detail.product?.id ? (
+                    <Link
+                      href={`/products/${detail.product.id}`}
+                      className="font-medium text-neutral-900 hover:text-blue-600 hover:underline transition-colors"
+                    >
+                      {detail.product.name || "Product"}
+                    </Link>
+                  ) : (
+                    <p className="font-medium text-neutral-900">
+                      {detail.product?.name || "Product"}
+                    </p>
+                  )}
                   {detail.product?.id && (
                     <p className="text-xs text-neutral-500">Product #{detail.product.id}</p>
                   )}

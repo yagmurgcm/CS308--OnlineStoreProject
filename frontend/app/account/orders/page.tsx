@@ -52,7 +52,7 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const loadOrders = async () => {
       try {
@@ -69,7 +69,7 @@ export default function OrdersPage() {
     };
 
     loadOrders();
-  }, [user]);
+  }, [user?.id]);
 
   if (!user) {
     return (
@@ -214,15 +214,25 @@ export default function OrdersPage() {
 
                       {/* Product names */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700 truncate">
-                          {firstProduct?.name || "Product"}
-                          {order.details && order.details.length > 1 && (
-                            <span className="text-gray-500">
-                              {" "}
-                              and {order.details.length - 1} more
-                            </span>
-                          )}
-                        </p>
+                        {firstProduct?.id ? (
+                          <Link 
+                            href={`/products/${firstProduct.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm text-gray-700 truncate hover:text-black hover:underline transition-colors"
+                          >
+                            {firstProduct.name || "Product"}
+                          </Link>
+                        ) : (
+                          <p className="text-sm text-gray-700 truncate">
+                            {firstProduct?.name || "Product"}
+                          </p>
+                        )}
+                        {order.details && order.details.length > 1 && (
+                          <span className="text-gray-500 text-sm">
+                            {" "}
+                            and {order.details.length - 1} more
+                          </span>
+                        )}
                       </div>
 
                       {/* Arrow */}
