@@ -34,6 +34,12 @@ const SORT_OPTIONS = [
       a.originalIndex - b.originalIndex,
   },
   {
+    value: "popularity",
+    label: "Popularity",
+    compare: (a: DecoratedProduct, b: DecoratedProduct) =>
+      (b.reviewCount || 0) - (a.reviewCount || 0),
+  },
+  {
     value: "price-asc",
     label: "Price: Low to High",
     compare: (a: DecoratedProduct, b: DecoratedProduct) => a.price - b.price,
