@@ -3,14 +3,10 @@
 import CategoryListingPage from "../components/CategoryListingPage";
 
 const SUB_CATEGORIES = [
-    "All",
-
+  "All",
   "Coats & Jackets",
-  "Knitwear",
-  "Dresses",
-  "Shirts & Blouses",
   "Bottoms",
-  "Loungewear",
+  "Knitwear",
   "Accessories",
 ];
 
