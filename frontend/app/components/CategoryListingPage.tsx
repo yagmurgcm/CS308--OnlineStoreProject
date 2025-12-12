@@ -37,7 +37,7 @@ const SORT_OPTIONS = [
     value: "popularity",
     label: "Popularity",
     compare: (a: DecoratedProduct, b: DecoratedProduct) =>
-      (b.reviewCount || 0) - (a.reviewCount || 0),
+      (b.averageRating || 0) - (a.averageRating || 0),
   },
   {
     value: "price-asc",
