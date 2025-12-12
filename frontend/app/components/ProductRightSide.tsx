@@ -155,7 +155,10 @@ export default function ProductRightSide({ product }: { product: Product }) {
         </span>
       </div>
 
-      <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Product ID: {product.id}</p>
+      <p className="text-xs text-gray-500 uppercase tracking-wider">Product ID: {product.id}</p>
+      <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">
+        Model ID: {selectedVariant ? selectedVariant.id : "—"}
+      </p>
 
       <div className="flex flex-col mb-8">
         <div className="flex items-center gap-4">
