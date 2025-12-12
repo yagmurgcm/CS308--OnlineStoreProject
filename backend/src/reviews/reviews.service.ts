@@ -35,6 +35,7 @@ export class ReviewsService {
 
   // Yorum/Rating Ekleme
   // KURAL: Rating HEMEN eklenir, Comment ise ADMIN ONAYI bekler
+  // KURAL: Comment varsa rating'e etki etmez, sadece onaylı yıldızlar ortalamaya girer
   // KURAL: Sadece ürünü satın alan kullanıcılar yorum/rating yapabilir
   async create(createReviewDto: CreateReviewDto, userId: number) {
     console.log("Service'e gelen User ID:", userId);
@@ -50,8 +51,11 @@ export class ReviewsService {
     // Comment varsa onay bekleyecek, yoksa (sadece rating) hemen onaylı
     const hasComment = comment && comment.trim().length > 0;
 
+    // Comment varsa rating'i 0 yap (yorum rating'e etki etmessin)
+    const finalRating = hasComment ? 0 : rating;
+
     const newReview = this.reviewsRepository.create({
-      rating,
+      rating: finalRating,
       comment: comment || '',
       isApproved: !hasComment, // Comment yoksa true, varsa false (admin onayı bekle)
       productId: productId,
@@ -69,15 +73,17 @@ export class ReviewsService {
   }
 
   // Sadece ONAYLI yorumları getir (public endpoint)
+  // Sadece comment'i olan review'ler gösterilir (yalnız yıldız verişler gösterilmez)
   async findAllByProduct(productId: number) {
-    return this.reviewsRepository.find({
-      where: {
-        productId,
-        isApproved: true,
-      },
-      order: { createdAt: 'DESC' },
-      relations: ['user'],
-    });
+    return this.reviewsRepository
+      .createQueryBuilder('review')
+      .where('review.productId = :productId', { productId })
+      .andWhere('review.isApproved = :approved', { approved: true })
+      .andWhere('review.comment != :emptyComment', { emptyComment: '' })
+      .andWhere('review.comment IS NOT NULL')
+      .leftJoinAndSelect('review.user', 'user')
+      .orderBy('review.createdAt', 'DESC')
+      .getMany();
   }
 
   // ============ ADMIN FONKSİYONLARI ============

@@ -97,7 +97,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
     try {
       await api.post("/reviews", {
         productId: Number(productId), 
-        rating: 5, // Default rating for comment-only (backend requires it)
+        rating: 0, // No rating for comment-only (backend will ignore it)
         comment: userComment
       });
       
@@ -134,15 +134,17 @@ export default function ProductReviews({ productId }: { productId: number }) {
                   </span>
                 </div>
                 
-                <div className="flex mb-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      size={14}
-                      className={star <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-neutral-300"}
-                    />
-                  ))}
-                </div>
+                {!review.comment && (
+                  <div className="flex mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={14}
+                        className={star <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-neutral-300"}
+                      />
+                    ))}
+                  </div>
+                )}
                 
                 {review.comment && (
                   <p className="text-neutral-600 text-sm leading-relaxed">

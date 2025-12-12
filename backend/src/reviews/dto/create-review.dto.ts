@@ -5,11 +5,11 @@ export class CreateReviewDto {
   @IsNumber()
   productId: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  @Min(1)
+  @Min(0)
   @Max(5)
-  rating: number; // 1 ile 5 arası sayı olmalı
+  rating?: number; // 0-5 arası: 0 = yorum-only, 1-5 = rating
 
   @IsOptional()
   @IsString()
