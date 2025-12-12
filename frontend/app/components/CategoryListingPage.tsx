@@ -178,18 +178,13 @@ export default function CategoryListingPage({
   const visibleProducts = useMemo(() => {
     let subset = [...products];
 
-    // Subcategory
+    // Subcategory - STRICT eşleşme (sadece tam subcategory eşleşmesi)
     if (activeSubcategory) {
       if (activeSubcategory !== "View All" && activeSubcategory !== "All") {
-        const targetKeywords = activeSubcategory.toLowerCase().split(/[^a-z]+/);
+        const target = activeSubcategory.toLowerCase();
         subset = subset.filter((product) => {
             const prodSub = product.subcategory ? product.subcategory.toLowerCase() : "";
-            if (prodSub === activeSubcategory.toLowerCase()) return true;
-            const prodName = product.name.toLowerCase();
-            const isMatch = targetKeywords.some(keyword => 
-               (keyword.length > 2) && (prodSub.includes(keyword) || prodName.includes(keyword))
-            );
-            return isMatch;
+            return prodSub === target;
         });
       }
     }
