@@ -45,10 +45,21 @@ export default function ProductRightSide({ product }: { product: Product }) {
     return Array.from(new Set(colors)); // Unique yap
   }, [variants]);
 
-  // Mevcut tüm bedenleri bul (Tekrar edenleri temizle)
+  // Mevcut tüm bedenleri bul (Tekrar edenleri temizle ve sırala)
   const availableSizes = useMemo(() => {
     const sizes = variants.map((v) => v.size).filter(Boolean);
-    return Array.from(new Set(sizes)); // Unique yap
+    const uniqueSizes = Array.from(new Set(sizes));
+    // XS, S, M, L, XL sıralaması
+    const sizeOrder = ['XS', 'S', 'M', 'L', 'XL'];
+    return uniqueSizes.sort((a, b) => {
+      const indexA = sizeOrder.indexOf(a.toUpperCase());
+      const indexB = sizeOrder.indexOf(b.toUpperCase());
+      // Eğer sizeOrder'da yoksa sona at
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
   }, [variants]);
 
   // Varsayılan seçimleri yap (Listenin ilk elemanını seç)
