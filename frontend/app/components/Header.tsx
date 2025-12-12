@@ -271,8 +271,8 @@ export default function Header() {
                     <div className="grid grid-cols-2 gap-3 p-3">
                       {searchResults.map((product) => (
                         <Link
-                          key={product.productId}
-                          href={`/products/${product.productId}`}
+                          key={product.id}
+                          href={`/products/${product.id}`}
                           onClick={() => {
                             setShowSearchDropdown(false);
                             setSearchTerm(""); // Input'u temizle
