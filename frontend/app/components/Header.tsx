@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import UserStatus from "./UserStatus";
+import { searchProducts, type ProductRecord } from "@/lib/products";
 
 // Sign-in sheet import
 const SignInSheet = dynamic(() => import("./SignInSheet"), { ssr: false });
@@ -150,6 +151,10 @@ export default function Header() {
   };
 
   const displayName = user?.name || user?.email || "User";
+  const [searchResults, setSearchResults] = useState<ProductRecord[]>([]);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Sign-in modal open logic
   useEffect(() => {
@@ -165,10 +170,53 @@ export default function Header() {
     router.replace(params.toString() ? `${pathname}?${params}` : pathname);
   }, [open, pathname, router, searchParams]);
 
+  // Real-time search
+  useEffect(() => {
+    const handleSearch = async () => {
+      const term = searchTerm.trim();
+      if (!term) {
+        setSearchResults([]);
+        setShowSearchDropdown(false);
+        return;
+      }
+
+      setSearchLoading(true);
+      try {
+        const results = await searchProducts(term);
+        setSearchResults(results.slice(0, 6)); // Show max 6 results
+        setShowSearchDropdown(true);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(handleSearch, 300);
+    return () => clearTimeout(debounce);
+  }, [searchTerm]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleSearchSubmit = (event: FormEvent) => {
     event.preventDefault();
     const term = searchTerm.trim();
-    router.push(term ? `/search?q=${encodeURIComponent(term)}` : "/search");
+    setShowSearchDropdown(false);
+    if (term) {
+      router.push(`/search?q=${encodeURIComponent(term)}`);
+      setSearchTerm(""); // Input'u temizle
+    }
   };
 
   return (
@@ -179,7 +227,7 @@ export default function Header() {
         <div className="container-base h-16 grid grid-cols-[1fr_auto_1fr] items-center">
 
           {/* LEFT: SEARCH */}
-          <div className="flex items-center">
+          <div className="flex items-center" ref={searchRef}>
             <form
               onSubmit={handleSearchSubmit}
               className="hidden md:flex items-center w-72 relative"
@@ -190,6 +238,7 @@ export default function Header() {
                 placeholder="Search products…"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
+                onFocus={() => searchTerm.trim() && setShowSearchDropdown(true)}
                 className="w-full border border-gray-300 rounded-full py-1.5 pl-4 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-black"
               />
               <button
@@ -212,6 +261,53 @@ export default function Header() {
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </button>
+
+              {/* Search Dropdown Results */}
+              {showSearchDropdown && (searchResults.length > 0 || searchLoading) && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchLoading ? (
+                    <div className="p-4 text-center text-sm text-gray-500">Loading...</div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 p-3">
+                      {searchResults.map((product) => (
+                        <Link
+                          key={product.productId}
+                          href={`/products/${product.productId}`}
+                          onClick={() => {
+                            setShowSearchDropdown(false);
+                            setSearchTerm(""); // Input'u temizle
+                          }}
+                          className="p-2 rounded-lg border border-gray-200 hover:border-gray-400 hover:shadow-md transition group"
+                        >
+                          <div className="w-full aspect-square bg-gray-100 rounded mb-2 overflow-hidden">
+                            <img
+                              src={product.image || "https://placehold.co/150x150?text=No+Image"}
+                              alt={product.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition"
+                            />
+                          </div>
+                          <p className="text-xs font-medium text-gray-900 line-clamp-2">{product.name}</p>
+                          <p className="text-xs font-semibold text-black mt-1">
+                            {priceFormatter.format(typeof product.price === 'string' ? parseFloat(product.price) : product.price)}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                  {searchResults.length > 0 && (
+                    <Link
+                      href={`/search?q=${encodeURIComponent(searchTerm.trim())}`}
+                      onClick={() => {
+                        setShowSearchDropdown(false);
+                        setSearchTerm(""); // Input'u temizle
+                      }}
+                      className="block w-full p-3 text-center text-xs font-medium text-black border-t border-gray-200 hover:bg-gray-50"
+                    >
+                      View all results →
+                    </Link>
+                  )}
+                </div>
+              )}
             </form>
           </div>
 
