@@ -85,9 +85,12 @@ export class OrderService {
         paymentLast4: payload?.cardLast4,
       });
 
-      console.log('CHECKOUT STEP 2: computing total price');
+      console.log('CHECKOUT STEP 2: checking stock and computing total price');
 
       let totalPrice = 0;
+
+      // İlk geçiş: Stok kontrolü ve fiyat hesaplama
+      const variantsToUpdate: { variant: ProductVariant; quantity: number }[] = [];
 
       for (const item of cart.items) {
         const variant = await variantRepository.findOne({
@@ -100,6 +103,15 @@ export class OrderService {
             `Variant ${item.variant.id} or its product not found`,
           );
         }
+
+        // Stok kontrolü
+        if (variant.stock < item.quantity) {
+          throw new BadRequestException(
+            `Insufficient stock for "${variant.product.name}" (${variant.color} / ${variant.size}). Available: ${variant.stock}, Requested: ${item.quantity}`,
+          );
+        }
+
+        variantsToUpdate.push({ variant, quantity: item.quantity });
 
         const price = Number(variant.price);
         const lineTotal = price * item.quantity;
@@ -129,17 +141,28 @@ export class OrderService {
       await detailRepository.save(detailEntities);
       console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);
 
-      // 5) Clear cart
-      console.log('CHECKOUT STEP 5: clearing cart for user', userId);
+      // 5) Stok azaltma
+      console.log('CHECKOUT STEP 5: decrementing stock...');
+      for (const { variant, quantity } of variantsToUpdate) {
+        variant.stock -= quantity;
+        await variantRepository.save(variant);
+        console.log(
+          `Stock updated: Variant ${variant.id} (${variant.color}/${variant.size}) -> new stock: ${variant.stock}`,
+        );
+      }
+      console.log('CHECKOUT STEP 5 DONE: stock decremented');
+
+      // 6) Clear cart
+      console.log('CHECKOUT STEP 6: clearing cart for user', userId);
       await this.cartService.clear(userId);
 
-      // 6) Reload order with relations
+      // 7) Reload order with relations
       createdOrder = await orderRepository.findOne({
         where: { id: order.id },
         relations: ['details', 'details.product', 'user'],
       });
       console.log(
-        'CHECKOUT STEP 6: reloaded order ->',
+        'CHECKOUT STEP 7: reloaded order ->',
         createdOrder?.id,
         'details:',
         createdOrder?.details?.length ?? 0,
