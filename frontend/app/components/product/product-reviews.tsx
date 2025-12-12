@@ -174,7 +174,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
             ) : canReview === false ? (
               <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg">
                 <ShoppingBag size={18} />
-                <span className="text-sm font-medium">Please purchase this product first to leave a rating</span>
+                <span className="text-sm font-medium">You can rate this product after it has been delivered</span>
               </div>
             ) : (
               <>
@@ -233,7 +233,7 @@ export default function ProductReviews({ productId }: { productId: number }) {
             ) : canReview === false ? (
               <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg">
                 <ShoppingBag size={18} />
-                <span className="text-sm font-medium">Please purchase this product first to leave a comment</span>
+                <span className="text-sm font-medium">You can comment on this product after it has been delivered</span>
               </div>
             ) : commentStatus === "success" ? (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">

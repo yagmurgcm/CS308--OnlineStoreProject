@@ -19,13 +19,15 @@ export class ReviewsService {
     private orderDetailRepository: Repository<OrderDetail>,
   ) {}
 
-  // Kullanıcının bu ürünü satın alıp almadığını kontrol et
+  // Kullanıcının bu ürünü satın alıp TESLIM ALIP almadığını kontrol et
+  // Sadece "delivered" statüsündeki siparişler için yorum/yıldız açık
   async hasPurchasedProduct(userId: number, productId: number): Promise<boolean> {
     const purchase = await this.orderDetailRepository
       .createQueryBuilder('od')
       .innerJoin('od.order', 'o')
       .where('o.userId = :userId', { userId })
       .andWhere('od.productId = :productId', { productId })
+      .andWhere('o.status = :status', { status: 'delivered' })
       .getOne();
 
     return !!purchase;
