@@ -72,7 +72,7 @@ export class OrderService {
       // 2) Build order shell
       const order = orderRepository.create({
         user,
-        status: 'pending',
+        status: 'processing',
         totalPrice: 0,
         contactName: payload?.fullName,
         contactEmail: payload?.email ?? user.email,
@@ -233,7 +233,7 @@ export class OrderService {
 
   // Sipariş durumunu güncelle
   async updateOrderStatus(orderId: number, newStatus: string) {
-    const validStatuses = ['pending', 'processing', 'in-transit', 'delivered', 'cancelled'];
+    const validStatuses = ['processing', 'in-transit', 'delivered', 'cancelled'];
     
     if (!validStatuses.includes(newStatus)) {
       throw new BadRequestException(

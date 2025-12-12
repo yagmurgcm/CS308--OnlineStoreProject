@@ -33,7 +33,6 @@ type Order = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "pending", label: "Pending", color: "bg-yellow-100 text-yellow-800" },
   { value: "processing", label: "Processing", color: "bg-blue-100 text-blue-800" },
   { value: "in-transit", label: "In Transit", color: "bg-purple-100 text-purple-800" },
   { value: "delivered", label: "Delivered", color: "bg-green-100 text-green-800" },
