@@ -50,7 +50,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() product: CreateProductDto): Promise<Product> {
-    return this.productService.create(product);
+    return this.productService.create(product as Product);
   }
 
   // PUT endpoint (update product by id) - Admin only
