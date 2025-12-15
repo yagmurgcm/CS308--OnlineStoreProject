@@ -5,19 +5,25 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Product } from './entities/product.entity';
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 // Product Endpoints
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
-  // GET endpoint (all products)
+  // ============ PUBLIC ENDPOINTS (NO AUTH) ============
+
+  // GET endpoint (all products) - Public
   @Get()
   findAll(
     @Query() query: GetProductsQueryDto,
@@ -30,21 +36,45 @@ export class ProductController {
     return this.productService.findAll(query);
   }
 
-  // GET endpoint (get one product by id)
+  // GET endpoint (get one product by id) - Public
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Product | null> {
-    return this.productService.findOne(Number(id));
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<Product | null> {
+    return this.productService.findOne(id);
   }
 
-  // POST endpoint (add new product)
+  // ============ ADMIN ENDPOINTS (REQUIRE AUTH) ============
+
+  // POST endpoint (add new product) - Admin only
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() product: Product): Promise<Product> {
     return this.productService.create(product);
   }
 
-  // DELETE endpoint (delete product by id)
+  // PUT endpoint (update product by id) - Admin only
+  @UseGuards(JwtAuthGuard)
+  @Put(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() product: Product,
+  ): Promise<Product> {
+    return this.productService.update(id, product);
+  }
+
+  // DELETE endpoint (delete product by id) - Admin only
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string): Promise<void> {
-    return this.productService.remove(Number(id));
+  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.productService.remove(id);
+  }
+
+  // PUT endpoint (update variant by id) - Admin only
+  @UseGuards(JwtAuthGuard)
+  @Put('variant/:variantId')
+  updateVariant(
+    @Param('variantId', ParseIntPipe) variantId: number,
+    @Body() variant: any,
+  ): Promise<any> {
+    return this.productService.updateVariant(variantId, variant);
   }
 }

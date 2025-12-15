@@ -6,6 +6,9 @@ import ProductRightSide from "../../components/ProductRightSide";
 // Yorum bileşenini çağırıyoruz
 import ProductReviews from "../../components/product/product-reviews";
 
+// Cache'i devre dışı bırak - her zaman fresh data getir
+export const revalidate = 0; // ISR devre dışı
+
 type Product = {
   id: number;
   name: string;
@@ -31,6 +34,7 @@ export default async function ProductDetailPage({ params }: Props) {
   try {
     if (!id) throw new Error("ID eksik");
     product = await api.get<Product>(`/products/${id}`);
+    console.log("🔍 PRODUCT DATA:", JSON.stringify(product, null, 2));
   } catch (error) {
     console.error("❌ API HATASI:", error);
   }

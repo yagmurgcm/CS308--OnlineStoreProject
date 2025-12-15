@@ -7,3 +7,5 @@ bcrypt.compare(password, hash).then(result => {
   console.log('Password "123456" matches hash:', result);
 });
 
+
+

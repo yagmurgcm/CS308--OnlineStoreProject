@@ -16,6 +16,7 @@ export type CategoryProduct = {
   colors?: string[];
   badge?: string;
   subcategory?: string | null;
+  description?: string | null;
   // 🔥 Backend'den bu alanların geldiğinden eminiz artık
   averageRating?: number | string;
   reviewCount?: number;

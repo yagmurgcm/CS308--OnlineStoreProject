@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const ADMIN_TABS = [
   { href: "/admin/orders", label: "📦 Orders", description: "Manage customer orders" },
+  { href: "/admin/products", label: "🛍️ Products", description: "Manage products & inventory" },
   { href: "/admin/reviews", label: "💬 Reviews", description: "Approve/reject reviews" },
 ];
 

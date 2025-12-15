@@ -140,6 +140,7 @@ export default function CategoryListingPage({
             colors: getPalette(item.id),
             badge: pickBadge(index),
             subcategory: item.subcategory,
+            description: item.description,
             originalIndex: index,
             // 👇 ARTIK KIZMAYACAK ÇÜNKÜ item: any
             averageRating: item.averageRating, 
