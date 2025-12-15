@@ -68,7 +68,13 @@ export default function SignInPage() {
       }
 
       setError(null);
-      setMessage("Sign in successful");
+
+      // Admin kontrolü - admin@gmail.com veya product@gmail.com ise admin paneline yönlendir
+      const isAdmin =
+        resolvedEmail.toLowerCase() === "admin@gmail.com" ||
+        resolvedEmail.toLowerCase() === "product@gmail.com";
+
+      setMessage(isAdmin ? "Welcome Admin!" : "Sign in successful");
       setAuthenticatedUser({
         name: payloadName || resolvedEmail,
         email: resolvedEmail,
@@ -76,7 +82,7 @@ export default function SignInPage() {
       });
       setEmail("");
       setPassword("");
-      const redirectTo = searchParams.get("redirect") || "/";
+      const redirectTo = isAdmin ? "/admin/products" : (searchParams.get("redirect") || "/");
       router.push(redirectTo);
     } catch (err) {
       console.error("Signin error:", err);

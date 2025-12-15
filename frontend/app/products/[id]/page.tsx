@@ -2,7 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
 // Sağ tarafı yöneten bileşeni çağırıyoruz
-import ProductRightSide from "../../components/ProductRightSide"; 
+import ProductRightSide from "../../components/ProductRightSide";
 // Yorum bileşenini çağırıyoruz
 import ProductReviews from "../../components/product/product-reviews";
 
@@ -33,7 +33,10 @@ export default async function ProductDetailPage({ params }: Props) {
 
   try {
     if (!id) throw new Error("ID eksik");
-    product = await api.get<Product>(`/products/${id}`);
+    product = await api.get<Product>(`/products/${id}`, {
+      cache: 'no-store',
+      next: { revalidate: 0 }
+    });
     console.log("🔍 PRODUCT DATA:", JSON.stringify(product, null, 2));
   } catch (error) {
     console.error("❌ API HATASI:", error);
@@ -52,12 +55,12 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <div className="container-base py-10 md:py-16 bg-white min-h-screen">
-      
+
       {/* --- ÜST KISIM: IZGARA (GRID) YAPISI --- 
           Sol: Resim, Sağ: Detaylar
       */}
       <div className="grid gap-10 md:grid-cols-[1.5fr_1fr] lg:gap-16 items-start">
-        
+
         {/* --- SOL TARAF (RESİM) --- */}
         <div className="relative w-full md:sticky md:top-24">
           <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-50 border border-gray-100 rounded-sm">

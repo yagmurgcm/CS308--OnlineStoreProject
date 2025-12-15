@@ -15,7 +15,7 @@ export class ProductVariant {
   @PrimaryGeneratedColumn()
   id: number;
 
-@ManyToOne(() => Product, (product) => product.variants)
+  @ManyToOne(() => Product, (product) => product.variants)
   @JoinColumn({ name: 'productId' }) // Veritabanında productId adında sütun oluşturur
   product: Product;
 

@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 import UserStatus from "./UserStatus";
+import InvertToggle from "./InvertToggle";
 import { searchProducts, type ProductRecord } from "@/lib/products";
 
 // Sign-in sheet import
@@ -320,6 +321,7 @@ export default function Header() {
 
           {/* RIGHT: USER + CART + NAME + LOGOUT */}
           <div className="flex items-center justify-end gap-4">
+            <InvertToggle />
             <UserStatus />
             <CartPreview />
 

@@ -68,7 +68,7 @@ type DecoratedProduct = CategoryProduct & {
 export type CategoryListingPageProps = {
   categoryKey: string;
   label: string;
-  heroTitle: string; 
+  heroTitle: string;
   heroSubtitle: string;
   subCategories: string[];
   defaultSubcategory?: string | null;
@@ -82,20 +82,20 @@ export default function CategoryListingPage({
   heroSubtitle,
   subCategories,
   defaultSubcategory,
-  limit = 100, 
+  limit = 100,
 }: CategoryListingPageProps) {
-  
+
   const [activeSubcategory, setActiveSubcategory] =
     useState<string | null>(null);
 
   const [products, setProducts] = useState<DecoratedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [priceFilter, setPriceFilter] = useState<PriceFilterValue>("all");
   const [onlyNewIn, setOnlyNewIn] = useState(false);
   const [sortBy, setSortBy] = useState<SortValue>("recommended");
-  
+
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement | null>(null);
@@ -117,11 +117,11 @@ export default function CategoryListingPage({
         const scoped = data.filter((item) => {
           let itemCat = "";
           if (typeof item.category === 'string') {
-             itemCat = item.category;
+            itemCat = item.category;
           } else if (item.category && typeof item.category === 'object' && (item.category as any).name) {
-             itemCat = (item.category as any).name; 
+            itemCat = (item.category as any).name;
           } else {
-             itemCat = String(item.category || ""); 
+            itemCat = String(item.category || "");
           }
           return itemCat.toLowerCase().trim() === currentCategory;
         });
@@ -129,7 +129,7 @@ export default function CategoryListingPage({
         // 2. MAPLEME
         // 🔥 BURAYA DİKKAT: (item: any) diyerek hatayı susturuyoruz.
         const mapped = scoped.slice(0, limit).map((item: any, index) => {
-           const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
+          const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
 
           return {
             id: `prod-${item.id}`,
@@ -143,11 +143,11 @@ export default function CategoryListingPage({
             description: item.description,
             originalIndex: index,
             // 👇 ARTIK KIZMAYACAK ÇÜNKÜ item: any
-            averageRating: item.averageRating, 
-            reviewCount: item.reviewCount,     
+            averageRating: item.averageRating,
+            reviewCount: item.reviewCount,
           };
         });
-        
+
         setProducts(mapped);
       } catch (err) {
         console.error("HATA:", err);
@@ -184,8 +184,8 @@ export default function CategoryListingPage({
       if (activeSubcategory !== "View All" && activeSubcategory !== "All") {
         const target = activeSubcategory.toLowerCase();
         subset = subset.filter((product) => {
-            const prodSub = product.subcategory ? product.subcategory.toLowerCase() : "";
-            return prodSub === target;
+          const prodSub = product.subcategory ? product.subcategory.toLowerCase() : "";
+          return prodSub === target;
         });
       }
     }
@@ -251,11 +251,10 @@ export default function CategoryListingPage({
                     prev === category ? null : category,
                   )
                 }
-                className={`pb-1 transition ${
-                  isActive
+                className={`pb-1 transition ${isActive
                     ? "border-b-2 border-[#7a0025] font-semibold text-[#7a0025]"
                     : "text-neutral-500 hover:text-neutral-800"
-                }`}
+                  }`}
                 aria-pressed={isActive}
               >
                 {category}
@@ -268,7 +267,7 @@ export default function CategoryListingPage({
       <section className="flex flex-wrap items-center justify-between gap-4 text-sm text-neutral-600">
         <span className="text-neutral-500">{totalItems}</span>
         <div className="flex gap-2">
-           <div className="relative" ref={filterRef}>
+          <div className="relative" ref={filterRef}>
             <button
               type="button"
               className="btn h-10 px-5"
@@ -354,11 +353,10 @@ export default function CategoryListingPage({
                       <button
                         key={option.value}
                         type="button"
-                        className={`w-full rounded-lg px-3 py-2 text-left ${
-                          isActive
+                        className={`w-full rounded-lg px-3 py-2 text-left ${isActive
                             ? "bg-[#7a0025] text-white"
                             : "hover:bg-neutral-50"
-                        }`}
+                          }`}
                         onClick={() => {
                           setSortBy(option.value);
                           setSortOpen(false);
@@ -384,11 +382,11 @@ export default function CategoryListingPage({
             <p className="text-sm text-neutral-500">
               No products found for <span className="font-bold">"{displayTitle}"</span>.
             </p>
-            <button 
-                onClick={() => setActiveSubcategory(null)}
-                className="mt-2 text-[#7a0025] underline text-sm"
+            <button
+              onClick={() => setActiveSubcategory(null)}
+              className="mt-2 text-[#7a0025] underline text-sm"
             >
-                Clear Filters
+              Clear Filters
             </button>
           </div>
         ) : (

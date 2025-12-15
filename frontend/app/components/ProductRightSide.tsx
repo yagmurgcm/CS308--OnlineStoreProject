@@ -68,7 +68,7 @@ export default function ProductRightSide({ product }: { product: Product }) {
   const [quantity, setQuantity] = useState(1);
 
   // Sayfa ilk yüklendiğinde otomatik ilk renk ve bedeni seç
- // Sayfa ilk yüklendiğinde otomatik ilk renk ve bedeni seç
+  // Sayfa ilk yüklendiğinde otomatik ilk renk ve bedeni seç
   useEffect(() => {
     if (availableColors.length > 0 && !selectedColor) {
       setSelectedColor(availableColors[0]);
@@ -92,13 +92,13 @@ export default function ProductRightSide({ product }: { product: Product }) {
   const currentStock = selectedVariant ? selectedVariant.stock : 0;
   // Eğer varyantın özel fiyatı varsa onu kullan, yoksa ana ürün fiyatını kullan
   const currentPrice = selectedVariant?.price ? Number(selectedVariant.price) : (typeof product.price === "string" ? parseFloat(product.price) : product.price || 0);
-  
+
   const isOutOfStock = currentStock === 0;
   const image = product.image || product.imageUrl || "/images/1.jpg";
 
   const handleQuantityChange = (val: number) => {
     if (val < 1) return;
-    if (!isOutOfStock && val > currentStock) return; 
+    if (!isOutOfStock && val > currentStock) return;
     setQuantity(val);
   };
 
@@ -124,9 +124,9 @@ export default function ProductRightSide({ product }: { product: Product }) {
 
   return (
     <div className="flex flex-col font-sans text-[#1b1b1b] pt-2">
-      
+
       <h1 className="text-4xl font-medium tracking-tight mb-2 text-black">{product.name}</h1>
-      
+
       {/* ⭐ RATING & REVIEW COUNT */}
       <div className="flex items-center gap-2 mb-4">
         {/* Rating Number */}
@@ -140,11 +140,10 @@ export default function ProductRightSide({ product }: { product: Product }) {
             <Star
               key={star}
               size={18}
-              className={`${
-                star <= Math.round(ratingValue)
+              className={`${star <= Math.round(ratingValue)
                   ? "fill-yellow-400 text-yellow-400"
                   : "fill-gray-200 text-gray-200"
-              }`}
+                }`}
             />
           ))}
         </div>
@@ -167,23 +166,23 @@ export default function ProductRightSide({ product }: { product: Product }) {
             New In
           </span>
         </div>
-        
+
         {/* STOK BİLGİSİ */}
         <div className="mt-2 text-sm transition-all duration-300">
-             {/* Varyant seçili değilse veya stok 0 ise */}
-             {!selectedVariant || isOutOfStock ? (
-                <span className="text-red-600 font-bold">⚠️ Out of Stock</span>
-             ) : currentStock <= 5 ? (
-                /* Stok 5 veya daha az ise - Turuncu uyarı */
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 font-semibold animate-pulse">
-                   🔥 Hurry! Only {currentStock} {currentStock === 1 ? 'item' : 'items'} left in stock!
-                </span>
-             ) : (
-                /* Stok 5'ten fazla ise - Normal yeşil */
-                <span className="text-green-700 font-medium">
-                   ✅ In Stock: <span className="font-bold text-lg">{currentStock}</span> items available
-                </span>
-             )}
+          {/* Varyant seçili değilse veya stok 0 ise */}
+          {!selectedVariant || isOutOfStock ? (
+            <span className="text-red-600 font-bold">⚠️ Out of Stock</span>
+          ) : currentStock <= 5 ? (
+            /* Stok 5 veya daha az ise - Turuncu uyarı */
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-orange-100 text-orange-800 font-semibold animate-pulse">
+              🔥 Hurry! Only {currentStock} {currentStock === 1 ? 'item' : 'items'} left in stock!
+            </span>
+          ) : (
+            /* Stok 5'ten fazla ise - Normal yeşil */
+            <span className="text-green-700 font-medium">
+              ✅ In Stock: <span className="font-bold text-lg">{currentStock}</span> items available
+            </span>
+          )}
         </div>
       </div>
 
@@ -205,19 +204,19 @@ export default function ProductRightSide({ product }: { product: Product }) {
               // Basit bir mapleme veya direkt hex kodu backendden geliyorsa o kullanılabilir
               // Şimdilik ismi kullanıyoruz
               const isActive = selectedColor === color;
-              
+
               // CSS için basit renk dönüşümü (Geliştirilebilir)
               let bg = color.toLowerCase().replace(/\s/g, '');
               if (bg === 'stone') bg = '#D2B48C'; // Örnek manuel düzeltme
-              
+
               return (
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color)}
                   className={`h-10 px-4 min-w-[3rem] rounded-md border text-sm font-medium transition-all
-                    ${isActive 
-                        ? 'border-black bg-black text-white' 
-                        : 'border-gray-300 bg-white text-gray-900 hover:border-gray-400'}`}
+                    ${isActive
+                      ? 'border-black bg-black text-white'
+                      : 'border-gray-300 bg-white text-gray-900 hover:border-gray-400'}`}
                 >
                   {color}
                 </button>
@@ -231,8 +230,8 @@ export default function ProductRightSide({ product }: { product: Product }) {
       {availableSizes.length > 0 && (
         <div className="mb-8">
           <div className="flex justify-between items-end mb-3">
-             <p className="text-sm font-bold">Size: <span className="font-normal text-gray-600 ml-1">{selectedSize}</span></p>
-             <button className="text-xs text-gray-500 underline decoration-gray-400">Size Chart</button>
+            <p className="text-sm font-bold">Size: <span className="font-normal text-gray-600 ml-1">{selectedSize}</span></p>
+            <button className="text-xs text-gray-500 underline decoration-gray-400">Size Chart</button>
           </div>
           <div className="flex flex-wrap gap-2">
             {availableSizes.map((size) => (
@@ -240,8 +239,8 @@ export default function ProductRightSide({ product }: { product: Product }) {
                 key={size}
                 onClick={() => setSelectedSize(size)}
                 className={`h-12 w-14 flex items-center justify-center text-sm font-medium border transition-colors
-                  ${selectedSize === size 
-                    ? 'border-black bg-black text-white' 
+                  ${selectedSize === size
+                    ? 'border-black bg-black text-white'
                     : 'border-gray-300 bg-white text-gray-900 hover:border-black'}`}
               >
                 {size}
@@ -254,7 +253,7 @@ export default function ProductRightSide({ product }: { product: Product }) {
       {/* Show warning if no variants exist */}
       {variants.length === 0 && (
         <div className="p-4 bg-yellow-50 text-yellow-800 text-sm mb-6 rounded">
-            No variant (size/color) information found for this product. Please contact the administrator.
+          No variant (size/color) information found for this product. Please contact the administrator.
         </div>
       )}
 
@@ -271,33 +270,33 @@ export default function ProductRightSide({ product }: { product: Product }) {
       {/* BUTONLAR */}
       <div className="space-y-4">
         <div className={isOutOfStock ? "opacity-50 pointer-events-none cursor-not-allowed" : ""}>
-            <AddToCartButton
-                product={{
-                    productId: product.id,
-                    name: product.name,
-                    price: currentPrice,
-                    image: image,
-                    quantity: quantity,
-                    color: selectedColor || undefined,
-                    size: selectedSize || undefined
-                }}
-                className={`w-full h-14 text-base font-bold tracking-widest uppercase transition-colors rounded-sm text-white
+          <AddToCartButton
+            product={{
+              productId: product.id,
+              name: product.name,
+              price: currentPrice,
+              image: image,
+              quantity: quantity,
+              color: selectedColor || undefined,
+              size: selectedSize || undefined
+            }}
+            className={`w-full h-14 text-base font-bold tracking-widest uppercase transition-colors rounded-sm text-white
                     ${isOutOfStock ? 'bg-gray-400' : 'bg-[#1b1b1b] hover:bg-black'}`}
-            >
-                {isOutOfStock ? "OUT OF STOCK" : "ADD TO CART"}
-            </AddToCartButton>
+          >
+            {isOutOfStock ? "OUT OF STOCK" : "ADD TO CART"}
+          </AddToCartButton>
         </div>
-        
+
         <div className="flex justify-end pt-2">
-            <button 
-                onClick={handleAddToWishlist}
-                className="flex items-center gap-2 text-sm text-gray-600 hover:text-black transition-colors py-2 px-4 border border-transparent hover:border-gray-200"
-            >
+          <button
+            onClick={handleAddToWishlist}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-black transition-colors py-2 px-4 border border-transparent hover:border-gray-200"
+          >
             <span className={`text-xl ${isInWishlist ? 'text-red-600' : 'text-gray-400'}`}>
-                {isInWishlist ? "♥" : "♡"}
+              {isInWishlist ? "♥" : "♡"}
             </span>
             <span className="underline underline-offset-4">Add to Wishlist</span>
-            </button>
+          </button>
         </div>
       </div>
     </div>

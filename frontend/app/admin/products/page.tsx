@@ -130,9 +130,12 @@ export default function AdminProductsPage() {
   }, []);
 
   const handleEdit = (product: Product) => {
+    // Capitalize category to match CATEGORIES constant (Women, Men, Beauty)
+    const capitalizedCategory = product.category.charAt(0).toUpperCase() + product.category.slice(1).toLowerCase();
+
     setFormData({
       name: product.name,
-      category: product.category,
+      category: capitalizedCategory,
       subcategory: product.subcategory || "",
       description: product.description || "",
       price: String(product.price),
@@ -180,15 +183,22 @@ export default function AdminProductsPage() {
         isActive: formData.isActive,
       };
 
+      console.log(`📤 [FRONTEND] Sending update request for product ID: ${editingId}`);
+      console.log(`📝 [FRONTEND] Payload being sent:`, payload);
+
       if (editingId) {
         await api.put(`/products/${editingId}`, payload);
+        console.log(`✅ [FRONTEND] Product update successful for ID: ${editingId}`);
         alert("Product updated successfully");
       } else {
         await api.post("/products", payload);
+        console.log(`✅ [FRONTEND] Product creation successful`);
         alert("Product created successfully");
       }
 
+      console.log(`🔄 [FRONTEND] Refreshing product list...`);
       await fetchProducts();
+      console.log(`✅ [FRONTEND] Product list refreshed`);
       setShowForm(false);
       setEditingId(null);
       setFormData({
@@ -201,7 +211,7 @@ export default function AdminProductsPage() {
         isActive: true,
       });
     } catch (err) {
-      console.error("Failed to save product:", err);
+      console.error("❌ [FRONTEND] Failed to save product:", err);
       alert("Failed to save product. Please check the console.");
     } finally {
       setSubmitting(false);
@@ -254,7 +264,7 @@ export default function AdminProductsPage() {
 
         await api.put(`/products/variant/${selectedVariant.id}`, variantUpdate);
         alert("Variant updated successfully");
-        
+
         // Fetch updated products list
         const response = await api.get<{ items: Product[] }>(
           "/products?limit=1000"
@@ -328,7 +338,7 @@ export default function AdminProductsPage() {
 
   const handleSort = (column: string) => {
     let newDirection: "asc" | "desc" | null = "asc";
-    
+
     if (sortConfig.column === column) {
       if (sortConfig.direction === "asc") {
         newDirection = "desc";
@@ -336,7 +346,7 @@ export default function AdminProductsPage() {
         newDirection = null;
       }
     }
-    
+
     setSortConfig({
       column: newDirection ? column : null,
       direction: newDirection,
@@ -345,7 +355,7 @@ export default function AdminProductsPage() {
 
   const getSortedProducts = () => {
     let sorted = [...filteredProducts];
-    
+
     if (!sortConfig.column || !sortConfig.direction) {
       return sorted;
     }
@@ -559,13 +569,12 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                            getTotalStock(product) > 10
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTotalStock(product) > 10
                               ? "bg-green-100 text-green-800"
                               : getTotalStock(product) > 0
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
                         >
                           {getTotalStock(product)} pcs
                         </span>
@@ -583,11 +592,10 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-4 py-2">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            product.isActive
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${product.isActive
                               ? "bg-green-100 text-green-800"
                               : "bg-gray-100 text-gray-800"
-                          }`}
+                            }`}
                         >
                           {product.isActive ? "Active" : "Inactive"}
                         </span>
@@ -843,11 +851,10 @@ export default function AdminProductsPage() {
                             </td>
                             <td className="px-4 py-3">
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  variant.stock > 0
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${variant.stock > 0
                                     ? "bg-green-100 text-green-800"
                                     : "bg-red-100 text-red-800"
-                                }`}
+                                  }`}
                               >
                                 {variant.stock}
                               </span>

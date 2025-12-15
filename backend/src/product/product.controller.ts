@@ -13,6 +13,8 @@ import {
 import { ProductService } from './product.service';
 import { Product } from './entities/product.entity';
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 // Product Endpoints
@@ -47,7 +49,7 @@ export class ProductController {
   // POST endpoint (add new product) - Admin only
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() product: Product): Promise<Product> {
+  create(@Body() product: CreateProductDto): Promise<Product> {
     return this.productService.create(product);
   }
 
@@ -56,8 +58,10 @@ export class ProductController {
   @Put(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() product: Product,
+    @Body() product: UpdateProductDto,
   ): Promise<Product> {
+    console.log(`🚀 [BACKEND CONTROLLER] Update request received for Product ID: ${id}`);
+    console.log(`📦 [BACKEND CONTROLLER] Payload:`, product);
     return this.productService.update(id, product);
   }
 

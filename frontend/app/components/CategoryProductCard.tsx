@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Star } from "lucide-react"; 
+import { Star } from "lucide-react";
 import { useWishlist } from "@/store/wishlistContext";
 
 // 👇 TİP TANIMI (TAPU) - Backend'den gelen veriye uygun
@@ -62,9 +62,8 @@ export default function CategoryProductCard({
           e.preventDefault();
           handleAddToWishlist();
         }}
-        className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-300 ${
-          isInWishlist ? "scale-110 text-red-500" : "text-neutral-400 hover:text-red-500"
-        }`}
+        className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-300 ${isInWishlist ? "scale-110 text-red-500" : "text-neutral-400 hover:text-red-500"
+          }`}
       >
         {isInWishlist ? "💖" : "🤍"}
       </button>
@@ -91,33 +90,32 @@ export default function CategoryProductCard({
             {product.name}
           </h3>
         </Link>
-        
+
         {/* ⭐ YILDIZLAR VE PUANLAMA ALANI ⭐ */}
         <div className="flex items-center gap-1.5 mt-1 min-h-[18px]">
-             {/* Puan Yazısı (Örn: 4.5) */}
-             <span className="text-xs font-bold text-gray-900">
-                {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
-             </span>
+          {/* Puan Yazısı (Örn: 4.5) */}
+          <span className="text-xs font-bold text-gray-900">
+            {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
+          </span>
 
-             {/* Yıldız İkonları */}
-             <div className="flex gap-[1px]">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={12} // Biraz büyüttüm daha net görünsün
-                  className={`${
-                    star <= Math.round(ratingValue)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "fill-gray-100 text-gray-300"
+          {/* Yıldız İkonları */}
+          <div className="flex gap-[1px]">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={12} // Biraz büyüttüm daha net görünsün
+                className={`${star <= Math.round(ratingValue)
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "fill-gray-100 text-gray-300"
                   }`}
-                />
-              ))}
-             </div>
+              />
+            ))}
+          </div>
 
-             {/* Yorum Sayısı (Örn: (12)) */}
-             <span className="text-[10px] font-medium text-gray-500">
-                ({reviewCount})
-             </span>
+          {/* Yorum Sayısı (Örn: (12)) */}
+          <span className="text-[10px] font-medium text-gray-500">
+            ({reviewCount})
+          </span>
         </div>
 
         <div className="mt-1 font-semibold text-neutral-900">

@@ -43,9 +43,8 @@ export default function SignInSheet({ open, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="signin-title"
-        className={`absolute right-0 top-0 h-full w-[90vw] max-w-[420px] bg-white border-l border-[var(--line)] shadow-xl transition-transform duration-300 ease-out ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`absolute right-0 top-0 h-full w-[90vw] max-w-[420px] bg-white border-l border-[var(--line)] shadow-xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"
+          }`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between h-14 px-4 border-b border-[var(--line)]">
@@ -108,17 +107,19 @@ export default function SignInSheet({ open, onClose }: Props) {
                 if (!payloadToken || !resolvedEmail) {
                   setError("Authentication failed. Please try again.");
                   return;
-              }
-              setAuthenticatedUser({
-                name: payloadName || resolvedEmail,
-                email: resolvedEmail,
-                accessToken: payloadToken,
-              });
-                
-                // Admin kontrolü - admin@gmail.com ise admin paneline yönlendir
-                const isAdmin = resolvedEmail.toLowerCase() === "admin@gmail.com";
-                const redirectTo = isAdmin 
-                  ? "/admin/orders" 
+                }
+                setAuthenticatedUser({
+                  name: payloadName || resolvedEmail,
+                  email: resolvedEmail,
+                  accessToken: payloadToken,
+                });
+
+                // Admin kontrolü - admin@gmail.com veya product@gmail.com ise admin paneline yönlendir
+                const isAdmin =
+                  resolvedEmail.toLowerCase() === "admin@gmail.com" ||
+                  resolvedEmail.toLowerCase() === "product@gmail.com";
+                const redirectTo = isAdmin
+                  ? "/admin/products"
                   : (searchParams.get("redirect") || "/");
                 router.push(redirectTo);
                 setMessage(isAdmin ? "Welcome Admin!" : "Sign in successful");

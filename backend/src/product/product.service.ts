@@ -20,7 +20,7 @@ export class ProductService {
     private productRepository: Repository<Product>,
     @InjectRepository(ProductVariant)
     private variantRepository: Repository<ProductVariant>,
-  ) {}
+  ) { }
 
   // List and filter products with pagination and sorting
   async findAll(query: GetProductsQueryDto): Promise<PagedProducts> {
@@ -119,13 +119,36 @@ export class ProductService {
   }
 
   // Update product
-  async update(id: number, product: Product): Promise<Product> {
-    const existing = await this.findOne(id);
+  async update(id: number, productData: Partial<Product>): Promise<Product> {
+    console.log(`🔄 [BACKEND] Updating product ID: ${id}`);
+    console.log(`📝 [BACKEND] Update data received:`, productData);
+    
+    const existing = await this.productRepository.findOne({
+      where: { id },
+    });
+
     if (!existing) {
       throw new NotFoundException(`Product #${id} not found`);
     }
-    const updated = { ...existing, ...product, id };
-    return this.productRepository.save(updated);
+
+    // Alanları güvenli şekilde güncelle (relations hariç)
+    existing.name = productData.name ?? existing.name;
+    existing.category = productData.category ?? existing.category;
+    existing.subcategory = productData.subcategory ?? existing.subcategory;
+    existing.description = productData.description ?? existing.description;
+    existing.price = productData.price ?? existing.price;
+    existing.stock = productData.stock ?? existing.stock;
+    existing.isActive = productData.isActive ?? existing.isActive;
+    existing.image = productData.image ?? existing.image;
+
+    console.log(`✅ [BACKEND] Product updated in DB:`, {
+      id: existing.id,
+      name: existing.name,
+      description: existing.description,
+    });
+
+    // Only update scalar columns, not relations
+    return this.productRepository.save(existing, { reload: false });
   }
 
   // Delete product

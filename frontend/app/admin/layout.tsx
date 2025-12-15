@@ -40,8 +40,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Right: User Info & Actions */}
             <div className="flex items-center gap-4">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,14 +49,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </svg>
                 Store
               </Link>
-              
+
               {user && (
                 <div className="flex items-center gap-3 pl-4 border-l border-white/20">
                   <div className="text-right">
                     <p className="text-sm font-medium">{user.name || user.email}</p>
                     <p className="text-xs text-red-200">Administrator</p>
                   </div>
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition"
                   >
@@ -79,11 +79,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
-                    isActive
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition ${isActive
                       ? "border-red-600 text-red-600 bg-red-50"
                       : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </Link>

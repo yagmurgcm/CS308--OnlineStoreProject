@@ -12,4 +12,4 @@ import { ProductController } from './product.controller';
   providers: [ProductService], // service logic
   controllers: [ProductController], // API endpoints
 })
-export class ProductModule {}
+export class ProductModule { }
