@@ -96,6 +96,8 @@ function coercePrice(value: number | string | undefined): number {
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const userRole = user?.role ? user.role.toUpperCase() : null;
+  const cartDisabled = userRole === "SALES_MANAGER";
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [guestToken, setGuestToken] = useState<string | null>(null);
@@ -224,6 +226,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const ensureGuestToken = useCallback(async (): Promise<string> => {
+    if (cartDisabled) {
+      throw new Error("Cart interactions are disabled for this role");
+    }
     if (guestToken) {
       return guestToken;
     }
@@ -237,6 +242,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const loadCart = useCallback(
     async (options?: { silent?: boolean }) => {
+      if (cartDisabled) {
+        if (mountedRef.current) {
+          setItems([]);
+          setIsLoading(false);
+        }
+        return;
+      }
       if (mountedRef.current) {
         setIsLoading(true);
       }
@@ -275,16 +287,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [userId, guestToken, hydrateItems, persistGuestToken],
+    [userId, guestToken, hydrateItems, persistGuestToken, cartDisabled],
   );
 
   useEffect(() => {
+    if (cartDisabled) {
+      setItems([]);
+      setIsLoading(false);
+      return;
+    }
     loadCart({ silent: true }).catch(() => undefined);
-  }, [loadCart]);
+  }, [loadCart, cartDisabled]);
 
   // Merge guest cart into user cart after login
   useEffect(() => {
     const merge = async () => {
+      if (cartDisabled) return;
       if (!userId || !guestToken || mergedGuestCart) return;
       try {
         await api.post<CartResponse>(`/cart/${userId}/merge-guest`, {
@@ -298,10 +316,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     };
     merge();
-  }, [userId, guestToken, mergedGuestCart, loadCart, persistGuestToken]);
+  }, [userId, guestToken, mergedGuestCart, loadCart, persistGuestToken, cartDisabled]);
 
   const removeItem = useCallback(
     async (itemId: number) => {
+      if (cartDisabled) {
+        console.warn("Cart remove ignored: disabled for this role");
+        return;
+      }
       try {
         if (userId) {
           await api.delete(`/cart/${userId}/items/${itemId}`);
@@ -322,6 +344,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateQuantity = useCallback(
     async (itemId: number, quantity: number) => {
+      if (cartDisabled) {
+        console.warn("Cart update ignored: disabled for this role");
+        return;
+      }
       if (quantity <= 0) {
         return removeItem(itemId);
       }
@@ -352,6 +378,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Renk ve Beden parametrelerini API'ye gönderen fonksiyon
   const addItem = useCallback(
     async ({ productId, quantity = 1, color, size }: CartItemInput) => {
+      if (cartDisabled) {
+        console.warn("Cart add ignored: disabled for this role");
+        return;
+      }
       const normalizedQty = Math.max(1, quantity);
       try {
         if (userId) {
@@ -382,6 +412,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const clearCart = useCallback(async () => {
+    if (cartDisabled) {
+      console.warn("Cart clear ignored: disabled for this role");
+      return;
+    }
     try {
       if (userId) {
         await api.delete(`/cart/${userId}/clear`);

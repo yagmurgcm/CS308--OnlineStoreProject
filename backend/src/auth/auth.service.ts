@@ -37,13 +37,13 @@ export class AuthService {
       password: hashedPassword,
     });
 
-    const token = await this.signToken(user.id, user.email);
+    const token = await this.signToken(user.id, user.email, user.role);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
     } catch (e) {
       // token kaydı başarısızsa akışı bozma
     }
-    return { access_token: token };
+    return { access_token: token, role: user.role };
   }
 
   async signin(dto: SignInDto) {
@@ -62,7 +62,7 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, user.password); // <-- düzeltildi
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
-    const token = await this.signToken(user.id, user.email);
+    const token = await this.signToken(user.id, user.email, user.role);
     try {
       await this.tokenRepo.save({ userId: user.id, token });
     } catch (e) {
@@ -73,7 +73,16 @@ export class AuthService {
       email: user.email,
       logoutTime: null,
     });
-    return { message: 'login successful', access_token: token };
+    return {
+      message: 'login successful',
+      access_token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
   }
 
   async logout(userId: number) {
@@ -96,8 +105,8 @@ export class AuthService {
     };
   }
 
-  private async signToken(userId: number, email: string) {
-    const payload = { sub: userId, email };
+  private async signToken(userId: number, email: string, role: string) {
+    const payload = { sub: userId, email, role };
     return this.jwtService.signAsync(payload);
   }
 }

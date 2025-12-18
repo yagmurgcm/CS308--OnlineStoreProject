@@ -145,6 +145,7 @@ export default function Header() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { user, logout } = useAuth();
+  const isSalesManager = user?.role === "SALES_MANAGER";
 
   const handleLogout = async () => {
     await logout();
@@ -324,6 +325,15 @@ export default function Header() {
             <InvertToggle />
             <UserStatus />
             <CartPreview />
+            {isSalesManager && (
+              <button
+                type="button"
+                onClick={() => router.push("/sales-manager")}
+                className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-medium hover:bg-black hover:text-white transition"
+              >
+                Sales Manager
+              </button>
+            )}
 
             {user ? (
               <div className="flex items-center gap-2">

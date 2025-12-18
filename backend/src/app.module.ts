@@ -8,6 +8,7 @@ import { ProductModule } from './product/product.module';
 import { UsersModule } from './users/users.module';
 import { OrderModule } from './order/order.module'; // <-- BUNU EKLEMELİSİN
 import { ReviewsModule } from './reviews/reviews.module';
+import { SalesManagerModule } from './sales-manager/sales-manager.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     AuthModule,
     OrderModule, // <-- BURASI ARTIK DOĞRU
     ReviewsModule, // 👈 BURAYA VİRGÜL KOYUP EKLE
+    SalesManagerModule,
   ],
 })
 export class AppModule {}

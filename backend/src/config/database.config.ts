@@ -42,6 +42,53 @@ const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [
   join(__dirname, '..', 'migrations', '*{.ts,.js}'),
 ];
 
+const resolveNumber = (value: string | undefined, fallback: number): number => {
+  if (value === undefined || value === null) return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const FALLBACK_DB = {
+  host: 'switchyard.proxy.rlwy.net',
+  port: 39112,
+  username: 'root',
+  password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp',
+  database: 'railway',
+};
+
+const readDatabaseConfig = () => {
+  const host =
+    process.env.DB_HOST ??
+    process.env.MYSQLHOST ??
+    process.env.DB_URL ??
+    FALLBACK_DB.host;
+  const port = resolveNumber(
+    process.env.DB_PORT ?? process.env.MYSQLPORT,
+    FALLBACK_DB.port,
+  );
+  const username =
+    process.env.DB_USERNAME ??
+    process.env.DB_USER ??
+    process.env.MYSQLUSER ??
+    FALLBACK_DB.username;
+  const password =
+    process.env.DB_PASSWORD ??
+    process.env.MYSQLPASSWORD ??
+    FALLBACK_DB.password;
+  const database =
+    process.env.DB_NAME ??
+    process.env.MYSQLDATABASE ??
+    FALLBACK_DB.database;
+
+  if (!host || !database || !username || !password || !Number.isFinite(port)) {
+    throw new Error(
+      'Database configuration is incomplete. Please set DB_* environment variables.',
+    );
+  }
+
+  return { host, port, username, password, database };
+};
+
 const coerceBoolean = (
   value: string | undefined,
   defaultValue: boolean,
@@ -56,16 +103,16 @@ export const getDatabaseConfig = (
   overrides: Overrides = {},
 ): MysqlConnectionOptions => {
   const { entities, migrations, ...restOverrides } = overrides;
+  const { host, port, username, password, database } = readDatabaseConfig();
 
   return {
     type: 'mysql',
 
-    // 🔥 RAILWAY BAĞLANTIN (KESİN DOĞRU)
-    host: 'switchyard.proxy.rlwy.net',
-    port: 39112,
-    username: 'root',
-    password: 'ClCAOzGDlqJwDWcINlbVmCEaqAoCSDIp',
-    database: 'railway',
+    host,
+    port,
+    username,
+    password,
+    database,
 
     synchronize: coerceBoolean(process.env.TYPEORM_SYNC, false),
     logging: coerceBoolean(process.env.TYPEORM_LOGGING, false),

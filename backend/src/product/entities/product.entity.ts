@@ -27,6 +27,12 @@ export class Product {
   price: number;
 
   @Column({ type: 'int', default: 0 })
+  discountRate: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  discountedPrice: number | null;
+
+  @Column({ type: 'int', default: 0 })
   stock: number;
 
   @Column({ default: true })
