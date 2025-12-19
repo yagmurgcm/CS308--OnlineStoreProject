@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 
 import { Order } from './order.entity';
 import { Product } from '../product/entities/product.entity';
+import { ProductVariant } from '../product/product-variant.entity';
 
 @Entity()
 export class OrderDetail {
@@ -22,6 +23,13 @@ export class OrderDetail {
   @JoinColumn({ name: 'productId' })
   product: Product;
 
+  @Column({ nullable: true })
+  variantId: number | null;
+
+  @ManyToOne(() => ProductVariant, { eager: true })
+  @JoinColumn({ name: 'variantId' })
+  variant: ProductVariant | null;
+
   @Column()
   quantity: number;
 
@@ -30,4 +38,7 @@ export class OrderDetail {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   lineTotal: number;
+
+  @Column({ type: 'int', default: 0 })
+  returnedQuantity: number;
 }

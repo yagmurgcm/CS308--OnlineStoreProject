@@ -15,9 +15,13 @@ class InMemoryOrderDetailRepository {
       id: 0,
       order: payload.order!,
       product: payload.product!,
+      productId: payload.productId ?? payload.product?.id ?? 0,
+      variantId: payload.variantId ?? null,
+      variant: payload.variant ?? null,
       quantity: payload.quantity ?? 0,
       price: payload.price ?? 0,
       lineTotal: payload.lineTotal ?? 0,
+      returnedQuantity: payload.returnedQuantity ?? 0,
     } as OrderDetail;
   }
 
@@ -64,6 +68,7 @@ class InMemoryOrderRepository {
   constructor(
     private readonly detailRepo: InMemoryOrderDetailRepository,
     private readonly cartRepo: InMemoryCartRepository,
+    private readonly variantRepo: InMemoryVariantRepository,
   ) {}
 
   manager = {
@@ -73,6 +78,7 @@ class InMemoryOrderRepository {
           if (entity === Order) return this;
           if (entity === OrderDetail) return this.detailRepo;
           if (entity === Cart) return this.cartRepo;
+          if (entity === ProductVariant) return this.variantRepo;
           return null;
         },
       };
@@ -139,13 +145,18 @@ class InMemoryVariantRepository {
   async findOne(options: { where: { id: number }; relations?: string[] }): Promise<ProductVariant | null> {
     return this.data.get(options.where.id) ?? null;
   }
+
+  async save(variant: ProductVariant): Promise<ProductVariant> {
+    this.data.set(variant.id, variant);
+    return variant;
+  }
 }
 
 const createService = () => {
   const detailRepo = new InMemoryOrderDetailRepository();
   const cartRepo = new InMemoryCartRepository();
-  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo);
   const variantRepo = new InMemoryVariantRepository();
+  const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo, variantRepo);
 
   const cartService = {
     getCart: jest.fn(),
@@ -179,10 +190,16 @@ const createService = () => {
   };
 };
 
-const buildVariant = (id: number, price: number, productName = 'Demo Product'): ProductVariant =>
+const buildVariant = (
+  id: number,
+  price: number,
+  stock = 10,
+  productName = 'Demo Product',
+): ProductVariant =>
   ({
     id,
     price,
+    stock,
     product: { id: id * 10, name: productName } as any,
   }) as ProductVariant;
 
@@ -266,5 +283,87 @@ describe('OrderService.checkout', () => {
     cartService.getCart.mockResolvedValue(cartRepo.cart);
 
     await expect(service.checkout(5)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('OrderService cancellations and returns', () => {
+  it('cancels an order, restocks remaining items, and marks status cancelled', async () => {
+    const { service, orderRepo, detailRepo, variantRepo, usersService } = createService();
+    usersService.findById.mockResolvedValue({ id: 1 });
+
+    const variant = buildVariant(1, 50, 3, 'Demo Product');
+    variantRepo.set(variant);
+
+    const order = await orderRepo.save(
+      orderRepo.create({ user: { id: 1 } as any, status: 'processing', totalPrice: 100 }),
+    );
+
+    await detailRepo.save(
+      detailRepo.create({
+        order,
+        product: { id: 10, name: 'Demo Product' } as any,
+        variant,
+        variantId: variant.id,
+        quantity: 2,
+        price: 50,
+        lineTotal: 100,
+        returnedQuantity: 0,
+      }),
+    );
+
+    const cancelled = await service.cancelOrder(order.id, 1);
+
+    expect(cancelled.status).toBe('cancelled');
+    expect(variantRepo.data.get(variant.id)?.stock).toBe(5); // 3 + 2 restocked
+  });
+
+  it('partially returns items and updates returnedQuantity and status', async () => {
+    const { service, orderRepo, detailRepo, variantRepo, usersService } = createService();
+    usersService.findById.mockResolvedValue({ id: 1 });
+
+    const variant1 = buildVariant(1, 40, 0, 'Shirt');
+    const variant2 = buildVariant(2, 60, 0, 'Jeans');
+    variantRepo.set(variant1);
+    variantRepo.set(variant2);
+
+    const order = await orderRepo.save(
+      orderRepo.create({ user: { id: 1 } as any, status: 'processing', totalPrice: 100 }),
+    );
+
+    const detail1 = await detailRepo.save(
+      detailRepo.create({
+        order,
+        product: { id: 11, name: 'Shirt' } as any,
+        variant: variant1,
+        variantId: variant1.id,
+        quantity: 2,
+        price: 40,
+        lineTotal: 80,
+        returnedQuantity: 0,
+      }),
+    );
+
+    await detailRepo.save(
+      detailRepo.create({
+        order,
+        product: { id: 12, name: 'Jeans' } as any,
+        variant: variant2,
+        variantId: variant2.id,
+        quantity: 1,
+        price: 60,
+        lineTotal: 60,
+        returnedQuantity: 0,
+      }),
+    );
+
+    const updated = await service.returnItems(order.id, 1, [
+      { detailId: detail1.id, quantity: 1 },
+    ]);
+
+    const returnedDetail = updated.details.find((d) => d.id === detail1.id);
+    expect(updated.status).toBe('partially_returned');
+    expect(returnedDetail?.returnedQuantity).toBe(1);
+    expect(variantRepo.data.get(variant1.id)?.stock).toBe(1);
+    expect(variantRepo.data.get(variant2.id)?.stock).toBe(0);
   });
 });

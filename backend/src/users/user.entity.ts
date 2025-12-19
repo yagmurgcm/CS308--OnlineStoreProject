@@ -23,6 +23,12 @@ export class User {
   @Column({ unique: true, length: 255 })
   email: string;
 
+  @Column('varchar', { length: 64, nullable: true })
+  taxId: string | null;
+
+  @Column('varchar', { length: 255, nullable: true })
+  homeAddress: string | null;
+
   @Column({ length: 255 })
   password: string;
 

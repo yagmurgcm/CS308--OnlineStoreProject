@@ -15,6 +15,7 @@ import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InvoiceService } from './invoice.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { ReturnItemsDto } from './dto/return-items.dto';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -56,6 +57,20 @@ export class OrderController {
   @Get(':id')
   async getOrderById(@Param('id', ParseIntPipe) id: number) {
     return this.orderService.getOrderById(id);
+  }
+
+  @Post(':id/cancel')
+  async cancelOrder(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.orderService.cancelOrder(id, req.user.userId);
+  }
+
+  @Post(':id/return')
+  async returnOrder(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req,
+    @Body() dto: ReturnItemsDto,
+  ) {
+    return this.orderService.returnItems(id, req.user.userId, dto.items);
   }
 
   @Get(':id/invoice')

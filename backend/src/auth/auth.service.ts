@@ -34,6 +34,8 @@ export class AuthService {
     const user = await this.usersService.create({
       name: dto.name,
       email: dto.email,
+      taxId: dto.taxId,
+      homeAddress: dto.homeAddress,
       password: hashedPassword,
     });
 
