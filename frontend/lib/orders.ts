@@ -11,7 +11,13 @@ export type OrderDetail = {
   id: number;
   quantity: number;
   price: number | string;
+  returnedQuantity?: number;
   product: OrderProduct;
+  variant?: {
+    id: number;
+    color?: string;
+    size?: string;
+  };
 };
 
 export type OrderSummary = {
@@ -63,4 +69,15 @@ export async function checkoutOrder(payload?: CheckoutPayload) {
 
 export async function fetchInvoicePdf(orderId: number | string) {
   return api.getBinary(`/orders/${orderId}/invoice`);
+}
+
+export async function cancelOrder(orderId: number | string) {
+  return api.post<OrderSummary>(`/orders/${orderId}/cancel`);
+}
+
+export async function returnOrder(
+  orderId: number | string,
+  items: { detailId: number; quantity: number }[],
+) {
+  return api.post<OrderSummary>(`/orders/${orderId}/return`, { items });
 }

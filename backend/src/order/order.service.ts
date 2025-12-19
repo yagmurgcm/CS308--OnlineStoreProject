@@ -91,6 +91,7 @@ export class OrderService {
 
       // İlk geçiş: Stok kontrolü ve fiyat hesaplama
       const variantsToUpdate: { variant: ProductVariant; quantity: number }[] = [];
+      const variantLookup = new Map<number, ProductVariant>();
 
       for (const item of cart.items) {
         const variant = await variantRepository.findOne({
@@ -112,6 +113,7 @@ export class OrderService {
         }
 
         variantsToUpdate.push({ variant, quantity: item.quantity });
+        variantLookup.set(variant.id, variant);
 
         const price = Number(variant.price);
         const lineTotal = price * item.quantity;
@@ -128,15 +130,22 @@ export class OrderService {
       // 4) Persist order details
       console.log('CHECKOUT STEP 4: inserting details...');
 
-      const detailEntities = cart.items.map((item) =>
-        detailRepository.create({
+      const detailEntities = cart.items.map((item) => {
+        const variant = variantLookup.get(item.variant.id);
+        if (!variant?.product) {
+          throw new NotFoundException(
+            `Variant ${item.variant.id} not found while creating order details`,
+          );
+        }
+        return detailRepository.create({
           orderId: order.id,
-          productId: item.variant.product.id,
+          productId: variant.product.id,
+          variantId: variant.id,
           quantity: item.quantity,
-          price: Number(item.variant.price),
-          lineTotal: Number(item.variant.price) * item.quantity,
-        }),
-      );
+          price: Number(variant.price),
+          lineTotal: Number(variant.price) * item.quantity,
+        });
+      });
 
       await detailRepository.save(detailEntities);
       console.log('CHECKOUT STEP 4 DONE: inserted', detailEntities.length);
@@ -175,8 +184,8 @@ export class OrderService {
 
     const finalizedOrder = createdOrder as Order;
     const to = payload?.email ?? finalizedOrder.contactEmail ?? user.email;
-    this.invoiceService
-      .sendInvoiceEmail(finalizedOrder.id, {
+    Promise.resolve(
+      this.invoiceService.sendInvoiceEmail(finalizedOrder.id, {
         to,
         contactName: payload?.fullName ?? finalizedOrder.contactName,
         contactPhone: payload?.phone ?? finalizedOrder.contactPhone,
@@ -187,10 +196,10 @@ export class OrderService {
           payload?.postalCode ?? finalizedOrder.shippingPostalCode,
         paymentBrand: payload?.cardBrand ?? finalizedOrder.paymentBrand,
         paymentLast4: payload?.cardLast4 ?? finalizedOrder.paymentLast4,
-      })
-      .catch((err) => {
-        console.error('Failed to send invoice email', err);
-      });
+      }),
+    ).catch((err) => {
+      console.error('Failed to send invoice email', err);
+    });
 
     return finalizedOrder;
   }
@@ -199,14 +208,14 @@ export class OrderService {
     return this.orderRepo.find({
       where: { user: { id: userId } },
       order: { createdAt: 'DESC' },
-      relations: ['details', 'details.product'],
+      relations: ['details', 'details.product', 'details.variant'],
     });
   }
 
   async getOrderById(id: number) {
     return this.orderRepo.findOne({
       where: { id },
-      relations: ['details', 'details.product', 'user'],
+      relations: ['details', 'details.product', 'details.variant', 'user'],
     });
   }
 
@@ -227,13 +236,20 @@ export class OrderService {
   async getAllOrders() {
     return this.orderRepo.find({
       order: { createdAt: 'DESC' },
-      relations: ['details', 'details.product', 'user'],
+      relations: ['details', 'details.product', 'details.variant', 'user'],
     });
   }
 
   // Sipariş durumunu güncelle
   async updateOrderStatus(orderId: number, newStatus: string) {
-    const validStatuses = ['processing', 'in-transit', 'delivered', 'cancelled'];
+    const validStatuses = [
+      'processing',
+      'in-transit',
+      'delivered',
+      'cancelled',
+      'returned',
+      'partially_returned',
+    ];
     
     if (!validStatuses.includes(newStatus)) {
       throw new BadRequestException(
@@ -253,5 +269,145 @@ export class OrderService {
     console.log(`✅ Order #${orderId} status updated to: ${newStatus}`);
     
     return this.getOrderById(orderId);
+  }
+
+  async cancelOrder(orderId: number, userId: number) {
+    const order = await this.assertOrderOwnership(orderId, userId);
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Order already cancelled');
+    }
+
+    let updatedOrder: Order | null = null;
+
+    await this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const detailRepository = manager.getRepository(OrderDetail);
+      const variantRepository = manager.getRepository(ProductVariant);
+
+      const current = await orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['details', 'details.variant', 'user'],
+      });
+
+      if (!current) {
+        throw new NotFoundException('Order not found');
+      }
+
+      for (const detail of current.details ?? []) {
+        const alreadyReturned = detail.returnedQuantity ?? 0;
+        const remaining = detail.quantity - alreadyReturned;
+        if (remaining <= 0) continue;
+
+        if (!detail.variantId) {
+          throw new NotFoundException(
+            `Variant not stored for order detail ${detail.id}`,
+          );
+        }
+        const variant = await variantRepository.findOne({
+          where: { id: detail.variantId },
+        });
+        if (!variant) {
+          throw new NotFoundException(
+            `Variant ${detail.variantId} not found for order detail ${detail.id}`,
+          );
+        }
+        variant.stock += remaining;
+        await variantRepository.save(variant);
+      }
+
+      current.status = 'cancelled';
+      await orderRepository.save(current);
+
+      updatedOrder = await orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['details', 'details.product', 'details.variant', 'user'],
+      });
+    });
+
+    if (!updatedOrder) {
+      throw new NotFoundException('Order not found');
+    }
+    return updatedOrder;
+  }
+
+  async returnItems(
+    orderId: number,
+    userId: number,
+    items: { detailId: number; quantity: number }[],
+  ) {
+    const order = await this.assertOrderOwnership(orderId, userId);
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Cancelled orders cannot be returned');
+    }
+
+    const detailMap = new Map<number, OrderDetail>();
+    for (const d of order.details ?? []) {
+      detailMap.set(d.id, d);
+    }
+
+    let updated: Order | null = null;
+
+    await this.orderRepo.manager.transaction(async (manager) => {
+      const orderRepository = manager.getRepository(Order);
+      const detailRepository = manager.getRepository(OrderDetail);
+      const variantRepository = manager.getRepository(ProductVariant);
+
+      const current = await orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['details', 'details.variant', 'user'],
+      });
+      if (!current) throw new NotFoundException('Order not found');
+
+      for (const item of items) {
+        const detail = current.details?.find((d) => d.id === item.detailId);
+        if (!detail) {
+          throw new NotFoundException(
+            `Order detail ${item.detailId} not found on this order`,
+          );
+        }
+        const alreadyReturned = detail.returnedQuantity ?? 0;
+        const remaining = detail.quantity - alreadyReturned;
+        if (item.quantity > remaining) {
+          throw new BadRequestException(
+            `Cannot return more than purchased for detail ${detail.id}`,
+          );
+        }
+        if (!detail.variantId) {
+          throw new NotFoundException(
+            `Variant not stored for order detail ${detail.id}`,
+          );
+        }
+        const variant = await variantRepository.findOne({
+          where: { id: detail.variantId },
+        });
+        if (!variant) {
+          throw new NotFoundException(
+            `Variant ${detail.variantId} not found for order detail ${detail.id}`,
+          );
+        }
+
+        detail.returnedQuantity = alreadyReturned + item.quantity;
+        await detailRepository.save(detail);
+
+        variant.stock += item.quantity;
+        await variantRepository.save(variant);
+      }
+
+      const allReturned = current.details?.every(
+        (d) => (d.returnedQuantity ?? 0) >= d.quantity,
+      );
+      current.status = allReturned ? 'returned' : 'partially_returned';
+      await orderRepository.save(current);
+
+      updated = await orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['details', 'details.product', 'details.variant', 'user'],
+      });
+    });
+
+    if (!updated) {
+      throw new NotFoundException('Order not found');
+    }
+    return updated;
   }
 }

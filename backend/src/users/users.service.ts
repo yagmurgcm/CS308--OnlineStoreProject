@@ -24,6 +24,8 @@ export class UsersService {
           'id',
           'email',
           'name',
+          'taxId',
+          'homeAddress',
           'password',
           'role',
           'createdAt',

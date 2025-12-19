@@ -11,6 +11,8 @@ type Profile = {
   email?: string;
   phone?: string;
   company?: string;
+  homeAddress?: string;
+  taxId?: string;
 };
 
 export default function AccountInformationPage() {
@@ -44,41 +46,35 @@ export default function AccountInformationPage() {
     return <div className="text-sm text-neutral-600">Please sign in to view your account.</div>;
   }
 
-  const fullName = profile?.name ?? user.name ?? "";
-  const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
-  const lastName = rest.join(" ");
+  const fullName = profile?.name?.trim() || user.name || "—";
   const email = profile?.email ?? user.email ?? "—";
-  const phone = profile?.phone ?? "—";
-  const company = profile?.company ?? "—";
+  const homeAddress = profile?.homeAddress?.trim() || "—";
+  const taxId = profile?.taxId?.trim() || "—";
 
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-semibold mb-6">My Account</h1>
-      <h2 className="text-xl font-semibold mb-6">Account Information</h2>
+      <h2 className="text-xl font-semibold mb-6">Profile</h2>
 
       {loading ? (
         <div className="text-sm text-neutral-500">Loading account info…</div>
       ) : (
         <div className="space-y-4 text-sm">
           <div>
-            <div className="text-gray-500">First Name</div>
-            <div className="font-medium">{firstName || "—"}</div>
+            <div className="text-gray-500">Full Name</div>
+            <div className="font-medium">{fullName}</div>
           </div>
           <div>
-            <div className="text-gray-500">Last Name</div>
-            <div className="font-medium">{lastName || "—"}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">Email Address</div>
+            <div className="text-gray-500">Email address</div>
             <div className="font-medium">{email}</div>
           </div>
           <div>
-            <div className="text-gray-500">Phone Number</div>
-            <div className="font-medium">{phone}</div>
+            <div className="text-gray-500">Home address</div>
+            <div className="font-medium whitespace-pre-line">{homeAddress}</div>
           </div>
           <div>
-            <div className="text-gray-500">Company</div>
-            <div className="font-medium">{company}</div>
+            <div className="text-gray-500">Tax ID</div>
+            <div className="font-medium">{taxId}</div>
           </div>
         </div>
       )}
