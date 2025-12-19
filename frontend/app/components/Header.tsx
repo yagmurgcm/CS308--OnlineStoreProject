@@ -146,6 +146,7 @@ export default function Header() {
 
   const { user, logout } = useAuth();
   const isSalesManager = user?.role === "SALES_MANAGER";
+  const isProductManager = user?.email?.toLowerCase() === "product@gmail.com";
 
   const handleLogout = async () => {
     await logout();
@@ -332,6 +333,15 @@ export default function Header() {
                 className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-medium hover:bg-black hover:text-white transition"
               >
                 Sales Manager
+              </button>
+            )}
+            {isProductManager && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin/products")}
+                className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-medium hover:bg-black hover:text-white transition"
+              >
+                Product Manager
               </button>
             )}
 
