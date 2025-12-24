@@ -11,6 +11,10 @@ import { InvoiceService } from '../order/invoice.service';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { GetFinanceSummaryQueryDto } from './dto/get-finance-summary-query.dto';
 import { GetInvoicesQueryDto } from './dto/get-invoices-query.dto';
+import {
+  PriceDropEvent,
+  PriceDropNotifierService,
+} from './price-drop-notifier.service';
 
 @Injectable()
 export class SalesManagerService {
@@ -20,6 +24,7 @@ export class SalesManagerService {
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
     private readonly invoiceService: InvoiceService,
+    private readonly priceDropNotifier: PriceDropNotifierService,
   ) {}
 
   getDashboard() {
@@ -58,16 +63,35 @@ export class SalesManagerService {
       throw new BadRequestException('No matching products were found');
     }
 
+    const drops: PriceDropEvent[] = [];
+
     for (const product of products) {
       const basePrice = Number(product.price) || 0;
-      product.discountRate = discountRate;
-      product.discountedPrice =
+      const newPrice =
         discountRate > 0
           ? Number((basePrice * (1 - multiplier)).toFixed(2))
-          : null;
+          : basePrice;
+
+      product.discountRate = discountRate;
+      product.discountedPrice = discountRate > 0 ? newPrice : null;
+
+      if (discountRate > 0 && newPrice < basePrice) {
+        drops.push({
+          productId: product.id,
+          productName: product.name,
+          oldPrice: basePrice,
+          newPrice,
+        });
+      }
     }
 
     await this.productRepo.save(products);
+    try {
+      await this.priceDropNotifier.notifyPriceDrops(drops);
+    } catch (err) {
+      // Notification failures should not block discount application
+      console.error('[PriceDropNotifier] Notification failed', err);
+    }
 
     return {
       updatedCount: products.length,

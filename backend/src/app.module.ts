@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { OrderModule } from './order/order.module'; // <-- BUNU EKLEMELİSİN
 import { ReviewsModule } from './reviews/reviews.module';
 import { SalesManagerModule } from './sales-manager/sales-manager.module';
+import { WishlistModule } from './wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SalesManagerModule } from './sales-manager/sales-manager.module';
     OrderModule, // <-- BURASI ARTIK DOĞRU
     ReviewsModule, // 👈 BURAYA VİRGÜL KOYUP EKLE
     SalesManagerModule,
+    WishlistModule,
   ],
 })
 export class AppModule {}

@@ -10,6 +10,8 @@ type ProductCardProps = {
   productId: number;
   title: string;
   price: number;
+  originalPrice?: number;
+  hasDiscount?: boolean;
   img?: string;
   className?: string;
   color?: string;
@@ -27,6 +29,8 @@ export default function ProductCard({
   productId,
   title,
   price,
+  originalPrice,
+  hasDiscount = false,
   img,
   className = "",
   color,
@@ -123,8 +127,15 @@ export default function ProductCard({
           </div>
           
           {/* FİYAT */}
-          <div className="text-sm font-semibold text-black-600 mt-1">
-            {priceFormatter.format(price)}
+          <div className="mt-1 flex items-baseline gap-2">
+            {hasDiscount && originalPrice !== undefined && originalPrice > price && (
+              <span className="text-xs text-gray-500 line-through">
+                {priceFormatter.format(originalPrice)}
+              </span>
+            )}
+            <span className="text-sm font-semibold text-black-600">
+              {priceFormatter.format(price)}
+            </span>
           </div>      
       </div>
     </div>

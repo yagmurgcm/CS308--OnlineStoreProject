@@ -4,17 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
-
-type Product = {
-  id: number;
-  name: string;
-  price: number | string;
-  description?: string | null;
-  image?: string | null;
-  imageUrl?: string | null;
-};
+import { fetchProducts, type ProductRecord } from "@/lib/products";
 
 const fmt = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -24,7 +15,7 @@ const fmt = new Intl.NumberFormat("tr-TR", {
 export default function ProductsPage() {
   const router = useRouter();
   const { addItem } = useCart();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>("");
   const [actionError, setActionError] = useState<string>("");
@@ -36,7 +27,7 @@ export default function ProductsPage() {
       setLoadError("");
       setActionError("");
       try {
-        const data = await api.get<Product[]>("/products");
+        const data = await fetchProducts({ limit: 300 });
         setProducts(data);
       } catch (e) {
         setLoadError(e instanceof Error ? e.message : "Failed to load products");
@@ -119,9 +110,10 @@ export default function ProductsPage() {
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((p) => {
-                const price =
-                  typeof p.price === "string" ? parseFloat(p.price) : p.price || 0;
-                const image = p.image || p.imageUrl || "/images/1.jpg";
+                const price = p.price || 0;
+                const showDiscount =
+                  p.hasDiscount && p.originalPrice !== undefined && p.originalPrice > price;
+                const image = p.image || "/images/1.jpg";
                 const description =
                   (p.description || "").length > 110
                     ? `${(p.description || "").slice(0, 107)}...`
@@ -153,8 +145,13 @@ export default function ProductsPage() {
                         >
                           {p.name}
                         </Link>
-                        <span className="text-sm font-semibold text-neutral-900">
-                          {fmt.format(price)}
+                        <span className="flex items-baseline gap-2 text-sm font-semibold text-neutral-900">
+                          {showDiscount && (
+                            <span className="text-xs text-neutral-500 line-through">
+                              {fmt.format(p.originalPrice || price)}
+                            </span>
+                          )}
+                          <span>{fmt.format(price)}</span>
                         </span>
                       </div>
 

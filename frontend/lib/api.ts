@@ -15,21 +15,36 @@ const buildAuthHeaders = (headers?: HeadersInit) => {
   };
 };
 
+type NextFetchOptions = RequestInit & { next?: { revalidate?: number } };
+
 async function request<T>(
   path: string,
-  options: RequestInit = {},
+  options: NextFetchOptions = {},
 ): Promise<T> {
+  const { headers: customHeaders, next, cache, ...rest } = options;
+
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
+    cache: cache ?? "no-store",
+    next: { revalidate: 0, ...(next || {}) },
+    ...rest,
     headers: {
       "Content-Type": "application/json",
-      ...buildAuthHeaders(options.headers),
+      ...buildAuthHeaders(customHeaders),
     },
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || `Request failed: ${res.status}`);
+    let message = `Request failed: ${res.status}`;
+    try {
+      const data = await res.json();
+      if (typeof data?.message === "string") {
+        message = data.message;
+      }
+    } catch {
+      const text = await res.text().catch(() => "");
+      if (text) message = text;
+    }
+    throw new Error(message);
   }
 
   try {
@@ -41,11 +56,15 @@ async function request<T>(
 
 async function requestBinary(
   path: string,
-  options: RequestInit = {},
+  options: NextFetchOptions = {},
 ): Promise<Blob> {
+  const { headers: customHeaders, next, cache, ...rest } = options;
+
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: buildAuthHeaders(options.headers),
+    cache: cache ?? "no-store",
+    next: { revalidate: 0, ...(next || {}) },
+    ...rest,
+    headers: buildAuthHeaders(customHeaders),
   });
 
   if (!res.ok) {

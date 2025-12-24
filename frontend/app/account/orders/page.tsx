@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { fetchUserOrders, type OrderSummary } from "@/lib/orders";
 
@@ -51,6 +51,7 @@ const getStatusColor = (status: string) => {
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,12 +150,13 @@ export default function OrdersPage() {
           <p className="mt-2 text-sm text-gray-500">
             When you make a purchase, your orders will appear here.
           </p>
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={() => router.push("/")}
             className="mt-6 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-black hover:bg-gray-800"
           >
             Start Shopping
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -164,10 +166,10 @@ export default function OrdersPage() {
             const firstProduct = order.details?.[0]?.product;
 
             return (
-              <Link
+              <div
                 key={order.id}
-                href={`/account/orders/${order.id}`}
-                className="block bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 overflow-hidden group"
+                className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 overflow-hidden group cursor-pointer"
+                onClick={() => router.push(`/account/orders/${order.id}`)}
               >
                 <div className="p-5">
                   {/* Header */}
@@ -221,19 +223,18 @@ export default function OrdersPage() {
 
                       {/* Product names */}
                       <div className="flex-1 min-w-0">
-                        {firstProduct?.id ? (
-                          <Link 
-                            href={`/products/${firstProduct.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-sm text-gray-700 truncate hover:text-black hover:underline transition-colors"
-                          >
-                            {firstProduct.name || "Product"}
-                          </Link>
-                        ) : (
-                          <p className="text-sm text-gray-700 truncate">
-                            {firstProduct?.name || "Product"}
-                          </p>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (firstProduct?.id) {
+                              router.push(`/products/${firstProduct.id}`);
+                            }
+                          }}
+                          className="text-left text-sm text-gray-700 truncate hover:text-black hover:underline transition-colors"
+                        >
+                          {firstProduct?.name || "Product"}
+                        </button>
                         {order.details && order.details.length > 1 && (
                           <span className="text-gray-500 text-sm">
                             {" "}
@@ -271,7 +272,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

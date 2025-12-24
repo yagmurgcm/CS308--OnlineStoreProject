@@ -22,6 +22,7 @@ import { OrderDetail } from '../order/order-detail.entity';
 
 // Reviews
 import { Review } from '../reviews/review.entity';
+import { WishlistItem } from '../wishlist/wishlist-item.entity';
 
 type Overrides = Partial<MysqlConnectionOptions>;
 
@@ -36,6 +37,7 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   Order,
   OrderDetail,
   Review,
+  WishlistItem,
 ];
 
 const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [

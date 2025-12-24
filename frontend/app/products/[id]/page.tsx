@@ -21,6 +21,8 @@ type Product = {
   mockSizes?: string[];
   averageRating?: number | string;
   reviewCount?: number;
+  discountRate?: number | string | null;
+  discountedPrice?: number | string | null;
 };
 
 type Props = {

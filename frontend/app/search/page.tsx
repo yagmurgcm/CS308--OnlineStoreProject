@@ -162,6 +162,8 @@ export function SearchExperience({
                 productId={product.id}
                 title={product.name}
                 price={product.price}
+                originalPrice={product.originalPrice}
+                hasDiscount={product.hasDiscount}
                 img={product.image}
                 averageRating={product.averageRating}
                 reviewCount={product.reviewCount}

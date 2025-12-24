@@ -10,20 +10,34 @@ export type ProductDto = {
   image?: string | null;
   imageUrl?: string | null;
   thumbnail?: string | null;
-  averageRating?: number | string;  // 🔥 Backend'den gelen ortalama puan
-  reviewCount?: number;              // 🔥 Backend'den gelen yorum sayısı
+  averageRating?: number | string;
+  reviewCount?: number;
+  discountRate?: number | string | null;
+  discountedPrice?: number | string | null;
 };
 
 export type ProductRecord = {
   id: number;
   name: string;
   price: number;
+  originalPrice: number;
+  discountRate?: number | null;
+  discountedPrice?: number | null;
+  hasDiscount: boolean;
   category?: string | null;
   subcategory?: string | null;
   description?: string | null;
   image: string;
   averageRating?: number | string;
   reviewCount?: number;
+};
+
+export type PricingDetails = {
+  originalPrice: number;
+  discountRate: number;
+  discountedPrice: number | null;
+  finalPrice: number;
+  hasDiscount: boolean;
 };
 
 const FALLBACK_IMAGE = "/images/1.jpg";
@@ -39,20 +53,67 @@ const COLOR_PRESETS: string[][] = [
   ["#2d3142", "#bfc0c0", "#ef8354"],
 ];
 
+export const normalizeMoney = (
+  value: number | string | null | undefined,
+): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+export function resolvePricing(
+  basePrice: number | string | null | undefined,
+  discountRate?: number | string | null,
+  discountedPrice?: number | string | null,
+): PricingDetails {
+  const originalPrice = normalizeMoney(basePrice);
+  const parsedRate = normalizeMoney(discountRate as number | string | null);
+  const rate = parsedRate > 0 ? parsedRate : 0;
+  const normalizedDiscounted =
+    discountedPrice === null || discountedPrice === undefined
+      ? null
+      : normalizeMoney(discountedPrice);
+
+  const computedDiscounted =
+    rate > 0 ? Number((originalPrice * (1 - rate / 100)).toFixed(2)) : null;
+
+  const effectiveDiscounted =
+    normalizedDiscounted !== null ? normalizedDiscounted : computedDiscounted;
+
+  const hasDiscount =
+    effectiveDiscounted !== null && effectiveDiscounted < originalPrice;
+
+  return {
+    originalPrice,
+    discountRate: rate,
+    discountedPrice: hasDiscount ? effectiveDiscounted! : null,
+    finalPrice: hasDiscount ? effectiveDiscounted! : originalPrice,
+    hasDiscount,
+  };
+}
+
 export function normalizeProduct(product: ProductDto): ProductRecord {
-  const price =
-    typeof product.price === "string"
-      ? parseFloat(product.price)
-      : product.price ?? 0;
+  const pricing = resolvePricing(
+    product.price,
+    product.discountRate,
+    product.discountedPrice,
+  );
+
   return {
     id: product.id,
     name: product.name,
-    price: Number.isFinite(price) ? price : 0,
+    price: pricing.finalPrice,
+    originalPrice: pricing.originalPrice,
+    discountRate: pricing.discountRate,
+    discountedPrice: pricing.discountedPrice,
+    hasDiscount: pricing.hasDiscount,
     category: product.category,
     subcategory: product.subcategory,
     description: product.description,
     image: product.image || product.imageUrl || product.thumbnail || FALLBACK_IMAGE,
-    // 🔥 Artık puan ve yorum sayısı da aktarılıyor!
     averageRating: product.averageRating,
     reviewCount: product.reviewCount,
   };
@@ -72,8 +133,14 @@ const toProductList = (
   return data?.items ?? [];
 };
 
-export async function fetchProducts(): Promise<ProductRecord[]> {
-  const data = await api.get<ProductDto[] | PagedProductsResponse>("/products?limit=100");
+export async function fetchProducts(options?: { limit?: number }): Promise<ProductRecord[]> {
+  const limit = options?.limit ?? 100;
+  const query = limit ? `?limit=${limit}` : "";
+
+  const data = await api.get<ProductDto[] | PagedProductsResponse>(
+    `/products${query}`,
+    { cache: "no-store", next: { revalidate: 0 } },
+  );
   const list = toProductList(data);
   return list.map(normalizeProduct);
 }
@@ -89,16 +156,9 @@ export function pickBadge(index: number): string | undefined {
   return undefined;
 }
 
-
-// lib/products.ts dosyanın sonuna ekle:
-
 export async function fetchProductById(id: string | number) {
-  const allProducts = await fetchProducts(); // Var olan fonksiyonunu kullanıyoruz
-  
-  // ID'si eşleşen ürünü bul
-  // (Hem string hem number gelebilir diye ikisini de stringe çevirip karşılaştırıyoruz)
+  const allProducts = await fetchProducts();
   const product = allProducts.find((p) => String(p.id) === String(id));
-  
   return product || null;
 }
 
@@ -108,6 +168,7 @@ export async function searchProducts(query: string): Promise<ProductRecord[]> {
 
   const data = await api.get<ProductDto[] | PagedProductsResponse>(
     `/products?search=${encodeURIComponent(term)}&limit=100`,
+    { cache: "no-store", next: { revalidate: 0 } },
   );
   return toProductList(data).map(normalizeProduct);
 }

@@ -12,6 +12,10 @@ export type CategoryProduct = {
   productId: number;
   name: string;
   price: number;
+  originalPrice?: number;
+  hasDiscount?: boolean;
+  discountRate?: number | null;
+  discountedPrice?: number | null;
   image: string;
   colors?: string[];
   badge?: string;
@@ -40,6 +44,10 @@ export default function CategoryProductCard({
   // Eğer NaN gelirse (hatalı veri) 0 kabul et
   const ratingValue = isNaN(rawRating) ? 0 : rawRating;
   const reviewCount = product.reviewCount || 0;
+  const showDiscount =
+    product.hasDiscount &&
+    product.originalPrice !== undefined &&
+    product.originalPrice > product.price;
 
   const handleAddToWishlist = () => {
     setIsInWishlist(true);
@@ -116,10 +124,19 @@ export default function CategoryProductCard({
           <span className="text-[10px] font-medium text-gray-500">
             ({reviewCount})
           </span>
-        </div>
+    </div>
 
         <div className="mt-1 font-semibold text-neutral-900">
-          {formatter.format(product.price)}
+          <div className="flex items-baseline gap-2">
+            {showDiscount && (
+              <span className="text-xs text-neutral-500 line-through">
+                {formatter.format(product.originalPrice!)}
+              </span>
+            )}
+            <span className="text-base font-semibold text-neutral-900">
+              {formatter.format(product.price)}
+            </span>
+          </div>
         </div>
       </div>
     </div>

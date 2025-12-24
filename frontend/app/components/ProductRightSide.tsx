@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Star } from "lucide-react";
 import AddToCartButton from "../components/AddToCartButton";
 import { useWishlist } from "@/store/wishlistContext";
+import { resolvePricing } from "@/lib/products";
 
 type ProductVariant = {
   id: number;     // DB'den gelen id
@@ -24,6 +25,8 @@ type Product = {
   variants?: ProductVariant[];
   averageRating?: number | string;
   reviewCount?: number;
+  discountRate?: number | string | null;
+  discountedPrice?: number | string | null;
 };
 
 const fmt = new Intl.NumberFormat("tr-TR", {
@@ -90,8 +93,14 @@ export default function ProductRightSide({ product }: { product: Product }) {
   // Stok ve Fiyat Belirle
   // Eğer varyant bulunduysa onun stoğunu, bulunamadıysa 0 al.
   const currentStock = selectedVariant ? selectedVariant.stock : 0;
-  // Eğer varyantın özel fiyatı varsa onu kullan, yoksa ana ürün fiyatını kullan
-  const currentPrice = selectedVariant?.price ? Number(selectedVariant.price) : (typeof product.price === "string" ? parseFloat(product.price) : product.price || 0);
+  // Price source of truth: product base price + discount fields (variants do not change pricing)
+  const pricing = resolvePricing(
+    product.price,
+    product.discountRate,
+    product.discountedPrice,
+  );
+  const currentPrice = pricing.finalPrice;
+  const showDiscount = pricing.hasDiscount;
 
   const isOutOfStock = currentStock === 0;
   const image = product.image || product.imageUrl || "/images/1.jpg";
@@ -161,10 +170,19 @@ export default function ProductRightSide({ product }: { product: Product }) {
 
       <div className="flex flex-col mb-8">
         <div className="flex items-center gap-4">
-          <span className="text-3xl font-bold">{fmt.format(currentPrice)}</span>
-          <span className="text-[10px] font-bold border border-[#fa0000] text-[#fa0000] px-1.5 py-0.5 uppercase tracking-wider">
-            New In
-          </span>
+          <div className="flex items-baseline gap-3">
+            {showDiscount && (
+              <span className="text-base text-gray-500 line-through">
+                {fmt.format(pricing.originalPrice)}
+              </span>
+            )}
+            <span className="text-3xl font-bold">{fmt.format(currentPrice)}</span>
+          </div>
+          {showDiscount && (
+            <span className="text-[10px] font-bold border border-green-200 text-green-800 bg-green-50 px-1.5 py-0.5 uppercase tracking-wider rounded">
+              {Math.round(pricing.discountRate)}% OFF
+            </span>
+          )}
         </div>
 
         {/* STOK BİLGİSİ */}

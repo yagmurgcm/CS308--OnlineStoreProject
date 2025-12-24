@@ -130,12 +130,19 @@ export default function CategoryListingPage({
         // 🔥 BURAYA DİKKAT: (item: any) diyerek hatayı susturuyoruz.
         const mapped = scoped.slice(0, limit).map((item: any, index) => {
           const imageUrl = item.image ? item.image : "https://placehold.co/400x600?text=No+Image";
+          const finalPrice = Number(item.price) || 0;
+          const originalPrice =
+            typeof item.originalPrice === "number" ? item.originalPrice : Number(item.originalPrice || finalPrice);
+          const hasDiscount =
+            Boolean(item.hasDiscount) && originalPrice > finalPrice;
 
           return {
             id: `prod-${item.id}`,
             productId: item.id,
             name: item.name,
-            price: item.price,
+            price: finalPrice,
+            originalPrice,
+            hasDiscount,
             image: imageUrl,
             colors: getPalette(item.id),
             badge: pickBadge(index),

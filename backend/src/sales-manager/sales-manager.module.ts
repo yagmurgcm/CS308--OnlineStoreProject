@@ -6,10 +6,12 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Product } from '../product/entities/product.entity';
 import { Order } from '../order/order.entity';
 import { OrderModule } from '../order/order.module';
+import { WishlistItem } from '../wishlist/wishlist-item.entity';
+import { PriceDropNotifierService } from './price-drop-notifier.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, Order]), OrderModule],
+  imports: [TypeOrmModule.forFeature([Product, Order, WishlistItem]), OrderModule],
   controllers: [SalesManagerController],
-  providers: [SalesManagerService, RolesGuard],
+  providers: [SalesManagerService, RolesGuard, PriceDropNotifierService],
 })
 export class SalesManagerModule {}

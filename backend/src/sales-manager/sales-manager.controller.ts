@@ -20,7 +20,7 @@ import { GetInvoicesQueryDto } from './dto/get-invoices-query.dto';
 
 @Controller('sales-manager')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SALES_MANAGER')
+@Roles('SALES_MANAGER', 'ADMIN')
 export class SalesManagerController {
   constructor(private readonly service: SalesManagerService) {}
 

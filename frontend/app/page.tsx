@@ -59,6 +59,8 @@ type SectionProduct = {
   productId: number;
   title: string;
   price: number;
+  originalPrice?: number;
+  hasDiscount?: boolean;
   img: string;
   averageRating?: number | string;
   reviewCount?: number;
@@ -82,6 +84,8 @@ export default function HomePage() {
           productId: item.id,
           title: item.name,
           price: item.price,
+          originalPrice: item.originalPrice,
+          hasDiscount: item.hasDiscount,
           img: item.image,
           averageRating: item.averageRating, // Gerçek veri
           reviewCount: item.reviewCount,     // Gerçek veri
@@ -153,6 +157,8 @@ export default function HomePage() {
                   productId={item.productId}
                   title={item.title}
                   price={item.price}
+                  originalPrice={item.originalPrice}
+                  hasDiscount={item.hasDiscount}
                   img={item.img}
                   averageRating={item.averageRating}
                   reviewCount={item.reviewCount}
@@ -183,6 +189,8 @@ export default function HomePage() {
                   productId={item.productId}
                   title={item.title}
                   price={item.price}
+                  originalPrice={item.originalPrice}
+                  hasDiscount={item.hasDiscount}
                   img={item.img}
                   averageRating={item.averageRating}
                   reviewCount={item.reviewCount}
