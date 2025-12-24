@@ -89,16 +89,57 @@ export default function SalesManagerDashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {(data?.actions ?? [
-          {
-            label: "Apply Discount",
-            description: "Configure limited-time promotions for key categories.",
-          },
-          {
-            label: "View Invoices",
-            description: "Track and export recent invoices for auditing.",
-          },
-        ]).map((action) => (
+        {(() => {
+          const fallbackActions = [
+            {
+              label: "Apply Discount",
+              description: "Configure limited-time promotions for key categories.",
+              href: "/sales-manager/discounts",
+            },
+            {
+              label: "View Invoices",
+              description: "Track and export recent invoices for auditing.",
+              href: "/sales-manager/invoices",
+            },
+            {
+              label: "Finance Summary",
+              description: "Review revenue and profit trends over time.",
+              href: "/sales-manager/finance",
+            },
+          ];
+
+          const baseActions = data?.actions?.length ? data.actions : fallbackActions;
+          const actionItems = [...baseActions];
+          const ensureAction = (label: string, description: string, href: string) => {
+            if (actionItems.some((item) => item.label === label)) return;
+            actionItems.push({ label, description, href });
+          };
+
+          ensureAction(
+            "Apply Discount",
+            "Configure discount campaigns for eligible products.",
+            "/sales-manager/discounts",
+          );
+          ensureAction(
+            "View Invoices",
+            "Review and export the latest customer invoices.",
+            "/sales-manager/invoices",
+          );
+          ensureAction(
+            "Finance Summary",
+            "Review revenue and profit trends over time.",
+            "/sales-manager/finance",
+          );
+
+          const fallbackRoutes: Record<string, string> = {
+            "Apply Discount": "/sales-manager/discounts",
+            "View Invoices": "/sales-manager/invoices",
+            "Finance Summary": "/sales-manager/finance",
+          };
+
+          return actionItems.map((action) => {
+            const target = action.href ?? fallbackRoutes[action.label];
+            return (
           <div
             key={action.label}
             className="rounded-2xl border border-[var(--line)] bg-white/80 backdrop-blur-sm shadow-sm p-6 flex flex-col justify-between"
@@ -111,19 +152,17 @@ export default function SalesManagerDashboard() {
               className="mt-6 inline-flex items-center justify-center rounded-xl border border-black px-4 py-2 font-medium hover:bg-black hover:text-white transition"
               type="button"
               onClick={() => {
-                if (action.href) {
-                  router.push(action.href);
-                  return;
-                }
-                if (action.label === "Apply Discount") {
-                  router.push("/sales-manager/discounts");
+                if (target) {
+                  router.push(target);
                 }
               }}
             >
               {action.label}
             </button>
           </div>
-        ))}
+            );
+          });
+        })()}
       </div>
 
       <div className="rounded-2xl border border-dashed border-[var(--line)] p-6 bg-gray-50">
