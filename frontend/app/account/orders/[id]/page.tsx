@@ -281,23 +281,53 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="text-right">
                   <label className="text-xs text-gray-500 block mb-1">Return qty</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={detail.remaining}
-                    value={returnQuantities[detail.id] ?? 0}
-                    onChange={(e) =>
-                      setReturnQuantities((prev) => ({
-                        ...prev,
-                        [detail.id]: Math.min(
-                          detail.remaining,
-                          Math.max(0, Number(e.target.value) || 0),
-                        ),
-                      }))
-                    }
-                    disabled={detail.remaining === 0 || order.status === "cancelled"}
-                    className="w-24 border rounded px-2 py-1 text-right"
-                  />
+                  <div className="inline-flex items-center border rounded overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReturnQuantities((prev) => {
+                          const current = prev[detail.id] ?? 0;
+                          return {
+                            ...prev,
+                            [detail.id]: Math.max(0, current - 1),
+                          };
+                        })
+                      }
+                      disabled={
+                        detail.remaining === 0 ||
+                        order.status === "cancelled" ||
+                        (returnQuantities[detail.id] ?? 0) === 0
+                      }
+                      className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
+                      aria-label="Decrease return quantity"
+                    >
+                      -
+                    </button>
+                    <span className="px-3 py-1 text-sm min-w-[2rem] text-center">
+                      {returnQuantities[detail.id] ?? 0}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReturnQuantities((prev) => {
+                          const current = prev[detail.id] ?? 0;
+                          return {
+                            ...prev,
+                            [detail.id]: Math.min(detail.remaining, current + 1),
+                          };
+                        })
+                      }
+                      disabled={
+                        detail.remaining === 0 ||
+                        order.status === "cancelled" ||
+                        (returnQuantities[detail.id] ?? 0) >= detail.remaining
+                      }
+                      className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
+                      aria-label="Increase return quantity"
+                    >
+                      +
+                    </button>
+                  </div>
                   <div className="text-xs text-gray-500 mt-1">
                     {detail.remaining} available to return
                   </div>
