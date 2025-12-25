@@ -413,9 +413,8 @@ export class OrderService {
 
     let created: ReturnRequest | null = null;
 
-    const needsShippingCode =
-      (order.status || '').toLowerCase() === 'delivered';
-    const shippingCode = needsShippingCode
+    const isDelivered = (order.status || '').toLowerCase() === 'delivered';
+    const shippingCode = isDelivered
       ? OrderService.generateReturnShippingCode()
       : null;
 
@@ -426,7 +425,7 @@ export class OrderService {
       const request = requestRepo.create({
         orderId,
         userId,
-        status: 'pending',
+        status: isDelivered ? 'pending' : 'approved',
         returnShippingCode: shippingCode,
         returnReason: reason?.trim() ? reason.trim() : null,
       });
@@ -456,6 +455,9 @@ export class OrderService {
 
     if (!created) {
       throw new NotFoundException('Return request could not be created');
+    }
+    if (!isDelivered) {
+      await this.applyReturnItems(orderId, items);
     }
     return created;
   }
