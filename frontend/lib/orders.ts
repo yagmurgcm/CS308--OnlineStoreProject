@@ -59,6 +59,10 @@ export async function fetchUserOrders() {
   return api.get<OrderSummary[]>("/orders");
 }
 
+export async function fetchAdminOrders() {
+  return api.get<OrderSummary[]>("/orders/admin/all");
+}
+
 export async function fetchOrderById(orderId: number | string) {
   return api.get<OrderSummary>(`/orders/${orderId}`);
 }

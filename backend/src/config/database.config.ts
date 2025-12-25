@@ -19,6 +19,8 @@ import { User } from '../users/user.entity';
 // Order
 import { Order } from '../order/order.entity';
 import { OrderDetail } from '../order/order-detail.entity';
+import { ReturnRequest } from '../order/return-request.entity';
+import { ReturnRequestItem } from '../order/return-request-item.entity';
 
 // Reviews
 import { Review } from '../reviews/review.entity';
@@ -41,6 +43,8 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   LoginLog,
   Order,
   OrderDetail,
+  ReturnRequest,
+  ReturnRequestItem,
   Review,
   WishlistItem,
   Conversation,

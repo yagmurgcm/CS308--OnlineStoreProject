@@ -16,6 +16,9 @@ import { ProductVariant } from '../product/product-variant.entity';
 import { Cart } from '../cart/entities/cart.entity';
 import { CheckoutDto } from './dto/checkout.dto';
 import { InvoiceService } from './invoice.service';
+import { ReturnRequest } from './return-request.entity';
+import type { ReturnRequestStatus } from './return-request.entity';
+import { ReturnRequestItem } from './return-request-item.entity';
 
 @Injectable()
 export class OrderService {
@@ -25,6 +28,12 @@ export class OrderService {
 
     @InjectRepository(OrderDetail)
     private readonly detailRepo: Repository<OrderDetail>,
+
+    @InjectRepository(ReturnRequest)
+    private readonly returnRequestRepo: Repository<ReturnRequest>,
+
+    @InjectRepository(ReturnRequestItem)
+    private readonly returnRequestItemRepo: Repository<ReturnRequestItem>,
 
     @InjectRepository(ProductVariant)
     private readonly variantRepo: Repository<ProductVariant>,
@@ -299,20 +308,29 @@ export class OrderService {
         if (remaining <= 0) continue;
 
         if (!detail.variantId) {
-          throw new NotFoundException(
-            `Variant not stored for order detail ${detail.id}`,
+          console.warn(
+            `Variant not stored for order detail ${detail.id}; skipping restock`,
           );
+          detail.returnedQuantity = detail.quantity;
+          await detailRepository.save(detail);
+          continue;
         }
         const variant = await variantRepository.findOne({
           where: { id: detail.variantId },
         });
         if (!variant) {
-          throw new NotFoundException(
-            `Variant ${detail.variantId} not found for order detail ${detail.id}`,
+          console.warn(
+            `Variant ${detail.variantId} not found for order detail ${detail.id}; skipping restock`,
           );
+          detail.returnedQuantity = detail.quantity;
+          await detailRepository.save(detail);
+          continue;
         }
         variant.stock += remaining;
         await variantRepository.save(variant);
+
+        detail.returnedQuantity = detail.quantity;
+        await detailRepository.save(detail);
       }
 
       current.status = 'cancelled';
@@ -339,10 +357,179 @@ export class OrderService {
     if (order.status === 'cancelled') {
       throw new BadRequestException('Cancelled orders cannot be returned');
     }
+    return this.applyReturnItems(orderId, items);
+  }
 
-    const detailMap = new Map<number, OrderDetail>();
-    for (const d of order.details ?? []) {
-      detailMap.set(d.id, d);
+  async createReturnRequest(
+    orderId: number,
+    userId: number,
+    items: { detailId: number; quantity: number }[],
+  ) {
+    const order = await this.assertOrderOwnership(orderId, userId);
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Cancelled orders cannot be returned');
+    }
+
+    if (!items || items.length === 0) {
+      throw new BadRequestException('Return items are required');
+    }
+
+    const pendingItems = await this.returnRequestItemRepo.find({
+      where: { request: { orderId, status: 'pending' } },
+      relations: ['request'],
+    });
+
+    const pendingByDetail = new Map<number, number>();
+    for (const pending of pendingItems) {
+      const current = pendingByDetail.get(pending.orderDetailId) ?? 0;
+      pendingByDetail.set(pending.orderDetailId, current + pending.quantity);
+    }
+
+    const detailById = new Map<number, OrderDetail>();
+    for (const detail of order.details ?? []) {
+      detailById.set(detail.id, detail);
+    }
+
+    for (const item of items) {
+      if (!item || item.quantity <= 0) {
+        throw new BadRequestException('Return quantities must be positive');
+      }
+      const detail = detailById.get(item.detailId);
+      if (!detail) {
+        throw new NotFoundException(
+          `Order detail ${item.detailId} not found on this order`,
+        );
+      }
+      const alreadyReturned = detail.returnedQuantity ?? 0;
+      const pendingQty = pendingByDetail.get(detail.id) ?? 0;
+      const remaining = detail.quantity - alreadyReturned - pendingQty;
+      if (item.quantity > remaining) {
+        throw new BadRequestException(
+          `Cannot request more than remaining for detail ${detail.id}`,
+        );
+      }
+    }
+
+    let created: ReturnRequest | null = null;
+
+    const needsShippingCode =
+      (order.status || '').toLowerCase() === 'delivered';
+    const shippingCode = needsShippingCode
+      ? OrderService.generateReturnShippingCode()
+      : null;
+
+    await this.orderRepo.manager.transaction(async (manager) => {
+      const requestRepo = manager.getRepository(ReturnRequest);
+      const requestItemRepo = manager.getRepository(ReturnRequestItem);
+
+      const request = requestRepo.create({
+        orderId,
+        userId,
+        status: 'pending',
+        returnShippingCode: shippingCode,
+      });
+      await requestRepo.save(request);
+
+      const requestItems = items.map((item) =>
+        requestItemRepo.create({
+          requestId: request.id,
+          orderDetailId: item.detailId,
+          quantity: item.quantity,
+        }),
+      );
+      await requestItemRepo.save(requestItems);
+
+      created = await requestRepo.findOne({
+        where: { id: request.id },
+        relations: [
+          'order',
+          'user',
+          'items',
+          'items.orderDetail',
+          'items.orderDetail.product',
+          'items.orderDetail.variant',
+        ],
+      });
+    });
+
+    if (!created) {
+      throw new NotFoundException('Return request could not be created');
+    }
+    return created;
+  }
+
+  async getAllReturnRequests() {
+    return this.returnRequestRepo.find({
+      order: { createdAt: 'DESC' },
+      relations: [
+        'order',
+        'user',
+        'items',
+        'items.orderDetail',
+        'items.orderDetail.product',
+        'items.orderDetail.variant',
+      ],
+    });
+  }
+
+  async updateReturnRequestStatus(
+    requestId: number,
+    status: ReturnRequestStatus,
+  ) {
+    const allowed: ReturnRequestStatus[] = ['approved', 'rejected'];
+    if (!allowed.includes(status)) {
+      throw new BadRequestException('Invalid return request status');
+    }
+
+    const request = await this.returnRequestRepo.findOne({
+      where: { id: requestId },
+      relations: [
+        'items',
+        'items.orderDetail',
+        'items.orderDetail.variant',
+        'order',
+        'user',
+      ],
+    });
+
+    if (!request) {
+      throw new NotFoundException('Return request not found');
+    }
+
+    if (request.status !== 'pending') {
+      throw new BadRequestException('Return request already processed');
+    }
+
+    if (status === 'approved') {
+      const items = (request.items || []).map((item) => ({
+        detailId: item.orderDetailId,
+        quantity: item.quantity,
+      }));
+      await this.applyReturnItems(request.orderId, items);
+    }
+
+    request.status = status;
+    await this.returnRequestRepo.save(request);
+
+    return this.returnRequestRepo.findOne({
+      where: { id: request.id },
+      relations: [
+        'order',
+        'user',
+        'items',
+        'items.orderDetail',
+        'items.orderDetail.product',
+        'items.orderDetail.variant',
+      ],
+    });
+  }
+
+  private async applyReturnItems(
+    orderId: number,
+    items: { detailId: number; quantity: number }[],
+  ) {
+    if (!items || items.length === 0) {
+      throw new BadRequestException('Return items are required');
     }
 
     let updated: Order | null = null;
@@ -357,8 +544,14 @@ export class OrderService {
         relations: ['details', 'details.variant', 'user'],
       });
       if (!current) throw new NotFoundException('Order not found');
+      if (current.status === 'cancelled') {
+        throw new BadRequestException('Cancelled orders cannot be returned');
+      }
 
       for (const item of items) {
+        if (!item || item.quantity <= 0) {
+          throw new BadRequestException('Return quantities must be positive');
+        }
         const detail = current.details?.find((d) => d.id === item.detailId);
         if (!detail) {
           throw new NotFoundException(
@@ -373,17 +566,23 @@ export class OrderService {
           );
         }
         if (!detail.variantId) {
-          throw new NotFoundException(
-            `Variant not stored for order detail ${detail.id}`,
+          console.warn(
+            `Variant not stored for order detail ${detail.id}; skipping restock`,
           );
+          detail.returnedQuantity = alreadyReturned + item.quantity;
+          await detailRepository.save(detail);
+          continue;
         }
         const variant = await variantRepository.findOne({
           where: { id: detail.variantId },
         });
         if (!variant) {
-          throw new NotFoundException(
-            `Variant ${detail.variantId} not found for order detail ${detail.id}`,
+          console.warn(
+            `Variant ${detail.variantId} not found for order detail ${detail.id}; skipping restock`,
           );
+          detail.returnedQuantity = alreadyReturned + item.quantity;
+          await detailRepository.save(detail);
+          continue;
         }
 
         detail.returnedQuantity = alreadyReturned + item.quantity;
@@ -409,5 +608,12 @@ export class OrderService {
       throw new NotFoundException('Order not found');
     }
     return updated;
+  }
+
+  private static generateReturnShippingCode(): string {
+    const min = 100000;
+    const max = 999999;
+    const value = Math.floor(Math.random() * (max - min + 1)) + min;
+    return String(value);
   }
 }

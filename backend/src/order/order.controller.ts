@@ -73,6 +73,33 @@ export class OrderController {
     return this.orderService.returnItems(id, req.user.userId, dto.items);
   }
 
+  @Post(':id/return-request')
+  async createReturnRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req,
+    @Body() dto: ReturnItemsDto,
+  ) {
+    return this.orderService.createReturnRequest(id, req.user.userId, dto.items);
+  }
+
+  // ============ RETURN REQUESTS (ADMIN) ============
+
+  @Get('admin/return-requests')
+  async getReturnRequests() {
+    return this.orderService.getAllReturnRequests();
+  }
+
+  @Patch('admin/return-requests/:id/status')
+  async updateReturnRequestStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+  ) {
+    return this.orderService.updateReturnRequestStatus(
+      id,
+      status as 'approved' | 'rejected',
+    );
+  }
+
   @Get(':id/invoice')
   async getInvoice(
     @Param('id', ParseIntPipe) id: number,

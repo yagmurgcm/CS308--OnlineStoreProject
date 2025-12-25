@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Order } from './order.entity';
 import { OrderDetail } from './order-detail.entity';
+import { ReturnRequest } from './return-request.entity';
+import { ReturnRequestItem } from './return-request-item.entity';
 import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 import { InvoiceService } from './invoice.service';
@@ -15,7 +17,13 @@ import { ProductVariant } from '../product/product-variant.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderDetail, ProductVariant]),
+    TypeOrmModule.forFeature([
+      Order,
+      OrderDetail,
+      ReturnRequest,
+      ReturnRequestItem,
+      ProductVariant,
+    ]),
     CartModule, // ✔ CartService buradan geliyor
     UsersModule,
     ProductModule,

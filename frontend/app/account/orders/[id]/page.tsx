@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { cancelOrder, fetchOrderById, returnOrder, type OrderSummary } from "@/lib/orders";
+import { cancelOrder, fetchOrderById, type OrderSummary } from "@/lib/orders";
+import { createReturnRequest } from "@/lib/returns";
 import { useAuth } from "@/lib/auth-context";
 
 const priceFmt = new Intl.NumberFormat("tr-TR", {
@@ -86,9 +87,34 @@ export default function OrderDetailPage() {
     setMessage(null);
     setError(null);
     try {
-      const updated = await cancelOrder(order.id);
-      setOrder(updated);
-      setMessage("Order cancelled and items restocked.");
+      const status = order.status?.toLowerCase?.() || "";
+      if (status === "delivered") {
+        const items =
+          order.details
+            ?.map((detail) => {
+              const returned = detail.returnedQuantity ?? 0;
+              const remaining = Math.max(0, detail.quantity - returned);
+              return { detailId: detail.id, quantity: remaining };
+            })
+            .filter((item) => item.quantity > 0) || [];
+
+        if (items.length === 0) {
+          setError("No items available to return.");
+          return;
+        }
+
+        const request = await createReturnRequest(order.id, items);
+        const code = request?.returnShippingCode;
+        setMessage(
+          code
+            ? `Return request created. Your return cargo code is ${code}.`
+            : "Return request created. Our team will review it shortly.",
+        );
+      } else {
+        const updated = await cancelOrder(order.id);
+        setOrder(updated);
+        setMessage("Order cancelled and items restocked.");
+      }
     } catch (err) {
       console.error("Cancel failed", err);
       setError("Could not cancel the order. Please try again.");
@@ -115,15 +141,19 @@ export default function OrderDetailPage() {
     setMessage(null);
     setError(null);
     try {
-      const updated = await returnOrder(order.id, items);
-      setOrder(updated);
-      setMessage("Return request saved. Items were restocked.");
+      const request = await createReturnRequest(order.id, items);
+      const code = request?.returnShippingCode;
+      setMessage(
+        code
+          ? `Return request sent. Your return cargo code is ${code}.`
+          : "Return request sent. Our team will review it shortly.",
+      );
       setReturnQuantities(
-        Object.fromEntries((updated.details || []).map((d) => [d.id, 0])),
+        Object.fromEntries((order.details || []).map((d) => [d.id, 0])),
       );
     } catch (err) {
       console.error("Return failed", err);
-      setError("Could not process the return. Please try again.");
+      setError("Could not create the return request. Please try again.");
     } finally {
       setActionLoading(false);
     }
@@ -290,7 +320,7 @@ export default function OrderDetailPage() {
             onClick={handleReturn}
             disabled={actionLoading || order.status === "cancelled"}
           >
-            {actionLoading ? "Processing..." : "Return selected items"}
+            {actionLoading ? "Processing..." : "Request return"}
           </button>
 
           <button
