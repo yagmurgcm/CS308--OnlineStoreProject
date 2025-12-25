@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Header from "./components/Header";
+import ChatWidget from "./components/ChatWidget";
 import { useMemo } from "react";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <Header />
 
       <main>{children}</main>
+
+      <ChatWidget />
 
       <footer className="mt-16 bg-[#1f1f1f] text-white">
         <div className="container-base grid gap-8 md:grid-cols-4 py-12 text-sm">

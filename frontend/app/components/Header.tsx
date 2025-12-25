@@ -147,6 +147,7 @@ export default function Header() {
   const { user, logout } = useAuth();
   const isSalesManager = user?.role === "SALES_MANAGER";
   const isProductManager = user?.email?.toLowerCase() === "product@gmail.com";
+  const isSupportAgent = user?.role === "SUPPORT_AGENT";
 
   const handleLogout = async () => {
     await logout();
@@ -342,6 +343,15 @@ export default function Header() {
                 className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-medium hover:bg-black hover:text-white transition"
               >
                 Product Manager
+              </button>
+            )}
+            {isSupportAgent && (
+              <button
+                type="button"
+                onClick={() => router.push("/support-agent")}
+                className="hidden md:inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm font-medium hover:bg-black hover:text-white transition"
+              >
+                Support Agent
               </button>
             )}
 

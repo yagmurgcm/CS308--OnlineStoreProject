@@ -24,6 +24,11 @@ import { OrderDetail } from '../order/order-detail.entity';
 import { Review } from '../reviews/review.entity';
 import { WishlistItem } from '../wishlist/wishlist-item.entity';
 
+// Support
+import { Conversation } from '../support/conversation.entity';
+import { Message } from '../support/message.entity';
+import { ChatAttachment } from '../support/chat-attachment.entity';
+
 type Overrides = Partial<MysqlConnectionOptions>;
 
 const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
@@ -38,6 +43,9 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   OrderDetail,
   Review,
   WishlistItem,
+  Conversation,
+  Message,
+  ChatAttachment,
 ];
 
 const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [

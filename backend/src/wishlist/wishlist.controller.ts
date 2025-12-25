@@ -62,12 +62,25 @@ export class WishlistController {
   }
 
   private mapProduct(product: Product) {
-    const originalPrice = Number(product.price) || 0;
-    const discounted = product.discountedPrice ?? null;
-    const discountRate = Number(product.discountRate) || 0;
+    const parsedOriginal = Number(product.price);
+    const originalPrice = Number.isFinite(parsedOriginal) ? parsedOriginal : 0;
+
+    const rawDiscounted = product.discountedPrice;
+    const discountedValue =
+      rawDiscounted === null || rawDiscounted === undefined
+        ? null
+        : Number(rawDiscounted);
+    const hasDiscountedValue =
+      discountedValue !== null && Number.isFinite(discountedValue);
+
+    const parsedDiscountRate = Number(product.discountRate);
+    const discountRate = Number.isFinite(parsedDiscountRate)
+      ? parsedDiscountRate
+      : 0;
+
     const price =
-      discounted !== null
-        ? Number(discounted) || originalPrice
+      hasDiscountedValue && discountedValue !== null
+        ? discountedValue
         : discountRate > 0
           ? Math.max(0, originalPrice * ((100 - discountRate) / 100))
           : originalPrice;
