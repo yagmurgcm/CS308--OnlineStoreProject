@@ -79,7 +79,12 @@ export class OrderController {
     @Req() req,
     @Body() dto: ReturnItemsDto,
   ) {
-    return this.orderService.createReturnRequest(id, req.user.userId, dto.items);
+    return this.orderService.createReturnRequest(
+      id,
+      req.user.userId,
+      dto.items,
+      dto.reason,
+    );
   }
 
   // ============ RETURN REQUESTS (ADMIN) ============

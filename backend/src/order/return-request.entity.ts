@@ -40,6 +40,9 @@ export class ReturnRequest {
   @Column({ type: 'varchar', length: 16, nullable: true })
   returnShippingCode: string | null;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  returnReason: string | null;
+
   @OneToMany(() => ReturnRequestItem, (item) => item.request, {
     cascade: true,
   })

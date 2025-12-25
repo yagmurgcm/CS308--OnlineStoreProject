@@ -26,6 +26,7 @@ export type ReturnRequest = {
   userId: number;
   status: "pending" | "approved" | "rejected";
   returnShippingCode?: string | null;
+  returnReason?: string | null;
   createdAt: string;
   updatedAt: string;
   order?: {
@@ -42,8 +43,12 @@ export type ReturnRequest = {
 export async function createReturnRequest(
   orderId: number | string,
   items: { detailId: number; quantity: number }[],
+  reason?: string,
 ) {
-  return api.post<ReturnRequest>(`/orders/${orderId}/return-request`, { items });
+  return api.post<ReturnRequest>(`/orders/${orderId}/return-request`, {
+    items,
+    reason,
+  });
 }
 
 export async function fetchReturnRequests() {

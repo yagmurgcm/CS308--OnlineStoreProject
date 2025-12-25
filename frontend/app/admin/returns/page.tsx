@@ -145,6 +145,14 @@ export default function AdminReturnsPage() {
                         </span>
                       </div>
                     )}
+                    {request.returnReason && (
+                      <div className="text-sm text-gray-700">
+                        Reason:{" "}
+                        <span className="font-semibold">
+                          {request.returnReason}
+                        </span>
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500">
                       {new Date(request.createdAt).toLocaleString("tr-TR")}
                     </div>

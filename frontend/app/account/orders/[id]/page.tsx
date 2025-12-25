@@ -52,6 +52,16 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
+  const [returnReason, setReturnReason] = useState("");
+
+  const returnReasons = [
+    "Too small",
+    "Too large",
+    "Not as described",
+    "Poor quality",
+    "Damaged on arrival",
+    "Changed my mind",
+  ];
 
   useEffect(() => {
     if (!user?.id || !params?.id) return;
@@ -103,7 +113,11 @@ export default function OrderDetailPage() {
           return;
         }
 
-        const request = await createReturnRequest(order.id, items);
+        const request = await createReturnRequest(
+          order.id,
+          items,
+          returnReason.trim() || undefined,
+        );
         const code = request?.returnShippingCode;
         setMessage(
           code
@@ -141,7 +155,11 @@ export default function OrderDetailPage() {
     setMessage(null);
     setError(null);
     try {
-      const request = await createReturnRequest(order.id, items);
+      const request = await createReturnRequest(
+        order.id,
+        items,
+        returnReason.trim() || undefined,
+      );
       const code = request?.returnShippingCode;
       setMessage(
         code
@@ -151,6 +169,7 @@ export default function OrderDetailPage() {
       setReturnQuantities(
         Object.fromEntries((order.details || []).map((d) => [d.id, 0])),
       );
+      setReturnReason("");
     } catch (err) {
       console.error("Return failed", err);
       setError("Could not create the return request. Please try again.");
@@ -314,6 +333,24 @@ export default function OrderDetailPage() {
               {error}
             </div>
           )}
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Return reason (optional)
+            </label>
+            <select
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              className="w-full border rounded px-3 py-2 text-sm"
+            >
+              <option value="">Select a reason</option>
+              {returnReasons.map((reason) => (
+                <option key={reason} value={reason}>
+                  {reason}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             className="w-full btn btn-primary disabled:opacity-50"

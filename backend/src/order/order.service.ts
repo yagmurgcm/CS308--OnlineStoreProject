@@ -364,6 +364,7 @@ export class OrderService {
     orderId: number,
     userId: number,
     items: { detailId: number; quantity: number }[],
+    reason?: string,
   ) {
     const order = await this.assertOrderOwnership(orderId, userId);
     if (order.status === 'cancelled') {
@@ -427,6 +428,7 @@ export class OrderService {
         userId,
         status: 'pending',
         returnShippingCode: shippingCode,
+        returnReason: reason?.trim() ? reason.trim() : null,
       });
       await requestRepo.save(request);
 
