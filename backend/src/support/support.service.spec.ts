@@ -115,4 +115,49 @@ describe('SupportService', () => {
     expect(message.senderId).toBe(99);
     expect(message.senderType).toBe('agent');
   });
+
+  it('throws when claiming a missing conversation', async () => {
+    const conversationRepo = new InMemoryConversationRepository();
+    const messageRepo = new InMemoryMessageRepository();
+    const service = createService(conversationRepo, messageRepo);
+
+    await expect(service.claimConversation(999, 12)).rejects.toThrow();
+  });
+
+  it('throws when sending an agent message for a missing conversation', async () => {
+    const conversationRepo = new InMemoryConversationRepository();
+    const messageRepo = new InMemoryMessageRepository();
+    const service = createService(conversationRepo, messageRepo);
+    const payload: SendMessageDto = { content: 'Need an update' };
+
+    await expect(service.sendMessage(404, 55, 'agent', payload)).rejects.toThrow();
+  });
+
+  it('keeps the claimed assignment when the same agent replies', async () => {
+    const conversationRepo = new InMemoryConversationRepository();
+    const messageRepo = new InMemoryMessageRepository();
+    await conversationRepo.save(buildConversation({ id: 11, status: 'claimed', agentId: 77 }));
+    const service = createService(conversationRepo, messageRepo);
+    const payload: SendMessageDto = { content: 'Following up' };
+
+    const message = await service.sendMessage(11, 77, 'agent', payload);
+
+    const updated = conversationRepo.data.get(11);
+    expect(updated?.agentId).toBe(77);
+    expect(updated?.status).toBe('claimed');
+    expect(message.senderId).toBe(77);
+  });
+
+  it('stores the agent message with the conversation id', async () => {
+    const conversationRepo = new InMemoryConversationRepository();
+    const messageRepo = new InMemoryMessageRepository();
+    await conversationRepo.save(buildConversation({ id: 21, status: 'claimed', agentId: 33 }));
+    const service = createService(conversationRepo, messageRepo);
+    const payload: SendMessageDto = { content: 'We are on it' };
+
+    const message = await service.sendMessage(21, 33, 'agent', payload);
+
+    expect(message.conversationId).toBe(21);
+    expect(messageRepo.data.get(message.id)?.conversationId).toBe(21);
+  });
 });
