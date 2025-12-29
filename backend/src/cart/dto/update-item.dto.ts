@@ -1,8 +1,17 @@
-import { IsInt, Min } from 'class-validator';
+import { IsInt, Min, IsOptional } from 'class-validator';
 
 export class UpdateItemDto {
+  @IsOptional()
   @IsInt()
-  productId: number;
+  itemId?: number;
+
+  @IsOptional()
+  @IsInt()
+  variantId?: number;
+
+  @IsOptional()
+  @IsInt()
+  productId?: number;
 
   @IsInt()
   @Min(1)

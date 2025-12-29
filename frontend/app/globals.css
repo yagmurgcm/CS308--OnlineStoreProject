@@ -1,11 +1,26 @@
 @import "tailwindcss";
 
-/* FATIH light theme */
+/* MKN light theme */
 :root {
   --background: #f7f7f5; /* off-white */
   --foreground: #111111; /* ink */
   --muted: #6b7280;      /* gray-500 */
   --line: #eaeaea;       /* subtle divider lines */
+}
+
+/* Invert colors mode */
+html.invert-colors {
+  filter: invert(1);
+}
+
+/* Prevent images from being inverted when in dark mode */
+html.invert-colors img,
+html.invert-colors video,
+html.invert-colors picture img,
+html.invert-colors svg image,
+html.invert-colors [style*="background-image"],
+html.invert-colors [role="img"] {
+  filter: invert(1);
 }
 
 html,

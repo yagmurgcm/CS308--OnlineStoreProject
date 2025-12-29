@@ -1,7 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
 
 export default function SignInSheet({ open, onClose }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,9 +43,8 @@ export default function SignInSheet({ open, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="signin-title"
-        className={`absolute right-0 top-0 h-full w-[90vw] max-w-[420px] bg-white border-l border-[var(--line)] shadow-xl transition-transform duration-300 ease-out ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+        className={`absolute right-0 top-0 h-full w-[90vw] max-w-[420px] bg-white border-l border-[var(--line)] shadow-xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"
+          }`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between h-14 px-4 border-b border-[var(--line)]">
@@ -86,18 +86,40 @@ export default function SignInSheet({ open, onClose }: Props) {
                   }
                 }
                 console.log("Modal signin response:", payload ?? rawBody);
-                const payloadName =
-                  payload && typeof payload === "object" && payload !== null && "name" in payload
-                    ? String((payload as { name: unknown }).name ?? "")
-                    : null;
-                const payloadEmail =
-                  payload && typeof payload === "object" && payload !== null && "email" in payload
-                    ? String((payload as { email: unknown }).email ?? "")
-                    : null;
-                const payloadToken =
-                  payload && typeof payload === "object" && payload !== null && "access_token" in payload
-                    ? String((payload as { access_token: unknown }).access_token ?? "")
-                    : null;
+
+                const getPayloadValue = (key: string): unknown => {
+                  if (!payload || typeof payload !== "object" || payload === null) {
+                    return null;
+                  }
+                  const container = payload as Record<string, unknown>;
+                  if (key in container) {
+                    return container[key];
+                  }
+                  if ("user" in container && container.user && typeof container.user === "object") {
+                    const nested = container.user as Record<string, unknown>;
+                    if (key in nested) {
+                      return nested[key];
+                    }
+                  }
+                  return null;
+                };
+
+                const toStringValue = (value: unknown): string | null =>
+                  typeof value === "string" && value ? value : null;
+                const toNumberValue = (value: unknown): number | null => {
+                  if (typeof value === "number" && Number.isFinite(value)) return value;
+                  if (typeof value === "string") {
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : null;
+                  }
+                  return null;
+                };
+
+                const payloadName = toStringValue(getPayloadValue("name"));
+                const payloadEmail = toStringValue(getPayloadValue("email"));
+                const payloadToken = toStringValue(getPayloadValue("access_token"));
+                const payloadRole = toStringValue(getPayloadValue("role"));
+                const payloadId = toNumberValue(getPayloadValue("id"));
 
                 if (!response.ok) {
                   setError("Email or password is wrong");
@@ -109,12 +131,31 @@ export default function SignInSheet({ open, onClose }: Props) {
                   return;
                 }
                 setAuthenticatedUser({
+                  id: payloadId ?? undefined,
                   name: payloadName || resolvedEmail,
                   email: resolvedEmail,
+                  role: payloadRole ?? undefined,
                   accessToken: payloadToken,
                 });
-                router.push("/");
-                setMessage("Sign in successful");
+
+                // Admin kontrolü - admin@gmail.com veya product@gmail.com ise admin paneline yönlendir
+                const isAdmin =
+                  resolvedEmail.toLowerCase() === "admin@gmail.com" ||
+                  resolvedEmail.toLowerCase() === "product@gmail.com";
+                const isSalesManager = payloadRole === "SALES_MANAGER";
+                const redirectTo = isSalesManager
+                  ? "/sales-manager"
+                  : isAdmin
+                    ? "/admin/products"
+                    : (searchParams.get("redirect") || "/");
+                router.push(redirectTo);
+                setMessage(
+                  isSalesManager
+                    ? "Welcome Sales Manager!"
+                    : isAdmin
+                      ? "Welcome Admin!"
+                      : "Sign in successful",
+                );
                 setEmail("");
                 setPassword("");
                 setTimeout(() => {
@@ -175,7 +216,7 @@ export default function SignInSheet({ open, onClose }: Props) {
           <hr className="border-[var(--line)]" />
 
           <div className="space-y-3">
-            <h3 className="text-[17px] font-medium">New to FATIH Online?</h3>
+            <h3 className="text-[17px] font-medium">New to MKN Online?</h3>
             <p className="text-[var(--muted)] text-sm">
               Create an account and you will be able to manage orders, save addresses, and more.
             </p>
@@ -194,8 +235,6 @@ export default function SignInSheet({ open, onClose }: Props) {
     </div>
   );
 }
-
-
 
 
 

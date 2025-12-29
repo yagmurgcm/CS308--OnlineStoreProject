@@ -14,6 +14,7 @@ export type AuthUser = {
   id: number;
   name: string;
   email: string;
+  role: string;
   accessToken: string;
 };
 
@@ -21,11 +22,13 @@ type AuthUserInput = {
   id?: number | null;
   name?: string | null;
   email?: string | null;
+  role?: string | null;
   accessToken: string;
 };
 
 type AuthContextValue = {
   user: AuthUser | null;
+  initialized: boolean;
   setAuthenticatedUser: (user: AuthUserInput) => void;
   logout: () => Promise<void>;
 };
@@ -41,7 +44,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const decodeToken = (
   token: string,
-): { userId?: number; email?: string } | null => {
+): { userId?: number; email?: string; role?: string } | null => {
   try {
     const [, payload] = token.split(".");
     if (!payload) return null;
@@ -49,8 +52,8 @@ const decodeToken = (
       typeof atob === "function"
         ? atob(payload)
         : Buffer.from(payload, "base64").toString("utf8"),
-    ) as { sub?: number; email?: string };
-    return { userId: decoded.sub, email: decoded.email };
+    ) as { sub?: number; email?: string; role?: string };
+    return { userId: decoded.sub, email: decoded.email, role: decoded.role };
   } catch (error) {
     console.warn("Failed to decode auth token", error);
     return null;
@@ -63,10 +66,12 @@ const normalizeUser = (candidate: StoredAuthUser | null): AuthUser | null => {
   const id = candidate.id ?? decoded?.userId;
   const email = candidate.email ?? decoded?.email ?? "";
   if (!id || !email) return null;
+  const role = candidate.role ?? decoded?.role ?? "customer";
   return {
     id,
     email,
     name: candidate.name ?? email,
+    role,
     accessToken: candidate.accessToken,
   };
 };
@@ -102,28 +107,28 @@ const resolveUser = (input: AuthUserInput): AuthUser => {
   if (!input.accessToken || !id || !email) {
     throw new Error("Invalid authentication payload");
   }
+  const role = input.role ?? decoded?.role ?? "customer";
   return {
     id,
     email,
     name: input.name ?? email,
+    role,
     accessToken: input.accessToken,
   };
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() =>
-    typeof window === "undefined" ? null : readStoredUser(),
-  );
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (user === null) {
-      const stored = readStoredUser();
-      if (stored) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser(stored);
-      }
+    const stored = readStoredUser();
+    if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUser(stored);
     }
-  }, [user]);
+    setInitialized(true);
+  }, []);
 
   const setAuthenticatedUser = useCallback((nextUser: AuthUserInput) => {
     const resolved = resolveUser(nextUser);
@@ -180,10 +185,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      initialized,
       setAuthenticatedUser,
       logout,
     }),
-    [user, setAuthenticatedUser, logout],
+    [user, initialized, setAuthenticatedUser, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

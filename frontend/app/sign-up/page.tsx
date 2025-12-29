@@ -9,6 +9,8 @@ export default function SignUpPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [taxId, setTaxId] = useState("");
+  const [homeAddress, setHomeAddress] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export default function SignUpPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, taxId, homeAddress, password }),
       });
 
       const payload = await response.json();
@@ -46,6 +48,8 @@ export default function SignUpPage() {
       setSuccess("Account created successfully. You can now sign in.");
       setName("");
       setEmail("");
+      setTaxId("");
+      setHomeAddress("");
       setPassword("");
       setConfirmPassword("");
       router.push("/?auth=signin");
@@ -73,7 +77,7 @@ export default function SignUpPage() {
           <div className="p-6 md:p-8">
             <div className="text-center mb-6">
               <Link href="/" className="inline-block text-xl font-semibold tracking-[0.2em]">
-                FATIH
+                MKN
               </Link>
               <h1 className="mt-2 text-2xl font-semibold">Create your account</h1>
               <p className="text-[var(--muted)] text-sm">
@@ -111,6 +115,37 @@ export default function SignUpPage() {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="taxId" className="block text-sm mb-1">
+                  Tax ID
+                </label>
+                <input
+                  id="taxId"
+                  name="taxId"
+                  type="text"
+                  className="input"
+                  placeholder="1234567890"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="homeAddress" className="block text-sm mb-1">
+                  Home address
+                </label>
+                <textarea
+                  id="homeAddress"
+                  name="homeAddress"
+                  className="input min-h-[96px]"
+                  placeholder="Street, city, postal code"
+                  value={homeAddress}
+                  onChange={(e) => setHomeAddress(e.target.value)}
                   required
                 />
               </div>

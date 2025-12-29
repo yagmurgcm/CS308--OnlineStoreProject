@@ -1,14 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:3001';
-
-    return [
+  images: {
+    remotePatterns: [
       {
-        source: '/api/:path*',
-        destination: `${backendUrl}/:path*`,
+        protocol: "https",
+        hostname: "**", // 🔥 TÜM HTTPS KAYNAKLARINA İZİN
       },
-    ];
+    ],
   },
 };
 

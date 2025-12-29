@@ -1,21 +1,34 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
-import AddToCartButton from "./AddToCartButton";
+import { useState } from "react";
+import { Star } from "lucide-react";
+import { useWishlist } from "@/store/wishlistContext";
 
+// 👇 TİP TANIMI (TAPU) - Backend'den gelen veriye uygun
 export type CategoryProduct = {
   id: string;
   productId: number;
   name: string;
   price: number;
+  originalPrice?: number;
+  hasDiscount?: boolean;
+  discountRate?: number | null;
+  discountedPrice?: number | null;
   image: string;
   colors?: string[];
   badge?: string;
+  subcategory?: string | null;
+  description?: string | null;
+  // 🔥 Backend'den bu alanların geldiğinden eminiz artık
+  averageRating?: number | string;
+  reviewCount?: number;
 };
 
-const currency = new Intl.NumberFormat("en-GB", {
+const formatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function CategoryProductCard({
@@ -23,59 +36,109 @@ export default function CategoryProductCard({
 }: {
   product: CategoryProduct;
 }) {
-  const { name, price, image, colors = [], badge } = product;
+  const { addItemToWishlist } = useWishlist();
+  const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // 🛠️ BACKEND VERİSİNİ İŞLEME (String gelse bile sayıya çeviriyoruz)
+  const rawRating = product.averageRating ? Number(product.averageRating) : 0;
+  // Eğer NaN gelirse (hatalı veri) 0 kabul et
+  const ratingValue = isNaN(rawRating) ? 0 : rawRating;
+  const reviewCount = product.reviewCount || 0;
+  const showDiscount =
+    product.hasDiscount &&
+    product.originalPrice !== undefined &&
+    product.originalPrice > product.price;
+
+  const handleAddToWishlist = () => {
+    setIsInWishlist(true);
+    setTimeout(() => setIsInWishlist(false), 400);
+    addItemToWishlist({
+      id: String(product.productId),
+      productId: product.productId,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+    });
+  };
 
   return (
-    <article className="group space-y-3">
-      <div className="overflow-hidden rounded-xl border border-[var(--line)] bg-white">
-        <div className="relative aspect-[3/4]">
-          <Image
-            src={image}
-            alt={name}
-            fill
-            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 28vw, (min-width: 768px) 45vw, 85vw"
-            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-            priority={false}
-          />
-        </div>
-      </div>
+    <div className="group relative flex flex-col gap-3 rounded-lg border border-[var(--line)] bg-white p-3 transition-all hover:shadow-md">
+      {/* Kalp Butonu */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          handleAddToWishlist();
+        }}
+        className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-300 ${isInWishlist ? "scale-110 text-red-500" : "text-neutral-400 hover:text-red-500"
+          }`}
+      >
+        {isInWishlist ? "💖" : "🤍"}
+      </button>
 
-      <div className="space-y-2">
-        {colors.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {colors.slice(0, 5).map((color, index) => (
-              <span
-                key={index}
-                className="h-3.5 w-3.5 rounded-full border border-white shadow-sm"
-                style={{ backgroundColor: color }}
-                aria-hidden="true"
+      {/* Resim */}
+      <Link href={`/products/${product.productId}`} className="relative aspect-[3/4] w-full overflow-hidden rounded-md bg-neutral-100">
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        {product.badge && (
+          <span className="absolute left-2 top-2 rounded bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-neutral-900 shadow-sm backdrop-blur-sm">
+            {product.badge}
+          </span>
+        )}
+      </Link>
+
+      {/* Bilgiler */}
+      <div className="flex flex-col gap-1">
+        <Link href={`/products/${product.productId}`}>
+          <h3 className="text-sm font-medium leading-tight text-neutral-900 line-clamp-2 hover:underline">
+            {product.name}
+          </h3>
+        </Link>
+
+        {/* ⭐ YILDIZLAR VE PUANLAMA ALANI ⭐ */}
+        <div className="flex items-center gap-1.5 mt-1 min-h-[18px]">
+          {/* Puan Yazısı (Örn: 4.5) */}
+          <span className="text-xs font-bold text-gray-900">
+            {ratingValue > 0 ? ratingValue.toFixed(1) : "0.0"}
+          </span>
+
+          {/* Yıldız İkonları */}
+          <div className="flex gap-[1px]">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={12} // Biraz büyüttüm daha net görünsün
+                className={`${star <= Math.round(ratingValue)
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "fill-gray-100 text-gray-300"
+                  }`}
               />
             ))}
           </div>
-        )}
 
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium text-neutral-900">{name}</h3>
-          {badge && (
-            <span className="inline-flex items-center rounded-full border border-[#b70038]/20 bg-[#b70038]/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-[#7a0025]">
-              {badge}
+          {/* Yorum Sayısı (Örn: (12)) */}
+          <span className="text-[10px] font-medium text-gray-500">
+            ({reviewCount})
+          </span>
+    </div>
+
+        <div className="mt-1 font-semibold text-neutral-900">
+          <div className="flex items-baseline gap-2">
+            {showDiscount && (
+              <span className="text-xs text-neutral-500 line-through">
+                {formatter.format(product.originalPrice!)}
+              </span>
+            )}
+            <span className="text-base font-semibold text-neutral-900">
+              {formatter.format(product.price)}
             </span>
-          )}
-        </div>
-
-        <div className="text-sm font-semibold text-neutral-900">
-          {currency.format(price)}
+          </div>
         </div>
       </div>
-      <AddToCartButton
-        product={{
-          productId: product.productId,
-          quantity: 1,
-          name,
-          price,
-          image,
-        }}
-      />
-    </article>
+    </div>
   );
 }

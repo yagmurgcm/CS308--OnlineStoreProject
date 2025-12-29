@@ -6,7 +6,6 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-  Unique
 } from 'typeorm';
 import { CartItem } from './cart-item.entity';
 import { User } from '../../users/user.entity';
@@ -16,21 +15,30 @@ export class Cart {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'userId', type: 'int', nullable: true })
   @Index() // performans için userId index
-  userId: number;
+  userId: number | null;
 
-  // User ile ilişki (çok gelişmiş projelerde çok önemli)
-  @ManyToOne(() => User, (user) => user.cart, { onDelete: 'CASCADE' })
+  @Column({
+    name: 'guestToken',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+    unique: true,
+  })
+  @Index()
+  guestToken: string | null;
+
+  @ManyToOne(() => User, (user) => user.cart, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user: User | null;
 
-  // Sepetteki ürünler
   @OneToMany(() => CartItem, (item) => item.cart, {
     cascade: true,
     eager: true, // sepeti getirince item'lar otomatik gelir
   })
   items: CartItem[];
-
-
 }

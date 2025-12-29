@@ -1,10 +1,12 @@
 "use client";
+
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3001";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,18 +43,39 @@ export default function SignInPage() {
       }
       console.log("Signin response:", payload ?? rawBody);
 
-      const payloadName =
-        payload && typeof payload === "object" && payload !== null && "name" in payload
-          ? String((payload as { name: unknown }).name ?? "")
-          : null;
-      const payloadEmail =
-        payload && typeof payload === "object" && payload !== null && "email" in payload
-          ? String((payload as { email: unknown }).email ?? "")
-          : null;
-      const payloadToken =
-        payload && typeof payload === "object" && payload !== null && "access_token" in payload
-          ? String((payload as { access_token: unknown }).access_token ?? "")
-          : null;
+      const getPayloadValue = (key: string): unknown => {
+        if (!payload || typeof payload !== "object" || payload === null) {
+          return null;
+        }
+        const container = payload as Record<string, unknown>;
+        if (key in container) {
+          return container[key];
+        }
+        if ("user" in container && container.user && typeof container.user === "object") {
+          const nested = container.user as Record<string, unknown>;
+          if (key in nested) {
+            return nested[key];
+          }
+        }
+        return null;
+      };
+
+      const toStringValue = (value: unknown): string | null =>
+        typeof value === "string" && value ? value : null;
+      const toNumberValue = (value: unknown): number | null => {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const parsed = Number(value);
+          return Number.isFinite(parsed) ? parsed : null;
+        }
+        return null;
+      };
+
+      const payloadName = toStringValue(getPayloadValue("name"));
+      const payloadEmail = toStringValue(getPayloadValue("email"));
+      const payloadToken = toStringValue(getPayloadValue("access_token"));
+      const payloadRole = toStringValue(getPayloadValue("role"));
+      const payloadId = toNumberValue(getPayloadValue("id"));
 
       if (!response.ok) {
         setError("Email or password is wrong");
@@ -66,15 +89,35 @@ export default function SignInPage() {
       }
 
       setError(null);
-      setMessage("Sign in successful");
+
+      // Admin kontrolü - admin@gmail.com veya product@gmail.com ise admin paneline yönlendir
+      const isAdmin =
+        resolvedEmail.toLowerCase() === "admin@gmail.com" ||
+        resolvedEmail.toLowerCase() === "product@gmail.com";
+      const isSalesManager = payloadRole === "SALES_MANAGER";
+
+      setMessage(
+        isSalesManager
+          ? "Welcome Sales Manager!"
+          : isAdmin
+            ? "Welcome Admin!"
+            : "Sign in successful",
+      );
       setAuthenticatedUser({
+        id: payloadId ?? undefined,
         name: payloadName || resolvedEmail,
         email: resolvedEmail,
+        role: payloadRole ?? undefined,
         accessToken: payloadToken,
       });
       setEmail("");
       setPassword("");
-      router.push("/");
+      const redirectTo = isSalesManager
+        ? "/sales-manager"
+        : isAdmin
+          ? "/admin/products"
+          : (searchParams.get("redirect") || "/");
+      router.push(redirectTo);
     } catch (err) {
       console.error("Signin error:", err);
       setError("Email or password is wrong");

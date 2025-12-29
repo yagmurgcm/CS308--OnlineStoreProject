@@ -1,0 +1,81 @@
+fabe085 - Yagmur Gecim: test commit
+35a4675 - Yagmur Gecim: local changes before switching to dev
+f77e52c - yigitnarci: Add search/invoice UI enhancements and tests
+07d10b0 - arda.karayel:  Product info is presented in cart
+95c2f0e - arda.karayel:  Some small changes about product card design
+7c71bc8 - arda.karayel:  Review and comments are completed backend + frontend + database
+6f5b2c0 - arda.karayel: Review stars are added to cards(will continue)
+e32c5bb - arda.karayel: Review stars added to cards (will continue)
+acaff1a - arda.karayel: Review + comment part is working frontend + backend + db
+9ea7679 - arda.karayel: review + comment backend ( continue)
+dde903c - arda.karayel: Implement product review system, add lucide-react (frontend)
+77bb5d9 - arda.karayel: feat(cart): separate cart items based on product variants
+269a494 - arda.karayel: ux: remove add-to-cart button from listing to enforce variant selection
+78cc871 - arda.karayel: style: simplify user profile icon in header
+542b81f - arda.karayel: feat: enable variant switching and stock display, fix currency format
+b39028d - arda.karayel: frontend/ feat: design product detail pages
+9ce23b7 - arda.karayel: Frontend: adding heart icon for adding whislist
+aceb972 - arda.karayel:  fixing category-subcategory passing
+a741a9c - arda.karayel: trying online db
+ba0250b - arda.karayel: feat(frontend): updated header layout and added search bar
+f3a4336 - arda.karayel: template account page completed
+44c8bd6 - arda.karayel: Add wishlist feature and UI improvements
+5f5c37a - arda.karayel: Complete account address page except requests
+2bb8729 - arda.karayel: Add full account layout and sidebar
+c5aeecc - Melih Durhasan (Student): update: latest working version
+aa5686e - Fatih-Onur: Fix cart, db config, and category pages
+cd0fa34 - arda.karayel: fix: resolved cart & filtering/sorting issues after Thunder Client testing
+854a49e - yigitnarci: Add backend product filters and sorting
+8d62418 - arda.karayel: feat(backend/cart): established cart and DB integration, tested core functions; additional detailed cart features will be implemented next
+a17c81c - Fatih-Onur: Frontend updated regarded connetion with database
+b13a5a2 - Yagmur Gecim: Cart + Order + Variant integration fixed, ready for dev
+a53ac0b - BerkayBilici: created products and product_variant table and seeds
+501e281 - Yagmur Gecim: Order module + backend fixes implemented
+9bd4e15 - Melih Durhasan (Student): sign up and sign in correction
+68faf3b - arda.karayel: Added admin functionality for product creation
+a259ac4 - Fatih-Onur: Frontend ve backend güncellemeleri
+24a1e72 - arda.karayel: fixed and improved warning messages on both frontend and backend
+642bb52 - arda.karayel: fixed mistakes and some extensions for frontend/backend
+cf09481 - BerkayBilici: feat(backend): re-add correct backend structure
+84a263f - BerkayBilici: chore(backend): flatten folder (backend/backend -> backend)
+ad5d0ff - BerkayBilici: feat(backend): add correct backend (auth/users/cart; MySQL OK)
+0dd4b43 - BerkayBilici: chore(backend): remove incorrect backend tree
+825cbb8 - BerkayBilici: chore(backend): flatten folder (backend/backend -> backend)
+5ef67e1 - BerkayBilici: feat(backend): stable auth/users/cart; MySQL OK
+b600012 - BerkayBilici: Delete database/sql directory
+f3ca702 - BerkayBilici: Delete database/sql directory
+bcbb7ae - Yagmur Gecim: keep untracked files before merging main
+c1a0bdf - yagmurgcm: Delete frontend directory
+8c06991 - yagmurgcm: Delete frontend_backup_20251031_183033 directory
+285b186 - arda.karayel:  Updated cart and some fixes
+f8a33e9 - Fatih-Onur: Cart and Categories are added, 31.10.2025
+4a87372 - Fatih-Onur: Replaced frontend with my local version
+243d33f - BerkayBilici: add clean users table SQL schema
+3f51e1c - BerkayBilici: chore: remove duplicate 'products' folder; keep single 'product/' structure
+175ea5e - BerkayBilici: chore: clean structure; add entities/migrations/seeds folders
+b5401d4 - yagmurgcm: Delete backend/database directory
+06f68f0 - yagmurgcm: Delete backend/backend directory
+4d2553a - yigitnarci: feat(users): add GET /user/:id profile endpoint; expose UsersController; add UsersService.findById()
+65b01b4 - arda.karayel: implement Sign In and Sign Up endpoints with JWT authentication
+2beeda9 - Yagmur Gecim: Add /products endpoint, enable CORS, and update database + frontend folders
+013ec2c - Yagmur Gecim: Clean reinitialization: backend + frontend structure
+788a310 - yagmurgcm: Add backend (Nest.js) source files
+1e1c0b0 - yagmurgcm: Add database schema, seed data, and setup guide
+054c9f3 - yagmurgcm: Delete frontend/README.md
+952048e - yagmurgcm: Add frontend files (Next.js setup)
+88b4dd7 - yagmurgcm: Create .gitkeep
+13bbe2c - yagmurgcm: Delete frontend/.gitkeep
+12c8578 - yagmurgcm: Delete backend/.gitkeep
+3b4d6db - yagmurgcm: Add comment for first pull request from dev branch
+7789aaa - yagmurgcm: Delete .github/project-template.yml
+cfb916c - yagmurgcm: Create .gitkeep
+d067a63 - yagmurgcm: Create backend.gitkeep
+ae775b7 - yagmurgcm: Create frontend.gitkeep
+62be532 - yagmurgcm: Update team member names in README
+90acfe3 - yagmurgcm: Update README with team roles and responsibilities
+9856de4 - yagmurgcm: Fix link formatting in README.md
+dc65c5b - yagmurgcm: Fix link formatting in README.md
+4b3a871 - yagmurgcm: Update README with project board information
+9b87eda - yagmurgcm: Delete project template for Sprint 1
+c107ddc - yagmurgcm: sprint1 template
+6eb65d7 - yagmurgcm: Initial commit

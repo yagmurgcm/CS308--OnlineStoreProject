@@ -3,6 +3,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsNumber,
+  IsBoolean,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -33,6 +35,18 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(255)
   image?: string;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  stock?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 
   @IsOptional()
   @IsArray()

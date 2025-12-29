@@ -1,0 +1,11 @@
+[33mcommit 854a49ece31dd574354dee78f9c92ebc3769716a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mupdated-yigit[m[33m, [m[1;31morigin/updated-yigit[m[33m)[m
+Author: yigitnarci <148265497+yigitnarci@users.noreply.github.com>
+Date:   Tue Nov 18 20:06:44 2025 +0300
+
+    Add backend product filters and sorting
+
+backend/src/config/database.config.ts
+backend/src/product/dto/get-products-query.dto.ts
+backend/src/product/entities/product.entity.ts
+backend/src/product/product.controller.ts
+backend/src/product/product.service.ts

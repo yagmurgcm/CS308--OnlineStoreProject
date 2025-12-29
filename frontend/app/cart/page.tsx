@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "next/link"; // Tıklama özelliği için gerekli
+import { useRouter } from "next/navigation";
 import { CART_AUTH_ERROR, useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
+import Toast from "../components/Toast";
 
-const formatter = new Intl.NumberFormat("en-GB", {
+// 1. DÜZELTME: Değişken adını 'formatter' yaptık ve TRY (TL) ayarladık
+const formatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
-  currency: "GBP",
+  currency: "TRY",
 });
 
 export default function CartPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { items, subtotal, updateQuantity, removeItem } = useCart();
   const hasItems = items.length > 0;
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [cartError, setCartError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   const decrease = (id: number, quantity: number) => {
     handleQuantityChange(id, quantity - 1);
@@ -62,6 +68,17 @@ export default function CartPage() {
     }
   };
 
+  const handleCheckout = async () => {
+    setCartError(null);
+    setToastMessage(null);
+    if (!user) {
+      setShowAuthPrompt(true);
+      return;
+    }
+    // Ödeme bilgileri için yeni checkout sayfasına yönlendiriyoruz
+    router.push("/checkout");
+  };
+
   return (
     <main className="container-base py-10 space-y-8">
       <header className="space-y-2">
@@ -85,24 +102,37 @@ export default function CartPage() {
                 key={item.id}
                 className="flex flex-col gap-4 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm md:flex-row md:items-center"
               >
-                <div className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)]">
+                {/* 2. DÜZELTME: Resmi Link içine aldık */}
+                <Link 
+                  href={`/products/${item.productId || item.id}`} 
+                  className="h-28 w-28 shrink-0 overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--background)] cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  {/* 3. DÜZELTME: Resim yoksa çökmesin diye fallback ekledik */}
                   <Image
-                    src={item.image}
+                    src={item.image || "/images/1.jpg"}
                     alt={item.name}
                     width={112}
                     height={112}
                     className="h-full w-full object-cover"
                   />
-                </div>
+                </Link>
 
                 <div className="flex-1 space-y-1">
-                  <h2 className="text-lg font-medium leading-tight">{item.name}</h2>
+                  {/* 4. DÜZELTME: Başlığı Link içine aldık */}
+                  <Link href={`/products/${item.productId || item.id}`}>
+                    <h2 className="text-lg font-medium leading-tight hover:underline cursor-pointer">
+                        {item.name}
+                    </h2>
+                  </Link>
+
+                  {/* Backend'den renk/beden gelince burası otomatik çalışacak */}
                   {item.color && (
                     <p className="text-sm text-neutral-600">Colour: {item.color}</p>
                   )}
                   {item.size && (
                     <p className="text-sm text-neutral-600">Size: {item.size}</p>
                   )}
+                  
                   <span className="inline-flex items-center rounded-full border border-[var(--line)] px-2 py-0.5 text-xs font-medium text-emerald-600">
                     In Stock
                   </span>
@@ -175,12 +205,7 @@ export default function CartPage() {
               <span>Shipping</span>
               <span>Add info at checkout</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Promo code</span>
-              <button className="text-xs font-medium uppercase tracking-wide text-neutral-900">
-                Add
-              </button>
-            </div>
+            {/* Promo code kaldırıldı veya opsiyonel */}
           </div>
 
           <div className="border-t border-[var(--line)] pt-4">
@@ -190,7 +215,11 @@ export default function CartPage() {
             </div>
           </div>
 
-          <button className="btn btn-primary w-full" disabled={!hasItems}>
+          <button
+            className="btn btn-primary w-full"
+            disabled={!hasItems}
+            onClick={handleCheckout}
+          >
             Continue to checkout
           </button>
 
@@ -202,6 +231,46 @@ export default function CartPage() {
           </div>
         </aside>
       </div>
+
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          type={toastMessage.toLowerCase().includes("success") ? "success" : "error"}
+          onDismiss={() => setToastMessage(null)}
+        />
+      )}
+
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-neutral-900">Sign in to checkout</h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              You need an account to place an order. Your cart items are saved.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/?auth=signin&redirect=/checkout"
+                className="btn btn-primary w-full sm:w-auto text-center"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/sign-up?redirect=/checkout"
+                className="btn btn-secondary w-full sm:w-auto text-center"
+              >
+                Create account
+              </Link>
+              <button
+                type="button"
+                className="btn btn-ghost w-full sm:w-auto"
+                onClick={() => router.push("/")}
+              >
+                Keep browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

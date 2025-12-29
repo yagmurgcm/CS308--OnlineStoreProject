@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MaxLength, IsNumber, IsBoolean } from 'class-validator';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -26,4 +26,16 @@ export class UpdateProductDto {
   @IsString()
   @MaxLength(255)
   image?: string;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  stock?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

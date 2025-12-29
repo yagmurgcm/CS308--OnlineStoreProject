@@ -13,11 +13,24 @@ export class UsersService {
     return this.repo.findOne({ where: { id } });
   }
 
-  async findByEmail(email: string, opts?: { withHash?: boolean }): Promise<User | null> {
+  async findByEmail(
+    email: string,
+    opts?: { withHash?: boolean },
+  ): Promise<User | null> {
     if (opts?.withHash) {
       return this.repo.findOne({
         where: { email },
-        select: ['id', 'email', 'name', 'password', 'createdAt', 'updatedAt'],
+        select: [
+          'id',
+          'email',
+          'name',
+          'taxId',
+          'homeAddress',
+          'password',
+          'role',
+          'createdAt',
+          'updatedAt',
+        ],
       });
     }
     return this.repo.findOne({ where: { email } });
@@ -26,5 +39,9 @@ export class UsersService {
   create(data: Partial<User>): Promise<User> {
     const u = this.repo.create(data);
     return this.repo.save(u);
+  }
+
+  async update(id: number, data: Partial<User>): Promise<void> {
+    await this.repo.update({ id }, data);
   }
 }
