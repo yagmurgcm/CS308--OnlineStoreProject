@@ -72,6 +72,16 @@ export class ProductController {
     return this.productService.remove(id);
   }
 
+  // POST endpoint (create variant for product) - Admin only
+  @UseGuards(JwtAuthGuard)
+  @Post(':productId/variant')
+  createVariant(
+    @Param('productId', ParseIntPipe) productId: number,
+    @Body() variant: any,
+  ): Promise<any> {
+    return this.productService.createVariant(productId, variant);
+  }
+
   // PUT endpoint (update variant by id) - Admin only
   @UseGuards(JwtAuthGuard)
   @Put('variant/:variantId')

@@ -159,6 +159,21 @@ export class ProductService {
     }
   }
 
+  // Create variant
+  async createVariant(productId: number, variantData: Partial<ProductVariant>): Promise<ProductVariant> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+    if (!product) {
+      throw new NotFoundException(`Product #${productId} not found`);
+    }
+    const variant = this.variantRepository.create({
+      ...variantData,
+      product: product,
+    } as ProductVariant);
+    return this.variantRepository.save(variant);
+  }
+
   // Update variant
   async updateVariant(variantId: number, variant: Partial<ProductVariant>): Promise<ProductVariant> {
     const existing = await this.variantRepository.findOne({

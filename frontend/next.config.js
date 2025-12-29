@@ -6,6 +6,11 @@ const nextConfig = {
         protocol: "https",
         hostname: "**", // 🔥 TÜM HTTPS KAYNAKLARINA İZİN
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "3000",
+      },
     ],
   },
 };

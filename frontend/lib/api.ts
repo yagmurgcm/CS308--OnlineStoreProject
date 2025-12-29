@@ -34,6 +34,13 @@ async function request<T>(
   });
 
   if (!res.ok) {
+    // Don't throw error for 401 Unauthorized - let the caller handle it
+    if (res.status === 401) {
+      const error = new Error("Unauthorized") as Error & { status: number };
+      error.status = 401;
+      throw error;
+    }
+    
     let message = `Request failed: ${res.status}`;
     try {
       const data = await res.json();

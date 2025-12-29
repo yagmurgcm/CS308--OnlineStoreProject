@@ -141,6 +141,13 @@ export default function ChatWidget() {
           });
         }
       } catch (error) {
+        // Silently handle unauthorized errors (user not logged in or token expired)
+        if (error instanceof Error && (error.message === "Unauthorized" || (error as any).status === 401)) {
+          // User is not authenticated, just don't load conversation
+          setConversation(null);
+          setMessages([]);
+          return;
+        }
         console.error("Failed to load conversation", error);
       } finally {
         setLoading(false);
@@ -173,6 +180,12 @@ export default function ChatWidget() {
         return [...prev, newMessage];
       });
     } catch (error) {
+      // Silently handle unauthorized errors
+      if (error instanceof Error && (error.message === "Unauthorized" || (error as any).status === 401)) {
+        alert("Please sign in to send messages.");
+        setMessageText(text); // Restore message on error
+        return;
+      }
       console.error("Failed to send message", error);
       alert("Failed to send message. Please try again.");
       setMessageText(text); // Restore message on error

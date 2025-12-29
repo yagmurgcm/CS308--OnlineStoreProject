@@ -35,6 +35,7 @@ type FormData = {
   price: string;
   stock: string;
   isActive: boolean;
+  image: string;
 };
 
 const CATEGORIES = [
@@ -107,6 +108,7 @@ export default function AdminProductsPage() {
     price: "",
     stock: "",
     isActive: true,
+    image: "",
   });
 
   const fetchProducts = async () => {
@@ -141,6 +143,7 @@ export default function AdminProductsPage() {
       price: String(product.price),
       stock: String(getTotalStock(product)),
       isActive: product.isActive,
+      image: product.image || "",
     });
     setEditingId(product.id);
     setShowForm(true);
@@ -166,8 +169,18 @@ export default function AdminProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.category || !formData.price || !formData.stock) {
+    // Validate required fields - allow 0 for price and stock (can be managed via variants)
+    if (!formData.name || !formData.category) {
       alert("Please fill in all required fields");
+      return;
+    }
+
+    // Price and stock can be 0 (will be managed via variants)
+    const price = formData.price ? parseFloat(formData.price) : 0;
+    const stock = formData.stock ? parseInt(formData.stock, 10) : 0;
+    
+    if (isNaN(price) || isNaN(stock) || price < 0 || stock < 0) {
+      alert("Price and stock must be valid numbers (0 or greater)");
       return;
     }
 
@@ -178,9 +191,10 @@ export default function AdminProductsPage() {
         category: formData.category,
         subcategory: formData.subcategory || null,
         description: formData.description || null,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock, 10),
+        price: price,
+        stock: stock,
         isActive: formData.isActive,
+        image: formData.image || null,
       };
 
       console.log(`📤 [FRONTEND] Sending update request for product ID: ${editingId}`);
@@ -209,6 +223,7 @@ export default function AdminProductsPage() {
         price: "",
         stock: "",
         isActive: true,
+        image: "",
       });
     } catch (err) {
       console.error("❌ [FRONTEND] Failed to save product:", err);
@@ -229,6 +244,7 @@ export default function AdminProductsPage() {
       price: "",
       stock: "",
       isActive: true,
+      image: "",
     });
   };
 
@@ -246,38 +262,58 @@ export default function AdminProductsPage() {
   const handleVariantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!variantFormData.color || !variantFormData.size || !variantFormData.price || !variantFormData.stock) {
-      alert("Please fill in all required fields");
+    if (!variantFormData.color || !variantFormData.size) {
+      alert("Please fill in color and size");
+      return;
+    }
+
+    // Validate price and stock as numbers
+    const variantPrice = variantFormData.price ? parseFloat(variantFormData.price) : NaN;
+    const variantStock = variantFormData.stock ? parseInt(variantFormData.stock, 10) : NaN;
+    
+    if (isNaN(variantPrice) || isNaN(variantStock) || variantPrice < 0 || variantStock < 0) {
+      alert("Price and stock must be valid numbers (0 or greater)");
       return;
     }
 
     setSubmitting(true);
     try {
       if (selectedVariant) {
-        // Update variant directly
+        // Update existing variant
         const variantUpdate = {
           color: variantFormData.color,
           size: variantFormData.size,
-          price: parseFloat(variantFormData.price),
-          stock: parseInt(variantFormData.stock, 10),
+          price: variantPrice,
+          stock: variantStock,
         };
 
         await api.put(`/products/variant/${selectedVariant.id}`, variantUpdate);
         alert("Variant updated successfully");
+      } else if (selectedProduct) {
+        // Create new variant
+        const variantCreate = {
+          color: variantFormData.color,
+          size: variantFormData.size,
+          price: variantPrice,
+          stock: variantStock,
+        };
 
-        // Fetch updated products list
-        const response = await api.get<{ items: Product[] }>(
-          "/products?limit=1000"
-        );
-        const updatedProducts = response?.items || [];
-        setProducts(updatedProducts);
+        await api.post(`/products/${selectedProduct.id}/variant`, variantCreate);
+        alert("Variant created successfully");
+      }
 
-        // Refresh selected product with latest data
-        if (selectedProduct) {
-          const refreshed = updatedProducts.find((p) => p.id === selectedProduct.id);
-          if (refreshed) {
-            setSelectedProduct(refreshed);
-          }
+      // Fetch updated products list
+      const response = await api.get<{ items: Product[] }>(
+        "/products?limit=1000"
+      );
+      const updatedProducts = response?.items || [];
+      setProducts(updatedProducts);
+
+      // Refresh selected product with latest data
+      if (selectedProduct) {
+        const refreshed = updatedProducts.find((p) => p.id === selectedProduct.id);
+        if (refreshed) {
+          setSelectedProduct(refreshed);
         }
       }
 
@@ -704,6 +740,23 @@ export default function AdminProductsPage() {
                 />
               </div>
 
+              {/* Image URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Image URL
+                </label>
+                <input
+                  type="url"
+                  value={formData.image || ""}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://example.com/image.jpg"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter a full URL to the product image (e.g., https://example.com/image.jpg)
+                </p>
+              </div>
+
               {/* Price & Stock */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -714,12 +767,11 @@ export default function AdminProductsPage() {
                     type="number"
                     step="0.01"
                     value={formData.price}
-                    disabled
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0.00"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Edit via variants</p>
+                  <p className="text-xs text-gray-500 mt-1">Base price (can be overridden by variants)</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -813,7 +865,24 @@ export default function AdminProductsPage() {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Variants</h3>
-                  <p className="text-xs text-gray-500">Click a variant to edit</p>
+                  <div className="flex gap-2 items-center">
+                    <p className="text-xs text-gray-500">Click a variant to edit</p>
+                    <button
+                      onClick={() => {
+                        setSelectedVariant(null);
+                        setVariantFormData({
+                          color: "",
+                          size: "",
+                          price: "",
+                          stock: "",
+                        });
+                        setShowVariantForm(true);
+                      }}
+                      className="px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg font-medium hover:bg-green-600 transition"
+                    >
+                      + Add Variant
+                    </button>
+                  </div>
                 </div>
                 {selectedProduct.variants && selectedProduct.variants.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -901,12 +970,14 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      {/* Variant Edit Modal */}
-      {showVariantForm && selectedVariant && (
+      {/* Variant Add/Edit Modal */}
+      {showVariantForm && selectedProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold">Edit Variant</h2>
+              <h2 className="text-xl font-bold">
+                {selectedVariant ? "Edit Variant" : "Add New Variant"}
+              </h2>
               <button
                 onClick={handleCloseVariantForm}
                 className="text-2xl leading-none hover:opacity-75 transition"
@@ -952,18 +1023,19 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">
-                    Price (₺)
+                    Price (₺) *
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     value={variantFormData.price}
-                    disabled
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                    onChange={(e) =>
+                      setVariantFormData({ ...variantFormData, price: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0.00"
+                    required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Price is fixed</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -996,7 +1068,7 @@ export default function AdminProductsPage() {
                   disabled={submitting}
                   className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition disabled:opacity-50"
                 >
-                  {submitting ? "Saving..." : "Update Variant"}
+                  {submitting ? "Saving..." : selectedVariant ? "Update Variant" : "Create Variant"}
                 </button>
               </div>
             </form>

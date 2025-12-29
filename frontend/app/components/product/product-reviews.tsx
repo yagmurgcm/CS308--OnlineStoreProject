@@ -49,6 +49,11 @@ export default function ProductReviews({ productId }: { productId: number }) {
       const data = await api.get<{ canReview: boolean }>(`/reviews/can-review/${productId}`);
       setCanReview(data.canReview);
     } catch (error) {
+      // Silently handle unauthorized errors (user not logged in or token expired)
+      if (error instanceof Error && (error.message === "Unauthorized" || (error as any).status === 401)) {
+        setCanReview(null);
+        return;
+      }
       console.error("Failed to check purchase status:", error);
       setCanReview(false);
     } finally {

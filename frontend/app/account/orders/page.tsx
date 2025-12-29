@@ -66,6 +66,13 @@ export default function OrdersPage() {
         const data = await fetchUserOrders();
         setOrders(data);
       } catch (err) {
+        // Handle unauthorized errors (user not logged in or token expired)
+        if (err instanceof Error && (err.message === "Unauthorized" || (err as any).status === 401)) {
+          console.warn("Unauthorized - token may be expired or invalid. User ID:", user?.id);
+          setOrders([]);
+          setError("Please sign in again to view your orders.");
+          return;
+        }
         console.error("Failed to load orders", err);
         setError("Failed to load orders. Please try again.");
       } finally {

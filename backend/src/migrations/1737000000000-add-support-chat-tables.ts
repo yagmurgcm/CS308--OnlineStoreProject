@@ -65,3 +65,6 @@ export class AddSupportChatTables1737000000000 implements MigrationInterface {
   }
 }
 
+
+
+
