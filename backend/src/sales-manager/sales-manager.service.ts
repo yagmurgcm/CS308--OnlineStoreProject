@@ -57,14 +57,18 @@ export class SalesManagerService {
       throw new BadRequestException('At least one product must be selected');
     }
 
-    const discountRate = Math.min(Math.max(dto.discountRate, 0), 90);
+    const rawDiscountRate = Number(dto.discountRate);
+    if (!Number.isFinite(rawDiscountRate) || rawDiscountRate < 0 || rawDiscountRate > 90) {
+      throw new BadRequestException('Discount rate must be between 0 and 90');
+    }
+    const discountRate = Math.min(Math.max(rawDiscountRate, 0), 90);
     const multiplier = discountRate / 100;
 
     const products = await this.productRepo.find({
       where: { id: In(ids) },
     });
     if (!products.length) {
-      throw new BadRequestException('No matching products were found');
+      throw new NotFoundException('No matching products were found');
     }
 
     for (const product of products) {
