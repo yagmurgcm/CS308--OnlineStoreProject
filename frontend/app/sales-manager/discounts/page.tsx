@@ -24,6 +24,20 @@ type ApplyDiscountResponse = {
   discountRate: number;
 };
 
+const CATEGORY_CANONICAL_LABELS: Record<string, string> = {
+  women: "Women",
+  men: "Men",
+  beauty: "Beauty",
+};
+
+const normalizeCategoryLabel = (value?: string | null): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const canonical = CATEGORY_CANONICAL_LABELS[trimmed.toLowerCase()];
+  return canonical ?? trimmed;
+};
+
 const priceFormatter = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
@@ -79,7 +93,12 @@ export default function DiscountsPage() {
       try {
         const response = await api.get<{ items: ProductRecord[] }>("/products?limit=500");
         if (!cancelled) {
-          setProducts(response?.items ?? []);
+          const normalizedItems =
+            response?.items?.map((product) => ({
+              ...product,
+              category: normalizeCategoryLabel(product.category),
+            })) ?? [];
+          setProducts(normalizedItems);
         }
       } catch (error) {
         console.error("Failed to load products", error);
@@ -100,10 +119,16 @@ export default function DiscountsPage() {
 
   const categories = useMemo(() => {
     const unique = new Set<string>();
+    const ordered: string[] = [];
     products.forEach((product) => {
-      if (product.category) unique.add(product.category);
+      const label = normalizeCategoryLabel(product.category);
+      if (!label) return;
+      const key = label.toLowerCase();
+      if (unique.has(key)) return;
+      unique.add(key);
+      ordered.push(label);
     });
-    return Array.from(unique);
+    return ordered;
   }, [products]);
 
   useEffect(() => {

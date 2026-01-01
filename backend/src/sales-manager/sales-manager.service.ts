@@ -11,10 +11,10 @@ import { InvoiceService } from '../order/invoice.service';
 import { ApplyDiscountDto } from './dto/apply-discount.dto';
 import { GetFinanceSummaryQueryDto } from './dto/get-finance-summary-query.dto';
 import { GetInvoicesQueryDto } from './dto/get-invoices-query.dto';
-import {
-  PriceDropEvent,
-  PriceDropNotifierService,
-} from './price-drop-notifier.service';
+import { WishlistItem } from '../wishlist/wishlist-item.entity';
+import { Notification } from '../notifications/notification.entity';
+import { User } from '../users/user.entity';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class SalesManagerService {
@@ -23,8 +23,12 @@ export class SalesManagerService {
     private readonly productRepo: Repository<Product>,
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
+    @InjectRepository(WishlistItem)
+    private readonly wishlistRepo: Repository<WishlistItem>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
     private readonly invoiceService: InvoiceService,
-    private readonly priceDropNotifier: PriceDropNotifierService,
+    private readonly mailService: MailService,
   ) {}
 
   getDashboard() {
@@ -63,8 +67,6 @@ export class SalesManagerService {
       throw new BadRequestException('No matching products were found');
     }
 
-    const drops: PriceDropEvent[] = [];
-
     for (const product of products) {
       const basePrice = Number(product.price) || 0;
       const newPrice =
@@ -74,23 +76,14 @@ export class SalesManagerService {
 
       product.discountRate = discountRate;
       product.discountedPrice = discountRate > 0 ? newPrice : null;
-
-      if (discountRate > 0 && newPrice < basePrice) {
-        drops.push({
-          productId: product.id,
-          productName: product.name,
-          oldPrice: basePrice,
-          newPrice,
-        });
-      }
     }
 
     await this.productRepo.save(products);
     try {
-      await this.priceDropNotifier.notifyPriceDrops(drops);
+      await this.notifyWishlistUsers(products);
     } catch (err) {
       // Notification failures should not block discount application
-      console.error('[PriceDropNotifier] Notification failed', err);
+      console.error('[WishlistNotifier] Notification failed', err);
     }
 
     return {
@@ -239,6 +232,174 @@ export class SalesManagerService {
 
   private roundCurrency(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private async notifyWishlistUsers(products: Product[]) {
+    const discountedProducts = products.filter((product) => {
+      const basePrice = Number(product.price) || 0;
+      const discountedPrice =
+        product.discountedPrice !== null && product.discountedPrice !== undefined
+          ? Number(product.discountedPrice)
+          : null;
+      return (
+        product.discountRate > 0 &&
+        discountedPrice !== null &&
+        discountedPrice < basePrice
+      );
+    });
+    if (!discountedProducts.length) return;
+
+    const discountedIds = discountedProducts.map((p) => p.id);
+    console.log('=== DISCOUNT APPLIED ===');
+    discountedProducts.forEach((p) => console.log('Product ID:', p.id));
+    console.log('[WishlistNotifier] Discounted product IDs', discountedIds);
+
+    const productMap = new Map<number, Product>();
+    discountedProducts.forEach((product) => productMap.set(product.id, product));
+
+    const wishlistEntries = await this.wishlistRepo.find({
+      where: { productId: In(discountedIds) },
+      relations: ['user'],
+    });
+    console.log(
+      '[WishlistNotifier] Matched wishlist entries',
+      wishlistEntries.map((entry) => ({
+        wishlistId: entry.id,
+        productId: entry.productId,
+        userId: entry.userId,
+        userEmail: entry.user?.email ?? null,
+      })),
+    );
+    console.log('Wishlist items count:', wishlistEntries.length);
+    if (!wishlistEntries.length) return;
+
+    const users = new Map<number, { user: User; products: Product[] }>();
+    for (const entry of wishlistEntries) {
+      const user = entry.user;
+      const product = productMap.get(entry.productId);
+      if (!user || !product) continue;
+
+      const existing = users.get(user.id);
+      if (existing) {
+        if (!existing.products.find((p) => p.id === product.id)) {
+          existing.products.push(product);
+        }
+      } else {
+        users.set(user.id, { user, products: [product] });
+      }
+    }
+
+    if (!users.size) return;
+    console.log(
+      '[WishlistNotifier] Unique users to notify',
+      Array.from(users.values()).map(({ user, products }) => ({
+        userId: user.id,
+        email: user.email,
+        products: products.map((p) => p.id),
+      })),
+    );
+
+    // Notifications are temporarily disabled; email still goes out.
+    // const notifications = Array.from(users.values()).map(({ user, products }) => {
+    //   const sample = products[0]?.name ?? 'A product';
+    //   const message =
+    //     products.length > 1
+    //       ? `${products.length} products in your wishlist (e.g. ${sample}) are now discounted.`
+    //       : `${sample} from your wishlist is now discounted.`;
+    //   return this.notificationRepo.create({
+    //     userId: user.id,
+    //     title: 'Wishlist item discounted',
+    //     message,
+    //   });
+    // });
+    // await this.notificationRepo.save(notifications);
+
+    await Promise.allSettled(
+      Array.from(users.values()).map(({ user, products }) =>
+        this.sendWishlistEmail(user, products),
+      ),
+    );
+  }
+
+  private async sendWishlistEmail(
+    user: User,
+    products: Product[],
+  ): Promise<void> {
+    if (!user.email || !products.length) return;
+
+    const subject =
+      products.length > 1
+        ? 'Products in your wishlist were discounted'
+        : 'A product in your wishlist was discounted';
+
+    const productLines = products.map((product) => {
+      const basePrice = Number(product.price) || 0;
+      const discounted = Number(product.discountedPrice ?? product.price) || 0;
+      return `- ${product.name}: ${basePrice.toFixed(2)} → ${discounted.toFixed(
+        2,
+      )}`;
+    });
+
+    const text = [
+      `Hi ${user.name || ''}`.trim() + ',',
+      '',
+      'Good news! Item(s) from your wishlist are now discounted:',
+      ...productLines,
+      '',
+      'Visit the store to take advantage of the new prices.',
+    ].join('\n');
+
+    const html = [
+      `<p>Hi ${user.name || ''},</p>`,
+      `<p>Good news! Item(s) from your wishlist are now discounted:</p>`,
+      `<ul>${productLines
+        .map((line) => `<li>${line.replace('- ', '')}</li>`)
+        .join('')}</ul>`,
+      '<p>Visit the store to take advantage of the new prices.</p>',
+    ].join('');
+
+    try {
+      console.log('SENDING MAIL TO:', user.email);
+      const info = await this.mailService.sendMail({
+        to: user.email,
+        from:
+          process.env.MAIL_FROM ||
+          process.env.SMTP_FROM ||
+          'no-reply@online-store.local',
+        subject,
+        text,
+        html,
+      });
+      if (info) {
+        console.log(
+          `[WishlistNotifier] Mail accepted for ${user.email}: ${info.response ?? info.messageId}`,
+        );
+      } else {
+        console.warn(
+          `[WishlistNotifier] Mail transport unavailable; email not sent to ${user.email}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[WishlistNotifier] Failed to send discount email to ${user.email}`,
+        err,
+      );
+    }
+  }
+
+  async sendTestDiscountEmail(to: string) {
+    try {
+      const info = await this.mailService.sendTestEmail(to);
+      console.log(
+        `[WishlistNotifier] Test email result for ${to}: ${
+          info?.response ?? info?.messageId ?? 'no response'
+        }`,
+      );
+      return { to, ok: Boolean(info), messageId: info?.messageId ?? null, response: info?.response ?? null };
+    } catch (err) {
+      console.error('[WishlistNotifier] Test email failed', err);
+      throw err;
+    }
   }
 
   private resolveUnitPrice(detail: {

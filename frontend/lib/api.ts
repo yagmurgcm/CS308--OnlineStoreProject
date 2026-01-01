@@ -1,9 +1,33 @@
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-// Use backend directly (ENV) or fall back to localhost:3001; /api proxy is also available.
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3001"; // CORS is enabled on backend
+const normalizeBase = (value: string | undefined | null) => {
+  if (!value) return null;
+  return value.replace(/\/+$/, "");
+};
+
+const detectBrowserBase = () => {
+  if (typeof window === "undefined") return null;
+  const { protocol, hostname } = window.location;
+  // If the frontend runs on :3000 (Next dev), default backend port should be 3001.
+  const defaultPort = process.env.NEXT_PUBLIC_API_PORT || "3001";
+  const port = window.location.port === "3000" || !window.location.port
+    ? defaultPort
+    : window.location.port;
+  return `${protocol}//${hostname}:${port}`;
+};
+
+const resolvedApiBase =
+  normalizeBase(process.env.NEXT_PUBLIC_API_URL) ||
+  detectBrowserBase() ||
+  "http://localhost:3001";
+
+// Log once for easier debugging in the console.
+if (typeof console !== "undefined") {
+  // eslint-disable-next-line no-console
+  console.info("[api] API_BASE =", resolvedApiBase);
+}
+
+export const API_BASE = resolvedApiBase; // CORS is enabled on backend
 
 const buildAuthHeaders = (headers?: HeadersInit) => {
   const token =

@@ -30,6 +30,7 @@ import { WishlistItem } from '../wishlist/wishlist-item.entity';
 import { Conversation } from '../support/conversation.entity';
 import { Message } from '../support/message.entity';
 import { ChatAttachment } from '../support/chat-attachment.entity';
+import { Notification } from '../notifications/notification.entity';
 
 type Overrides = Partial<MysqlConnectionOptions>;
 
@@ -50,6 +51,7 @@ const DEFAULT_ENTITIES: MysqlConnectionOptions['entities'] = [
   Conversation,
   Message,
   ChatAttachment,
+  Notification,
 ];
 
 const DEFAULT_MIGRATIONS: MysqlConnectionOptions['migrations'] = [

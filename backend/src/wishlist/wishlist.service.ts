@@ -19,7 +19,7 @@ export class WishlistService {
   async list(userId: number): Promise<WishlistItem[]> {
     return this.wishlistRepo.find({
       where: { userId },
-      relations: ['product'],
+      relations: ['product', 'user'],
       order: { createdAt: 'DESC' },
     });
   }
