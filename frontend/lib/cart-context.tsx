@@ -18,6 +18,10 @@ export type CartItem = {
   productId: number;
   name: string;
   price: number;
+  originalUnitPrice?: number;
+  effectiveUnitPrice?: number;
+  discountRateApplied?: number;
+  lineTotal?: number;
   image?: string | null;
   quantity: number;
   color?: string | null; // <-- Bu alanların dolması lazım
@@ -54,6 +58,10 @@ type ServerCartItem = {
   id: number;
   quantity: number;
   productId?: number;
+  originalUnitPrice?: number;
+  effectiveUnitPrice?: number;
+  discountRateApplied?: number;
+  lineTotal?: number;
   variant?: {
     id: number;
     color: string;
@@ -73,6 +81,11 @@ type CartResponse = {
   userId: number | null;
   guestToken: string | null;
   items: ServerCartItem[];
+  summary?: {
+    totalItems: number;
+    subtotal: number;
+    grandTotal: number;
+  };
 };
 
 type ProductSummary = {
@@ -102,6 +115,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [mergedGuestCart, setMergedGuestCart] = useState(false);
+  const [summary, setSummary] = useState<CartResponse["summary"] | null>(null);
   const mountedRef = useRef(true);
   const productCache = useRef<Map<number, ProductSummary>>(new Map());
 
@@ -155,12 +169,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
             // DURUM 1: Backend 'variant' detayı gönderdiyse (Yeni Sistem)
             if (line.variant) {
               const product = line.variant.product;
+              const originalUnitPrice = coercePrice(
+                line.originalUnitPrice ?? line.variant.price ?? product.price,
+              );
+              const effectiveUnitPrice = coercePrice(
+                line.effectiveUnitPrice ?? line.variant.price ?? product.price,
+              );
+              const lineTotal = coercePrice(
+                line.lineTotal ?? effectiveUnitPrice * line.quantity,
+              );
               return {
                 id: line.id,
                 productId: product.id,
                 name: product.name,
                 // Varyant fiyatı varsa onu, yoksa ana fiyatı al
-                price: coercePrice(line.variant.price || product.price),
+                price: effectiveUnitPrice,
+                originalUnitPrice,
+                effectiveUnitPrice,
+                discountRateApplied: line.discountRateApplied,
+                lineTotal,
                 image: product.image ?? null,
                 quantity: line.quantity,
                 // İŞTE BURASI: Rengi ve Bedeni çekiyoruz
@@ -173,11 +200,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
             const pid = line.productId;
             if (pid) {
               const product = await fetchProductSummary(pid);
+              const originalUnitPrice = coercePrice(
+                line.originalUnitPrice ?? product.price,
+              );
+              const effectiveUnitPrice = coercePrice(
+                line.effectiveUnitPrice ?? product.price,
+              );
+              const lineTotal = coercePrice(
+                line.lineTotal ?? effectiveUnitPrice * line.quantity,
+              );
               return {
                 id: line.id,
                 productId: product.id,
                 name: product.name,
-                price: coercePrice(product.price),
+                price: effectiveUnitPrice,
+                originalUnitPrice,
+                effectiveUnitPrice,
+                discountRateApplied: line.discountRateApplied,
+                lineTotal,
                 image: product.image ?? null,
                 quantity: line.quantity,
                 color: null, // Bilgi yok
@@ -246,6 +286,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (mountedRef.current) {
           setItems([]);
           setIsLoading(false);
+          setSummary(null);
         }
         return;
       }
@@ -273,6 +314,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const hydrated = await hydrateItems(cart?.items ?? []);
         if (mountedRef.current) {
           setItems(hydrated);
+          setSummary(cart?.summary ?? null);
         }
       } catch (error) {
         console.error("Failed to load cart", error);
@@ -294,6 +336,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (cartDisabled) {
       setItems([]);
       setIsLoading(false);
+      setSummary(null);
       return;
     }
     loadCart({ silent: true }).catch(() => undefined);
@@ -433,13 +476,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [userId, loadCart, ensureGuestToken]);
 
   const totalItems = useMemo(
-    () => items.reduce((total, item) => total + item.quantity, 0),
-    [items],
+    () =>
+      summary?.totalItems ??
+      items.reduce((total, item) => total + item.quantity, 0),
+    [items, summary],
   );
 
   const subtotal = useMemo(
-    () => items.reduce((total, item) => total + item.quantity * item.price, 0),
-    [items],
+    () =>
+      summary?.subtotal ??
+      items.reduce((total, item) => total + item.quantity * item.price, 0),
+    [items, summary],
   );
 
   const value = useMemo<CartContextValue>(

@@ -97,7 +97,13 @@ export default function CartPage() {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section className="space-y-4">
           {hasItems ? (
-            items.map((item) => (
+            items.map((item) => {
+              const lineTotal = item.lineTotal ?? item.price * item.quantity;
+              const hasDiscount =
+                typeof item.originalUnitPrice === "number" &&
+                item.originalUnitPrice > item.price;
+
+              return (
               <article
                 key={item.id}
                 className="flex flex-col gap-4 rounded-xl border border-[var(--line)] bg-white p-4 shadow-sm md:flex-row md:items-center"
@@ -161,10 +167,15 @@ export default function CartPage() {
                     </button>
                   </div>
                   <div className="text-right text-neutral-600">
-                    Unit price: {formatter.format(item.price)}
+                    {hasDiscount && (
+                      <span className="mr-2 text-xs text-neutral-400 line-through">
+                        {formatter.format(item.originalUnitPrice)}
+                      </span>
+                    )}
+                    <span>Unit price: {formatter.format(item.price)}</span>
                   </div>
                   <div className="text-base font-semibold">
-                    Total: {formatter.format(item.price * item.quantity)}
+                    Total: {formatter.format(lineTotal)}
                   </div>
                   <button
                     className="text-xs text-neutral-500 underline"
@@ -176,7 +187,8 @@ export default function CartPage() {
                   </button>
                 </div>
               </article>
-            ))
+              );
+            })
           ) : (
             <div className="rounded-xl border border-dashed border-[var(--line)] bg-white p-10 text-center">
               <p className="text-lg font-medium text-neutral-900">Your cart is empty</p>
