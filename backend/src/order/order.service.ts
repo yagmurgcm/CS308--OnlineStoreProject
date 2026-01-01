@@ -19,6 +19,7 @@ import { InvoiceService } from './invoice.service';
 import { ReturnRequest } from './return-request.entity';
 import type { ReturnRequestStatus } from './return-request.entity';
 import { ReturnRequestItem } from './return-request-item.entity';
+import { computeEffectiveUnitPrice, roundCurrency } from '../pricing/pricing.util';
 
 @Injectable()
 export class OrderService {
@@ -101,6 +102,10 @@ export class OrderService {
       // İlk geçiş: Stok kontrolü ve fiyat hesaplama
       const variantsToUpdate: { variant: ProductVariant; quantity: number }[] = [];
       const variantLookup = new Map<number, ProductVariant>();
+      const pricingLookup = new Map<
+        number,
+        { effectiveUnitPrice: number; originalUnitPrice: number }
+      >();
 
       for (const item of cart.items) {
         const variant = await variantRepository.findOne({
@@ -124,12 +129,15 @@ export class OrderService {
         variantsToUpdate.push({ variant, quantity: item.quantity });
         variantLookup.set(variant.id, variant);
 
-        const price = Number(variant.price);
-        const lineTotal = price * item.quantity;
+        const pricing = computeEffectiveUnitPrice(variant.product, variant);
+        const lineTotal = roundCurrency(
+          pricing.effectiveUnitPrice * item.quantity,
+        );
+        pricingLookup.set(variant.id, pricing);
         totalPrice += lineTotal;
       }
 
-      order.totalPrice = totalPrice;
+      order.totalPrice = roundCurrency(totalPrice);
 
       // 3) Persist order
       console.log('CHECKOUT STEP 3: saving order...');
@@ -146,13 +154,18 @@ export class OrderService {
             `Variant ${item.variant.id} not found while creating order details`,
           );
         }
+        const pricing = pricingLookup.get(variant.id);
+        const unitPrice =
+          pricing?.effectiveUnitPrice ?? Number(variant.price);
+        const lineTotal = roundCurrency(unitPrice * item.quantity);
+
         return detailRepository.create({
           orderId: order.id,
           productId: variant.product.id,
           variantId: variant.id,
           quantity: item.quantity,
-          price: Number(variant.price),
-          lineTotal: Number(variant.price) * item.quantity,
+          price: unitPrice,
+          lineTotal,
         });
       });
 

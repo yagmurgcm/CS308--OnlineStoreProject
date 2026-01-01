@@ -157,6 +157,15 @@ const createService = () => {
   const cartRepo = new InMemoryCartRepository();
   const variantRepo = new InMemoryVariantRepository();
   const orderRepo = new InMemoryOrderRepository(detailRepo, cartRepo, variantRepo);
+  const returnRequestRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+  } as any;
+  const returnRequestItemRepo = {
+    find: jest.fn(),
+    save: jest.fn(),
+  } as any;
 
   const cartService = {
     getCart: jest.fn(),
@@ -172,6 +181,8 @@ const createService = () => {
   const service = new OrderService(
     orderRepo as any,
     detailRepo as any,
+    returnRequestRepo,
+    returnRequestItemRepo,
     variantRepo as any,
     cartService,
     usersService,
@@ -183,6 +194,8 @@ const createService = () => {
     orderRepo,
     detailRepo,
     cartRepo,
+    returnRequestRepo,
+    returnRequestItemRepo,
     variantRepo,
     cartService,
     usersService,

@@ -709,26 +709,38 @@ export default function CheckoutPage() {
           <h2 className="text-lg font-semibold">Order summary</h2>
 
           <div className="space-y-3 text-sm text-neutral-700">
-            {items.map((item) => (
-              <div key={item.id} className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="font-medium text-neutral-900">
-                    {item.name}
-                  </p>
-                  <p className="text-xs text-neutral-500">
-                    {formatter.format(item.price)} × {item.quantity}
-                  </p>
-                  {(item.color || item.size) && (
-                    <p className="text-xs text-neutral-500">
-                      {item.color ? `Color: ${item.color}` : ""} {item.size ? `Size: ${item.size}` : ""}
+            {items.map((item) => {
+              const lineTotal = item.lineTotal ?? item.price * item.quantity;
+              const hasDiscount =
+                typeof item.originalUnitPrice === "number" &&
+                item.originalUnitPrice > item.price;
+
+              return (
+                <div key={item.id} className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="font-medium text-neutral-900">
+                      {item.name}
                     </p>
-                  )}
+                    <p className="text-xs text-neutral-500">
+                      {hasDiscount && (
+                        <span className="mr-1 text-[11px] text-neutral-400 line-through">
+                          {formatter.format(item.originalUnitPrice)}
+                        </span>
+                      )}
+                      <span>{formatter.format(item.price)} × {item.quantity}</span>
+                    </p>
+                    {(item.color || item.size) && (
+                      <p className="text-xs text-neutral-500">
+                        {item.color ? `Color: ${item.color}` : ""} {item.size ? `Size: ${item.size}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-neutral-900">
+                    {formatter.format(lineTotal)}
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-neutral-900">
-                  {formatter.format(item.price * item.quantity)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="border-t border-[var(--line)] pt-4 space-y-2 text-sm">

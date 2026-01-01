@@ -14,13 +14,22 @@ const createCheckoutService = () => {
   };
   const detailRepository = {
     create: jest.fn(),
-    insert: jest.fn(),
+    save: jest.fn(),
   };
   const cartRepository = {
     findOne: jest.fn(),
   };
   const variantRepository = {
     findOne: jest.fn(),
+  };
+  const returnRequestRepository = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    save: jest.fn(),
+  };
+  const returnRequestItemRepository = {
+    find: jest.fn(),
+    save: jest.fn(),
   };
 
   const manager = {
@@ -54,6 +63,8 @@ const createCheckoutService = () => {
   const service = new OrderService(
     orderRepoFactory as any,
     detailRepository as any,
+    returnRequestRepository as any,
+    returnRequestItemRepository as any,
     variantRepository as any,
     cartService as any,
     usersService as any,
@@ -123,7 +134,7 @@ describe('OrderService checkout (extra)', () => {
 
     expect(orderRepository.create).toHaveBeenCalled();
     expect(orderRepository.save).toHaveBeenCalledWith(orderEntity);
-    expect(detailRepository.insert).toHaveBeenCalled();
+    expect(detailRepository.save).toHaveBeenCalled();
     expect(cartService.clear).toHaveBeenCalledWith(1);
     expect(invoiceService.sendInvoiceEmail).toHaveBeenCalledWith(
       order.id,
@@ -172,9 +183,52 @@ describe('OrderService checkout (extra)', () => {
 
     await service.checkout(2, { email: 'buyer@example.com' });
 
-    const inserted = detailRepository.insert.mock.calls[0][0];
+    const inserted = detailRepository.save.mock.calls[0][0];
     expect(inserted).toHaveLength(2);
     expect(inserted[0].lineTotal).toBe(90);
     expect(inserted[1].lineTotal).toBe(20);
+  });
+
+  it('applies product discount when computing order totals', async () => {
+    const {
+      service,
+      detailRepository,
+      cartRepository,
+      variantRepository,
+      usersService,
+      orderRepository,
+    } = createCheckoutService();
+
+    const cart = {
+      id: 10,
+      userId: 1,
+      items: [{ id: 1, quantity: 2, variant: { id: 21 } }],
+    };
+    const orderEntity = { id: 88, details: [] } as Order;
+
+    usersService.findById.mockResolvedValue({ id: 1, email: 'user@example.com' });
+    cartRepository.findOne.mockResolvedValue(cart);
+    variantRepository.findOne.mockResolvedValueOnce({
+      id: 21,
+      price: 200,
+      stock: 5,
+      product: { id: 7, price: 150, discountRate: 20 },
+    } as ProductVariant);
+    orderRepository.create.mockReturnValue(orderEntity);
+    orderRepository.save.mockResolvedValue(orderEntity);
+    orderRepository.findOne.mockResolvedValue({
+      ...orderEntity,
+      totalPrice: 320,
+      details: [],
+      contactEmail: 'user@example.com',
+    });
+    detailRepository.create.mockImplementation((payload) => payload);
+
+    const order = await service.checkout(1, { email: 'user@example.com' });
+
+    const inserted = detailRepository.save.mock.calls[0][0];
+    expect(inserted[0].price).toBe(160);
+    expect(inserted[0].lineTotal).toBe(320);
+    expect(order.totalPrice).toBe(320);
   });
 });
