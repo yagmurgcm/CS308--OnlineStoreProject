@@ -26,6 +26,7 @@ export function InvoiceView({ order }: InvoiceViewProps) {
   const created = order.createdAt ? new Date(order.createdAt) : null;
   const totalPrice = coercePrice(order.totalPrice);
   const recipientEmail = order.contactEmail ?? order.user?.email;
+  const emailSent = order.invoiceEmailSent === true;
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -77,9 +78,15 @@ export function InvoiceView({ order }: InvoiceViewProps) {
               })}
             </p>
           )}
-          <p className="text-sm text-emerald-700">
-            Invoice emailed to {recipientEmail || "your inbox"}.
-          </p>
+          {emailSent ? (
+            <p className="text-sm text-emerald-700">
+              Invoice emailed to {recipientEmail || "your inbox"}.
+            </p>
+          ) : (
+            <p className="text-sm text-amber-700">
+              Invoice created. Email could not be sent.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col items-start gap-2 sm:items-end">

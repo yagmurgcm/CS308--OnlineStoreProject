@@ -97,6 +97,11 @@ export default function SalesManagerDashboard() {
               href: "/sales-manager/discounts",
             },
             {
+              label: "Returns",
+              description: "Review and process customer return requests.",
+              href: "/sales-manager/returns",
+            },
+            {
               label: "View Invoices",
               description: "Track and export recent invoices for auditing.",
               href: "/sales-manager/invoices",
@@ -130,11 +135,17 @@ export default function SalesManagerDashboard() {
             "Review revenue and profit trends over time.",
             "/sales-manager/finance",
           );
+          ensureAction(
+            "Returns",
+            "Review and process customer return requests.",
+            "/sales-manager/returns",
+          );
 
           const fallbackRoutes: Record<string, string> = {
             "Apply Discount": "/sales-manager/discounts",
             "View Invoices": "/sales-manager/invoices",
             "Finance Summary": "/sales-manager/finance",
+            Returns: "/sales-manager/returns",
           };
 
           return actionItems.map((action) => {

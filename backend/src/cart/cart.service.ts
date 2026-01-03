@@ -127,11 +127,16 @@ export class CartService {
         if (!product) {
           throw new NotFoundException('Product not found');
         }
+        const effectivePrice =
+          product.discountedPrice !== null &&
+          product.discountedPrice !== undefined
+            ? Number(product.discountedPrice)
+            : Number(product.price ?? 0);
         const fallbackVariant = this.variantRepo.create({
           product,
           color: 'Standard',
           size: 'Standard',
-          price: product.price ?? 0,
+          price: effectivePrice,
           stock: product.stock ?? 0,
         });
         const saved = await this.variantRepo.save(fallbackVariant);

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { OrderDetail, OrderSummary } from "./orders";
 
 export type ReturnRequestItem = {
   id: number;
@@ -8,9 +9,11 @@ export type ReturnRequestItem = {
     id: number;
     quantity: number;
     returnedQuantity?: number;
+    price?: number | string;
     product?: {
       id: number;
       name: string;
+      price?: number | string;
     };
     variant?: {
       id: number;
@@ -62,4 +65,17 @@ export async function updateReturnRequestStatus(
   return api.patch<ReturnRequest>(`/orders/admin/return-requests/${requestId}/status`, {
     status,
   });
+}
+
+export type ReturnOrderDetail = OrderDetail & {
+  unitPrice?: number | string;
+  totalRefunded?: number | string;
+};
+
+export type ReturnOrderSummary = OrderSummary & {
+  details: ReturnOrderDetail[];
+};
+
+export async function fetchReturnOrders() {
+  return api.get<ReturnOrderSummary[]>("/orders/admin/returns");
 }

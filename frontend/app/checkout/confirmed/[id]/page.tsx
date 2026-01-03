@@ -81,9 +81,15 @@ export default function OrderConfirmedPage() {
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Order confirmed</p>
             <h1 className="text-3xl font-semibold">Thanks for your purchase!</h1>
-            <p className="text-sm text-neutral-600">
-              Order #{order.id}. A PDF invoice was emailed to {order.contactEmail || order.user?.email || "your inbox"}.
-            </p>
+            {order.invoiceEmailSent ? (
+              <p className="text-sm text-neutral-600">
+                Order #{order.id}. A PDF invoice was emailed to {order.contactEmail || order.user?.email || "your inbox"}.
+              </p>
+            ) : (
+              <p className="text-sm text-amber-700">
+                Order #{order.id}. Invoice created but email could not be sent.
+              </p>
+            )}
           </div>
           <div className="flex gap-3">
             <Link href={`/account/orders/${order.id}/invoice`} className="btn btn-secondary">

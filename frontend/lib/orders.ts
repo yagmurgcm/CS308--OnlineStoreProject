@@ -25,6 +25,7 @@ export type OrderSummary = {
   status: string;
   totalPrice: number | string;
   createdAt: string;
+  invoiceEmailSent?: boolean;
   updatedAt?: string;
   contactEmail?: string | null;
   contactName?: string | null;

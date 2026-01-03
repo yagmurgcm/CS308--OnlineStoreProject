@@ -14,6 +14,8 @@ import { UsersModule } from '../users/users.module';
 import { ProductModule } from '../product/product.module';
 
 import { ProductVariant } from '../product/product-variant.entity';
+import { RolesGuard } from '../auth/roles.guard';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -27,8 +29,9 @@ import { ProductVariant } from '../product/product-variant.entity';
     CartModule, // ✔ CartService buradan geliyor
     UsersModule,
     ProductModule,
+    MailModule,
   ],
-  providers: [OrderService, InvoiceService],
+  providers: [OrderService, InvoiceService, RolesGuard],
   controllers: [OrderController],
   exports: [InvoiceService],
 })

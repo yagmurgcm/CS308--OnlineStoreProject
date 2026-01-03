@@ -1,8 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import nodemailer, { Transporter } from 'nodemailer';
-import sgMail from '@sendgrid/mail';
 import PDFDocument from 'pdfkit';
 
 import { Order } from './order.entity';
@@ -13,6 +11,7 @@ import {
   InvoiceSummaryDto,
   InvoiceTotalsDto,
 } from './dto/invoice-summary.dto';
+import { MailService } from '../mail/mail.service';
 
 type InvoiceEmailOptions = InvoiceBuildOptions & {
   to?: string | null;
@@ -45,6 +44,7 @@ export class InvoiceService {
     private readonly orderRepo: Repository<Order>,
     @InjectRepository(OrderDetail)
     private readonly orderDetailRepo: Repository<OrderDetail>,
+    private readonly mailService: MailService,
   ) {}
 
   async buildInvoiceSummary(
@@ -431,56 +431,36 @@ export class InvoiceService {
     });
   }
 
-  private createTransport(): Transporter | null {
-    const host = process.env.SMTP_HOST;
-    const port =
-      process.env.SMTP_PORT !== undefined ? Number(process.env.SMTP_PORT) : undefined;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || !port || !user || !pass) {
-      return null;
-    }
-
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-  }
-
   private buildInvoiceEmailText(
     summary: InvoiceSummaryDto,
     options: InvoiceEmailOptions = {},
   ): string {
     const lines: string[] = [];
     const greetingName = options.contactName ?? 'there';
+    const orderDate = summary.createdAt
+      ? new Date(summary.createdAt).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '';
     lines.push(`Hello ${greetingName},`);
-    lines.push(`Thank you for your purchase. Your order #${summary.orderId} is confirmed.`);
-    lines.push('');
-    if (options.shippingAddress || options.shippingCity || options.shippingCountry) {
-      lines.push('Shipping details:');
-      lines.push(
-        `${[
-          options.shippingAddress,
-          options.shippingCity,
-          options.shippingPostalCode,
-          options.shippingCountry,
-        ]
-          .filter(Boolean)
-          .join(', ')}`,
-      );
-      lines.push('');
+    lines.push(`Your invoice for Order #${summary.orderId} is ready.`);
+    if (orderDate) {
+      lines.push(`Order date: ${orderDate}`);
     }
-    lines.push('Order summary:');
-    summary.items.forEach((item) =>
-      lines.push(
-        `• ${item.productName} x${item.quantity} = ${formatCurrency(item.lineTotal)}`,
-      ),
-    );
     lines.push('');
-    lines.push(`Total: ${formatCurrency(summary.totals.grandTotal)}`);
+    lines.push('Purchased products:');
+    summary.items.forEach((item) => {
+      const unit = formatCurrency(item.unitPrice);
+      lines.push(
+        `• ${item.productName} — Qty ${item.quantity} × ${unit} = ${formatCurrency(
+          item.lineTotal,
+        )}`,
+      );
+    });
+    lines.push('');
+    lines.push(`Order total: ${formatCurrency(summary.totals.grandTotal)}`);
     if (options.paymentBrand || options.paymentLast4) {
       lines.push(
         `Paid with ${options.paymentBrand ?? 'Card'} ${
@@ -489,114 +469,56 @@ export class InvoiceService {
       );
     }
     lines.push('');
-    lines.push('Your invoice is attached as PDF.');
-    lines.push('If you have any questions, just reply to this email.');
+    lines.push('');
+    lines.push('Your PDF invoice is attached to this email.');
+    lines.push('Refunded to your original payment method.');
+    lines.push('');
+    lines.push('Thank you for shopping with MKN Store.');
 
     return lines.join('\n');
-  }
-
-  private async sendViaSendGrid(params: {
-    to: string;
-    from: string;
-    subject: string;
-    text: string;
-    html: string;
-    pdf: Buffer;
-  }): Promise<boolean> {
-    const apiKey = process.env.SENDGRID_API_KEY;
-    if (!apiKey) return false;
-
-    try {
-      sgMail.setApiKey(apiKey);
-      await sgMail.send({
-        to: params.to,
-        from: params.from,
-        subject: params.subject,
-        text: params.text,
-        html: params.html,
-        attachments: [
-          {
-            filename: `invoice-${params.subject.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`,
-            content: params.pdf.toString('base64'),
-            type: 'application/pdf',
-            disposition: 'attachment',
-          },
-        ],
-      });
-      console.log('[SendGrid] Invoice email sent to', params.to);
-      return true;
-    } catch (err) {
-      const responseBody =
-        (err as { response?: { body?: unknown } })?.response?.body;
-      console.error('SendGrid invoice email failed', responseBody ?? err);
-      return false;
-    }
   }
 
   async sendInvoiceEmail(
     orderId: number,
     options: InvoiceEmailOptions = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     const summary = await this.buildInvoiceSummary(orderId, options);
     const to = options.to ?? summary.customer.email;
     if (!to) {
       console.warn('Invoice email skipped because no recipient email was found.');
-      return;
+      return false;
     }
 
     // Yeni PDF oluştur
     const pdf = await this.generateInvoicePdf(orderId, options);
-    const subject = `Order #${summary.orderId} Invoice - MKN`;
+    const subject = `Your Invoice for Order #${summary.orderId} – MKN Store`;
     const from =
-      options.from ??
-      process.env.SENDGRID_FROM_EMAIL ??
-      process.env.SMTP_FROM ??
-      'onboarding@resend.dev';
+      options.from ||
+      process.env.MAIL_FROM ||
+      process.env.SMTP_FROM ||
+      process.env.MAIL_USER ||
+      'mkn.store308@gmail.com';
     const text = this.buildInvoiceEmailText(summary, options);
     const html = `<p>${text.replace(/\n/g, '<br/>')}</p>`;
 
-    if (
-      !process.env.SENDGRID_API_KEY &&
-      !this.createTransport()
-    ) {
-      console.warn(
-        'No email transport available (SendGrid and SMTP missing).',
-      );
-      return;
-    }
-
-    // Try SendGrid
     try {
-      const sent = await this.sendViaSendGrid({
+      await this.mailService.sendMail({
         to,
         from,
         subject,
         text,
         html,
-        pdf,
+        attachments: [
+          {
+            filename: `invoice-${summary.orderId}.pdf`,
+            content: pdf,
+          },
+        ],
       });
-      if (sent) return;
+      return true;
     } catch (err) {
-      console.error('SendGrid invoice email failed, falling back to SMTP', err);
+      console.error('Invoice email send failed', err);
+      return false;
     }
-
-    // Fallback to SMTP if configured
-    const transport = this.createTransport();
-    if (!transport) {
-      return;
-    }
-
-    await transport.sendMail({
-      to,
-      from,
-      subject,
-      text,
-      attachments: [
-        {
-          filename: `invoice-${summary.orderId}.pdf`,
-          content: pdf,
-        },
-      ],
-    });
   }
 }

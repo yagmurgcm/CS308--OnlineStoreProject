@@ -53,6 +53,11 @@ export default function OrderDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
   const [returnReason, setReturnReason] = useState("");
+  const status = (order?.status || "").toLowerCase();
+  const createdAt = order?.createdAt ? new Date(order.createdAt) : null;
+  const isWithinReturnWindow = createdAt
+    ? Date.now() - createdAt.getTime() <= 30 * 24 * 60 * 60 * 1000
+    : true;
 
   const returnReasons = [
     "Too small",
@@ -93,42 +98,18 @@ export default function OrderDetailPage() {
 
   const handleCancel = async () => {
     if (!order) return;
+    const status = (order.status || "").toLowerCase();
+    if (status !== "processing") {
+      setError("Only orders in processing status can be cancelled.");
+      return;
+    }
     setActionLoading(true);
     setMessage(null);
     setError(null);
     try {
-      const status = order.status?.toLowerCase?.() || "";
-      if (status === "delivered") {
-        const items =
-          order.details
-            ?.map((detail) => {
-              const returned = detail.returnedQuantity ?? 0;
-              const remaining = Math.max(0, detail.quantity - returned);
-              return { detailId: detail.id, quantity: remaining };
-            })
-            .filter((item) => item.quantity > 0) || [];
-
-        if (items.length === 0) {
-          setError("No items available to return.");
-          return;
-        }
-
-        const request = await createReturnRequest(
-          order.id,
-          items,
-          returnReason.trim() || undefined,
-        );
-        const code = request?.returnShippingCode;
-        setMessage(
-          code
-            ? `Return request created. Your return cargo code is ${code}.`
-            : "Return request created. Our team will review it shortly.",
-        );
-      } else {
-        const updated = await cancelOrder(order.id);
-        setOrder(updated);
-        setMessage("Order cancelled and items restocked.");
-      }
+      const updated = await cancelOrder(order.id);
+      setOrder(updated);
+      setMessage("Order cancelled and items restocked.");
     } catch (err) {
       console.error("Cancel failed", err);
       setError("Could not cancel the order. Please try again.");
@@ -139,6 +120,14 @@ export default function OrderDetailPage() {
 
   const handleReturn = async () => {
     if (!order) return;
+    if (status !== "delivered") {
+      setError("Returns are only available once the order is delivered.");
+      return;
+    }
+    if (!isWithinReturnWindow) {
+      setError("The 30-day return window has expired for this order.");
+      return;
+    }
     const items = Object.entries(returnQuantities)
       .map(([detailId, quantity]) => ({
         detailId: Number(detailId),
@@ -179,16 +168,21 @@ export default function OrderDetailPage() {
   };
 
   const isCancelable =
-    order &&
-    !["cancelled", "returned"].includes(order.status?.toLowerCase?.() || "");
+    order && (order.status || "").toLowerCase() === "processing";
 
   const returnableDetails = useMemo(() => {
     return (order?.details || []).map((detail) => {
-      const returned = detail.returnedQuantity ?? 0;
-      const remaining = Math.max(0, detail.quantity - returned);
+      const returned =
+        (order?.status || "").toLowerCase() === "cancelled"
+          ? detail.quantity
+          : detail.returnedQuantity ?? 0;
+      const remaining =
+        status === "delivered" && isWithinReturnWindow
+          ? Math.max(0, detail.quantity - returned)
+          : 0;
       return { ...detail, remaining, returned };
     });
-  }, [order]);
+  }, [order, status, isWithinReturnWindow]);
 
   if (!user) {
     return (
@@ -240,6 +234,11 @@ export default function OrderDetailPage() {
           <p className="text-sm text-gray-500">
             Placed on {new Date(order.createdAt).toLocaleDateString("tr-TR")}
           </p>
+          {!isWithinReturnWindow && (
+            <p className="text-xs text-red-600 mt-1">
+              Return window closed (30 days after purchase).
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span
@@ -295,7 +294,7 @@ export default function OrderDetailPage() {
                       }
                       disabled={
                         detail.remaining === 0 ||
-                        order.status === "cancelled" ||
+                        status !== "delivered" ||
                         (returnQuantities[detail.id] ?? 0) === 0
                       }
                       className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
@@ -319,7 +318,7 @@ export default function OrderDetailPage() {
                       }
                       disabled={
                         detail.remaining === 0 ||
-                        order.status === "cancelled" ||
+                        status !== "delivered" ||
                         (returnQuantities[detail.id] ?? 0) >= detail.remaining
                       }
                       className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
@@ -385,7 +384,7 @@ export default function OrderDetailPage() {
           <button
             className="w-full btn btn-primary disabled:opacity-50"
             onClick={handleReturn}
-            disabled={actionLoading || order.status === "cancelled"}
+            disabled={actionLoading || status !== "delivered" || !isWithinReturnWindow}
           >
             {actionLoading ? "Processing..." : "Request return"}
           </button>

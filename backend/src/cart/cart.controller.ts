@@ -63,66 +63,67 @@ type CartHttpResponse = {
       } | null;
     } | null;
   }>;
-  summary: {
-    totalItems: number;
-    subtotal: number;
-    grandTotal: number;
-  };
 };
 
-const serializeCart = (cart: Cart): CartHttpResponse => {
-  const items =
-    cart.items?.map((item) => {
-      const product = item.variant?.product ?? null;
-      const pricing = computeEffectiveUnitPrice(product, item.variant);
-      const lineTotal = roundCurrency(pricing.effectiveUnitPrice * item.quantity);
-
-      return {
-        id: item.id,
-        productId: item.variant?.product?.id ?? null,
-        variantId: item.variant?.id ?? null,
-        quantity: item.quantity,
-        originalUnitPrice: pricing.originalUnitPrice,
-        effectiveUnitPrice: pricing.effectiveUnitPrice,
-        discountRateApplied: pricing.discountRateApplied,
-        lineTotal,
-        // 🔥 Variant detaylarını da gönder (color, size, price, product)
-        variant: item.variant
-          ? {
-              id: item.variant.id,
-              color: item.variant.color,
-              size: item.variant.size,
-              price: item.variant.price,
-              product: item.variant.product
-                ? {
-                    id: item.variant.product.id,
-                    name: item.variant.product.name,
-                    price: item.variant.product.price,
-                    image: item.variant.product.image ?? null,
-                  }
-                : null,
-            }
-          : null,
-      };
-    }) ?? [];
-
-  const subtotal = roundCurrency(
-    items.reduce((sum, item) => sum + item.lineTotal, 0),
-  );
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-
-  return {
-    id: cart.id,
-    userId: cart.userId ?? null,
-    guestToken: cart.guestToken ?? null,
-    items,
-    summary: {
-      totalItems,
-      subtotal,
-      grandTotal: subtotal,
-    },
-  };
+const coercePrice = (value: number | string | null | undefined): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 };
+
+const resolveEffectivePrice = (
+  product?: { price?: number | string | null; discountedPrice?: number | string | null; discountRate?: number | string | null } | null,
+  fallback?: number | string | null,
+): number => {
+  const basePrice = coercePrice(product?.price ?? fallback ?? 0);
+  const discountedRaw = product?.discountedPrice;
+  const discounted =
+    discountedRaw === null || discountedRaw === undefined
+      ? null
+      : coercePrice(discountedRaw);
+  if (discounted !== null) {
+    return discounted;
+  }
+  const discountRate = coercePrice(product?.discountRate ?? 0);
+  if (discountRate > 0) {
+    const discountedPrice = basePrice * ((100 - discountRate) / 100);
+    return Math.max(0, Math.round(discountedPrice * 100) / 100);
+  }
+  return basePrice;
+};
+
+const serializeCart = (cart: Cart): CartHttpResponse => ({
+  id: cart.id,
+  userId: cart.userId ?? null,
+  guestToken: cart.guestToken ?? null,
+  items:
+    cart.items?.map((item) => ({
+      id: item.id,
+      productId: item.variant?.product?.id ?? null,
+      variantId: item.variant?.id ?? null,
+      quantity: item.quantity,
+      // 🔥 Variant detaylarını da gönder (color, size, price, product)
+      variant: item.variant
+        ? {
+            id: item.variant.id,
+            color: item.variant.color,
+            size: item.variant.size,
+            price: resolveEffectivePrice(item.variant.product, item.variant.price),
+            product: item.variant.product
+              ? {
+                  id: item.variant.product.id,
+                  name: item.variant.product.name,
+                  price: item.variant.product.price,
+                  image: item.variant.product.image ?? null,
+                }
+              : null,
+          }
+        : null,
+    })) ?? [],
+});
 
 const buildCartSummary = (cart: Cart) => ({
   cartId: cart.id,

@@ -13,6 +13,8 @@ import {
 import type { Response } from 'express';
 import { OrderService } from './order.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { InvoiceService } from './invoice.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { ReturnItemsDto } from './dto/return-items.dto';
@@ -90,11 +92,15 @@ export class OrderController {
   // ============ RETURN REQUESTS (ADMIN) ============
 
   @Get('admin/return-requests')
+  @UseGuards(RolesGuard)
+  @Roles('SALES_MANAGER')
   async getReturnRequests() {
     return this.orderService.getAllReturnRequests();
   }
 
   @Patch('admin/return-requests/:id/status')
+  @UseGuards(RolesGuard)
+  @Roles('SALES_MANAGER')
   async updateReturnRequestStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: string,
@@ -103,6 +109,13 @@ export class OrderController {
       id,
       status as 'approved' | 'rejected',
     );
+  }
+
+  @Get('admin/returns')
+  @UseGuards(RolesGuard)
+  @Roles('SALES_MANAGER')
+  async getReturnOrders() {
+    return this.orderService.getReturnOrders();
   }
 
   @Get(':id/invoice')
