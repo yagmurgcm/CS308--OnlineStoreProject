@@ -12,6 +12,7 @@ export type OrderDetail = {
   quantity: number;
   price: number | string;
   returnedQuantity?: number;
+  pendingReturnQuantity?: number;
   product: OrderProduct;
   variant?: {
     id: number;

@@ -157,8 +157,12 @@ export default function SupportAgentDashboard() {
   // Auto-scroll removed - let user control scroll manually
 
   useEffect(() => {
-    if (selectedConversation?.customerId) {
+    const customerId =
+      selectedConversation?.customerId ?? selectedConversation?.customer?.id;
+    if (customerId) {
       loadCustomerContext(selectedConversation.id);
+    } else {
+      setCustomerContext(null);
     }
   }, [selectedConversation]);
 
@@ -714,4 +718,3 @@ export default function SupportAgentDashboard() {
     </div>
   );
 }
-

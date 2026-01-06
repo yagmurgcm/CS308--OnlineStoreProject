@@ -58,6 +58,10 @@ export default function OrderDetailPage() {
   const isWithinReturnWindow = createdAt
     ? Date.now() - createdAt.getTime() <= 30 * 24 * 60 * 60 * 1000
     : true;
+  const isReturnableStatus = ["processing", "in-transit", "shipped", "delivered"].includes(
+    status,
+  );
+  const canRequestReturn = isReturnableStatus && isWithinReturnWindow;
 
   const returnReasons = [
     "Too small",
@@ -120,8 +124,8 @@ export default function OrderDetailPage() {
 
   const handleReturn = async () => {
     if (!order) return;
-    if (status !== "delivered") {
-      setError("Returns are only available once the order is delivered.");
+    if (!isReturnableStatus) {
+      setError("Returns are only available for processing, shipped, in-transit, or delivered orders.");
       return;
     }
     if (!isWithinReturnWindow) {
@@ -155,9 +159,18 @@ export default function OrderDetailPage() {
           ? `Return request sent. Your return cargo code is ${code}.`
           : "Return request sent. Our team will review it shortly.",
       );
-      setReturnQuantities(
-        Object.fromEntries((order.details || []).map((d) => [d.id, 0])),
-      );
+      try {
+        const refreshed = await fetchOrderById(order.id);
+        setOrder(refreshed);
+        setReturnQuantities(
+          Object.fromEntries((refreshed.details || []).map((d) => [d.id, 0])),
+        );
+      } catch (refreshError) {
+        console.warn("Failed to refresh order after return request", refreshError);
+        setReturnQuantities(
+          Object.fromEntries((order.details || []).map((d) => [d.id, 0])),
+        );
+      }
       setReturnReason("");
     } catch (err) {
       console.error("Return failed", err);
@@ -176,13 +189,15 @@ export default function OrderDetailPage() {
         (order?.status || "").toLowerCase() === "cancelled"
           ? detail.quantity
           : detail.returnedQuantity ?? 0;
+      const pending = detail.pendingReturnQuantity ?? 0;
+      const totalReturned = returned + pending;
       const remaining =
-        status === "delivered" && isWithinReturnWindow
-          ? Math.max(0, detail.quantity - returned)
+        isReturnableStatus && isWithinReturnWindow
+          ? Math.max(0, detail.quantity - totalReturned)
           : 0;
-      return { ...detail, remaining, returned };
+      return { ...detail, remaining, returned, pendingReturnQuantity: pending };
     });
-  }, [order, status, isWithinReturnWindow]);
+  }, [order, isReturnableStatus, isWithinReturnWindow]);
 
   if (!user) {
     return (
@@ -273,6 +288,9 @@ export default function OrderDetailPage() {
                   </div>
                   <div className="text-sm text-gray-600">
                     Purchased: {detail.quantity} | Returned: {detail.returned}
+                    {detail.pendingReturnQuantity && detail.pendingReturnQuantity > 0
+                      ? ` | Pending: ${detail.pendingReturnQuantity}`
+                      : ""}
                   </div>
                   <div className="text-sm text-gray-800">
                     {priceFmt.format(Number(detail.price) * detail.quantity)}
@@ -294,7 +312,7 @@ export default function OrderDetailPage() {
                       }
                       disabled={
                         detail.remaining === 0 ||
-                        status !== "delivered" ||
+                        !canRequestReturn ||
                         (returnQuantities[detail.id] ?? 0) === 0
                       }
                       className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
@@ -318,7 +336,7 @@ export default function OrderDetailPage() {
                       }
                       disabled={
                         detail.remaining === 0 ||
-                        status !== "delivered" ||
+                        !canRequestReturn ||
                         (returnQuantities[detail.id] ?? 0) >= detail.remaining
                       }
                       className="px-2 py-1 text-sm text-gray-700 disabled:opacity-50"
@@ -384,7 +402,7 @@ export default function OrderDetailPage() {
           <button
             className="w-full btn btn-primary disabled:opacity-50"
             onClick={handleReturn}
-            disabled={actionLoading || status !== "delivered" || !isWithinReturnWindow}
+            disabled={actionLoading || !canRequestReturn}
           >
             {actionLoading ? "Processing..." : "Request return"}
           </button>

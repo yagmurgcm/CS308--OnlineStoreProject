@@ -165,6 +165,9 @@ export class SupportService {
         await this.conversationRepo.save(conversation);
       }
     }
+    if (senderType === 'guest' && conversation.customerId !== null) {
+      throw new ForbiddenException('Access denied');
+    }
 
     const message = this.messageRepo.create({
       conversationId,
@@ -279,4 +282,3 @@ export class SupportService {
     return this.conversationRepo.save(conversation);
   }
 }
-

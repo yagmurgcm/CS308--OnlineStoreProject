@@ -19,6 +19,14 @@ import { InvoiceService } from './invoice.service';
 import { ReturnRequest } from './return-request.entity';
 import type { ReturnRequestStatus } from './return-request.entity';
 import { ReturnRequestItem } from './return-request-item.entity';
+import { MailService } from '../mail/mail.service';
+
+const RETURN_ELIGIBLE_STATUSES = new Set([
+  'processing',
+  'in-transit',
+  'shipped',
+  'delivered',
+]);
 
 @Injectable()
 export class OrderService {
@@ -226,15 +234,16 @@ export class OrderService {
     });
   }
 
-  async getOrderById(id: number) {
-    return this.orderRepo.findOne({
+  async getOrderById(id: number, userId?: number) {
+    const order = await this.orderRepo.findOne({
       where: { id },
       relations: ['details', 'details.product', 'details.variant', 'user'],
     });
+    return this.attachPendingReturnQuantities(order, userId);
   }
 
   async assertOrderOwnership(orderId: number, requesterId: number) {
-    const order = await this.getOrderById(orderId);
+    const order = await this.getOrderById(orderId, requesterId);
     if (!order) {
       throw new NotFoundException('Order not found');
     }
@@ -386,6 +395,43 @@ export class OrderService {
     return updatedOrder;
   }
 
+  private async attachPendingReturnQuantities(
+    order: Order | null,
+    userId?: number,
+  ): Promise<Order | null> {
+    if (!order?.details?.length) {
+      return order;
+    }
+    const filterUserId =
+      userId && order.user?.id === userId ? userId : undefined;
+    const pendingItems = await this.returnRequestItemRepo.find({
+      where: {
+        request: {
+          orderId: order.id,
+          status: 'pending',
+          ...(filterUserId ? { userId: filterUserId } : {}),
+        },
+      },
+      relations: ['request'],
+    });
+    if (!pendingItems.length) {
+      return order;
+    }
+    const pendingByDetail = new Map<number, number>();
+    for (const pending of pendingItems) {
+      const current = pendingByDetail.get(pending.orderDetailId) ?? 0;
+      pendingByDetail.set(pending.orderDetailId, current + pending.quantity);
+    }
+
+    return {
+      ...order,
+      details: order.details.map((detail) => ({
+        ...detail,
+        pendingReturnQuantity: pendingByDetail.get(detail.id) ?? 0,
+      })),
+    };
+  }
+
   async returnItems(
     orderId: number,
     userId: number,
@@ -396,9 +442,9 @@ export class OrderService {
     if (status === 'cancelled') {
       throw new BadRequestException('Cancelled orders cannot be returned');
     }
-    if (status !== 'delivered') {
+    if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only delivered orders can be returned or refunded',
+        'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
       );
     }
     return this.applyReturnItems(orderId, items);
@@ -415,9 +461,9 @@ export class OrderService {
     if (status === 'cancelled') {
       throw new BadRequestException('Cancelled orders cannot be returned');
     }
-    if (status !== 'delivered') {
+    if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only delivered orders can be returned or refunded',
+        'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
       );
     }
     this.assertWithinReturnWindow(order);
@@ -639,9 +685,9 @@ export class OrderService {
         throw new BadRequestException('Cancelled orders cannot be returned');
       }
       const normalizedStatus = (current.status || '').toLowerCase();
-      if (normalizedStatus !== 'delivered') {
+      if (!RETURN_ELIGIBLE_STATUSES.has(normalizedStatus)) {
         throw new BadRequestException(
-          'Only delivered orders can be returned or refunded',
+          'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
         );
       }
 

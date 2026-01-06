@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchReturnOrders,
@@ -25,6 +25,7 @@ const TAB_CONFIG: { key: TabKey; label: string; statuses: string[] }[] = [
 
 export default function SalesManagerReturnsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, initialized } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("cancelled");
   const [orders, setOrders] = useState<ReturnOrderSummary[]>([]);
@@ -33,19 +34,27 @@ export default function SalesManagerReturnsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<number | null>(null);
 
+  const isAdminEmail =
+    user?.email?.toLowerCase() === "admin@gmail.com" ||
+    user?.email?.toLowerCase() === "product@gmail.com";
+  const isAdminRole = user?.role === "ADMIN";
+  const canAccess = user?.role === "SALES_MANAGER" || isAdminRole || isAdminEmail;
+
   useEffect(() => {
     if (!initialized) return;
     if (!user) {
-      router.replace("/sign-in?redirect=/sales-manager/returns");
+      const redirectTo = pathname || "/sales-manager/returns";
+      router.replace(`/sign-in?redirect=${encodeURIComponent(redirectTo)}`);
       return;
     }
-    if (user.role !== "SALES_MANAGER") {
+    if (!canAccess) {
       router.replace("/");
     }
-  }, [initialized, user, router]);
+  }, [initialized, user, canAccess, router, pathname]);
 
   useEffect(() => {
-    if (!initialized || !user || user.role !== "SALES_MANAGER") return;
+    if (!initialized || !user) return;
+    if (!canAccess) return;
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -80,7 +89,7 @@ export default function SalesManagerReturnsPage() {
     );
   }, [activeTab, orders]);
 
-  if (!initialized || !user || user.role !== "SALES_MANAGER") {
+  if (!initialized || !user || !canAccess) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <p className="text-lg text-gray-600">Checking access…</p>

@@ -12,6 +12,7 @@ import { SupportService } from './support.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { getCorsOptions } from '../config/cors.config';
 
 interface SocketWithUser extends Socket {
   userId?: number;
@@ -20,10 +21,7 @@ interface SocketWithUser extends Socket {
 }
 
 @WebSocketGateway({
-  cors: {
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-    credentials: true,
-  },
+  cors: getCorsOptions(),
   namespace: '/support',
 })
 export class SupportGateway
@@ -182,4 +180,3 @@ export class SupportGateway
       .emit('new-message', message);
   }
 }
-

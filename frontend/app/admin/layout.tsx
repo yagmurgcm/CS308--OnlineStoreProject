@@ -8,6 +8,7 @@ const ADMIN_TABS = [
   { href: "/admin/orders", label: "📦 Orders", description: "Manage customer orders" },
   { href: "/admin/products", label: "🛍️ Products", description: "Manage products & inventory" },
   { href: "/admin/reviews", label: "💬 Reviews", description: "Approve/reject reviews" },
+  { href: "/admin/returns", label: "♻️ Returns", description: "Approve return requests" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -97,4 +98,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
-

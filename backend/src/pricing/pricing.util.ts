@@ -1,6 +1,7 @@
 type PricingProduct = {
   price?: number | string | null;
   discountRate?: number | string | null;
+  discountedPrice?: number | string | null;
 };
 
 type PricingVariant = {
@@ -32,6 +33,34 @@ export function computeEffectiveUnitPrice(
 ): PricingResult {
   const basePrice = variant?.price ?? product?.price;
   const originalUnitPrice = roundCurrency(coerceNumber(basePrice));
+
+  const discountedRaw = product?.discountedPrice;
+  const discounted =
+    discountedRaw === null || discountedRaw === undefined
+      ? null
+      : coerceNumber(discountedRaw);
+
+  if (discounted !== null) {
+    const effectiveUnitPrice = roundCurrency(Math.max(0, discounted));
+    const discountRateApplied =
+      originalUnitPrice > 0
+        ? Math.min(
+            Math.max(
+              ((originalUnitPrice - effectiveUnitPrice) / originalUnitPrice) *
+                100,
+              0,
+            ),
+            100,
+          )
+        : 0;
+    return {
+      originalUnitPrice,
+      effectiveUnitPrice,
+      discountRateApplied,
+      isDiscounted:
+        discountRateApplied > 0 && effectiveUnitPrice < originalUnitPrice,
+    };
+  }
 
   const rawRate = coerceNumber(product?.discountRate);
   const ratePercent = rawRate > 0 ? (rawRate <= 1 ? rawRate * 100 : rawRate) : 0;

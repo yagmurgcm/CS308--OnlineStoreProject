@@ -14,6 +14,7 @@ import { SupportGateway } from './support.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
@@ -35,7 +36,7 @@ export class SupportController {
 
   // Create a new conversation (optional auth - guest allowed)
   @Post('conversations')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   async createConversation(
     @Req() req: RequestWithUser,
     @Body() dto: CreateConversationDto,
@@ -69,7 +70,7 @@ export class SupportController {
 
   // Send a message (requires auth)
   @Post('conversations/:id/messages')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   async sendMessage(
     @Param('id', ParseIntPipe) conversationId: number,
     @Req() req: RequestWithUser,
@@ -185,4 +186,3 @@ export class SupportController {
     return conversation;
   }
 }
-

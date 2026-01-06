@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { getCorsOptions } from './config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,10 +13,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-    credentials: true,
-  });
+  app.enableCors(getCorsOptions());
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();
