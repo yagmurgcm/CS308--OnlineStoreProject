@@ -160,7 +160,7 @@ export class SalesManagerService {
 
         const unitPrice = this.resolveUnitPrice(detail);
         const revenue = unitPrice * netQty;
-        const unitCost = unitPrice * 0.5;
+        const unitCost = unitPrice * 0.4;
         const cost = unitCost * netQty;
         const profit = revenue - cost;
 

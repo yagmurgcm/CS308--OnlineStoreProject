@@ -181,7 +181,7 @@ export default function OrderDetailPage() {
   };
 
   const isCancelable =
-    order && (order.status || "").toLowerCase() === "processing";
+    order && (order.status || "").toLowerCase() === "processing" && isWithinReturnWindow;
 
   const returnableDetails = useMemo(() => {
     return (order?.details || []).map((detail) => {
@@ -249,11 +249,7 @@ export default function OrderDetailPage() {
           <p className="text-sm text-gray-500">
             Placed on {new Date(order.createdAt).toLocaleDateString("tr-TR")}
           </p>
-          {!isWithinReturnWindow && (
-            <p className="text-xs text-red-600 mt-1">
-              Return window closed (30 days after purchase).
-            </p>
-          )}
+{/* Return window warning moved to prominent banner below */}
         </div>
         <div className="flex items-center gap-3">
           <span
@@ -269,6 +265,16 @@ export default function OrderDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* 30-Day Return Window Expired - Simple Notice */}
+      {!isWithinReturnWindow && isReturnableStatus && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-center gap-3">
+          <span className="text-amber-600">⏰</span>
+          <p className="text-sm text-amber-700">
+            Return window expired — orders can only be returned within 30 days of purchase.
+          </p>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="md:col-span-2 space-y-3">
@@ -399,19 +405,34 @@ export default function OrderDetailPage() {
             </select>
           </div>
 
-          <button
-            className="w-full btn btn-primary disabled:opacity-50"
-            onClick={handleReturn}
-            disabled={actionLoading || !canRequestReturn}
-          >
-            {actionLoading ? "Processing..." : "Request return"}
-          </button>
+          {!isWithinReturnWindow && isReturnableStatus ? (
+            <div className="space-y-2">
+              <button
+                className="w-full btn bg-gray-300 text-gray-500 cursor-not-allowed border-2 border-red-300"
+                disabled
+              >
+                🚫 Return Not Available
+              </button>
+              <p className="text-center text-sm text-red-600 font-medium bg-red-50 p-2 rounded-lg border border-red-200">
+                30-day return window has expired
+              </p>
+            </div>
+          ) : (
+            <button
+              className="w-full btn btn-primary disabled:opacity-50"
+              onClick={handleReturn}
+              disabled={actionLoading || !canRequestReturn}
+            >
+              {actionLoading ? "Processing..." : "Request return"}
+            </button>
+          )}
 
           <button
-            className="w-full btn btn-ghost border text-sm"
+            className={`w-full btn btn-ghost border text-sm ${!isCancelable && !actionLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             onClick={handleCancel}
             disabled={!isCancelable || actionLoading}
           >
+            {!isCancelable && !isWithinReturnWindow ? "🚫 " : ""}
             Cancel entire order
           </button>
         </div>

@@ -253,13 +253,20 @@ export default function SalesManagerReturnsPage() {
   return (
     <div className="py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Returns</h1>
             <p className="text-gray-600 mt-1">
               Review cancelled and refunded orders with accurate quantities and prices.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => router.push("/sales-manager")}
+            className="inline-flex items-center rounded-full border border-[var(--line)] px-5 py-2 text-sm font-medium hover:border-black"
+          >
+            Back to dashboard
+          </button>
         </div>
 
         <div className="space-y-3">

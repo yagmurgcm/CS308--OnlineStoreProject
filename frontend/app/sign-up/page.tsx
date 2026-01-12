@@ -121,7 +121,7 @@ export default function SignUpPage() {
 
               <div>
                 <label htmlFor="taxId" className="block text-sm mb-1">
-                  Tax ID
+                  Tax ID <span className="text-gray-500 text-xs">(optional)</span>
                 </label>
                 <input
                   id="taxId"
@@ -131,13 +131,12 @@ export default function SignUpPage() {
                   placeholder="1234567890"
                   value={taxId}
                   onChange={(e) => setTaxId(e.target.value)}
-                  required
                 />
               </div>
 
               <div>
                 <label htmlFor="homeAddress" className="block text-sm mb-1">
-                  Home address
+                  Home address <span className="text-gray-500 text-xs">(optional)</span>
                 </label>
                 <textarea
                   id="homeAddress"
@@ -146,7 +145,6 @@ export default function SignUpPage() {
                   placeholder="Street, city, postal code"
                   value={homeAddress}
                   onChange={(e) => setHomeAddress(e.target.value)}
-                  required
                 />
               </div>
 

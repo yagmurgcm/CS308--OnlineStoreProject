@@ -1,9 +1,16 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const { logout } = useAuth();
+  
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
 
   return (
     <div className="w-full min-h-screen bg-[#f7f7f7]">
@@ -24,7 +31,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             <Link href="/account/settings" className="hover:underline">Account Settings</Link>
 
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="text-left text-red-600 hover:underline pt-2"
             >
               Sign Out

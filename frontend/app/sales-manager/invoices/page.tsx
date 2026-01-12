@@ -138,24 +138,53 @@ export default function SalesManagerInvoicesPage() {
     try {
       const pdfBlob = await fetchInvoicePdf(invoiceId);
       const url = URL.createObjectURL(pdfBlob);
-      const printWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (!printWindow) {
-        setError("Unable to open print window. Please allow pop-ups.");
-        URL.revokeObjectURL(url);
-        return;
-      }
+      
+      // Iframe oluştur ve PDF'i yükle (görünmez)
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.style.opacity = "0";
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      
+      // PDF yüklendikten sonra print dialog'u aç
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.print();
+          } catch (printErr) {
+            console.error("Print failed", printErr);
+            setError("Print dialog could not open. Please try downloading the PDF and printing manually.");
+          }
+        }, 500);
+      };
+      
+      // Fallback: Eğer onload çalışmazsa, timeout ile dene
       setTimeout(() => {
         try {
-          printWindow.focus();
-          printWindow.print();
+          if (iframe.contentWindow) {
+            iframe.contentWindow.print();
+          }
         } catch (printErr) {
           console.error("Print failed", printErr);
+          setError("Print dialog could not open. Please try downloading the PDF and printing manually.");
         }
-      }, 600);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }, 1000);
+      
+      // 10 saniye sonra iframe'i temizle
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        URL.revokeObjectURL(url);
+      }, 10000);
     } catch (err) {
       console.error("Invoice print failed", err);
-      setError("Unable to open invoice for printing.");
+      setError("Unable to open invoice for printing. Please try downloading the PDF instead.");
     } finally {
       setActionId(null);
       setActionType(null);
@@ -220,7 +249,11 @@ export default function SalesManagerInvoicesPage() {
             </button>
           </div>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="rounded-lg border-2 border-red-300 bg-red-50 p-4">
+            <p className="text-sm font-semibold text-red-800">{error}</p>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-white/90 shadow-sm">

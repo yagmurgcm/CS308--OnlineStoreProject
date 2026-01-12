@@ -83,7 +83,7 @@ export default function SalesManagerDashboard() {
             href="/sales-manager/discounts"
             className="inline-flex items-center justify-center rounded-full border border-black px-5 py-2 text-sm font-semibold hover:bg-black hover:text-white transition"
           >
-            Apply Discount
+            Apply Discount & Set Price
           </Link>
         </div>
       </div>
@@ -92,8 +92,8 @@ export default function SalesManagerDashboard() {
         {(() => {
           const fallbackActions = [
             {
-              label: "Apply Discount",
-              description: "Configure limited-time promotions for key categories.",
+              label: "Apply Discount & Set Price",
+              description: "Configure discounts or set new prices for products.",
               href: "/sales-manager/discounts",
             },
             {
@@ -115,14 +115,27 @@ export default function SalesManagerDashboard() {
 
           const baseActions = data?.actions?.length ? data.actions : fallbackActions;
           const actionItems = [...baseActions];
+          
+          // Update existing "Apply Discount" to "Apply Discount & Set Price" if it exists
+          const discountIndex = actionItems.findIndex(
+            (item) => item.label === "Apply Discount" || item.label === "Apply Discount & Set Price"
+          );
+          if (discountIndex !== -1) {
+            actionItems[discountIndex] = {
+              label: "Apply Discount & Set Price",
+              description: "Configure discounts or set new prices for products.",
+              href: "/sales-manager/discounts",
+            };
+          }
+          
           const ensureAction = (label: string, description: string, href: string) => {
             if (actionItems.some((item) => item.label === label)) return;
             actionItems.push({ label, description, href });
           };
 
           ensureAction(
-            "Apply Discount",
-            "Configure discount campaigns for eligible products.",
+            "Apply Discount & Set Price",
+            "Configure discounts or set new prices for products.",
             "/sales-manager/discounts",
           );
           ensureAction(
@@ -142,7 +155,7 @@ export default function SalesManagerDashboard() {
           );
 
           const fallbackRoutes: Record<string, string> = {
-            "Apply Discount": "/sales-manager/discounts",
+            "Apply Discount & Set Price": "/sales-manager/discounts",
             "View Invoices": "/sales-manager/invoices",
             "Finance Summary": "/sales-manager/finance",
             Returns: "/sales-manager/returns",

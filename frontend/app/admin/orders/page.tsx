@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 type OrderDetail = {
@@ -133,161 +133,228 @@ export default function AdminOrdersPage() {
             <p className="text-gray-600">No orders found.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {orders.map((order) => {
-              const total = coercePrice(order.totalPrice);
-              const isExpanded = expandedId === order.id;
-              const itemCount =
-                order.details?.reduce((a, d) => a + d.quantity, 0) || 0;
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900 w-8"></th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Delivery ID</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Customer ID</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Product ID</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Quantity</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Total Price</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Delivery Address</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-900">Delivery Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => {
+                    const total = coercePrice(order.totalPrice);
+                    const totalQuantity = order.details?.reduce((a, d) => a + d.quantity, 0) || 0;
+                    const fullAddress = [
+                      order.shippingAddress,
+                      order.shippingCity,
+                      order.shippingCountry
+                    ].filter(Boolean).join(", ") || "-";
+                    const isExpanded = expandedId === order.id;
 
-              return (
-                <div
-                  key={order.id}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden"
-                >
-                  {/* Order Header */}
-                  <div
-                    className="p-5 cursor-pointer hover:bg-gray-50 transition"
-                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Left Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                          <span className="font-bold text-lg">
-                            Order #{order.id}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusStyle(
-                              order.status
-                            )}`}
-                          >
-                            {order.status}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {order.user?.name || order.user?.email || order.contactEmail || "Guest"}
-                          {" • "}
-                          {new Date(order.createdAt).toLocaleString("tr-TR")}
-                        </div>
-                      </div>
-
-                      {/* Right: Price & Status Selector */}
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="font-bold text-lg">
-                            {priceFmt.format(total)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {itemCount} item{itemCount !== 1 ? "s" : ""}
-                          </div>
-                        </div>
-
-                        {/* Status Dropdown */}
-                        <select
-                          value={order.status}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(order.id, e.target.value);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          disabled={updatingId === order.id}
-                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    return (
+                      <React.Fragment key={order.id}>
+                        {/* Main Row */}
+                        <tr 
+                          className={`hover:bg-blue-50 transition cursor-pointer border-b border-gray-100 ${isExpanded ? "bg-blue-50" : ""}`}
+                          onClick={() => setExpandedId(isExpanded ? null : order.id)}
                         >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s.value} value={s.value}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Expand indicator */}
-                    <div className="mt-2 text-xs text-gray-400">
-                      {isExpanded ? "▲ Click to collapse" : "▼ Click to expand details"}
-                    </div>
-                  </div>
-
-                  {/* Expanded Details */}
-                  {isExpanded && (
-                    <div className="border-t border-gray-100 p-5 bg-gray-50">
-                      <div className="grid md:grid-cols-2 gap-6">
-                        {/* Customer Info */}
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-700 mb-2">
-                            Customer Information
-                          </h4>
-                          <div className="text-sm space-y-1 text-gray-600">
-                            <p>
-                              <strong>Name:</strong>{" "}
-                              {order.contactName || order.user?.name || "-"}
-                            </p>
-                            <p>
-                              <strong>Email:</strong>{" "}
-                              {order.contactEmail || order.user?.email || "-"}
-                            </p>
-                            <p>
-                              <strong>Phone:</strong> {order.contactPhone || "-"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Shipping Info */}
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-700 mb-2">
-                            Shipping Address
-                          </h4>
-                          <div className="text-sm text-gray-600">
-                            {order.shippingAddress ? (
-                              <>
-                                <p>{order.shippingAddress}</p>
-                                <p>
-                                  {order.shippingCity}
-                                  {order.shippingCountry &&
-                                    `, ${order.shippingCountry}`}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="text-gray-400">No address provided</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Order Items */}
-                      {order.details && order.details.length > 0 && (
-                        <div className="mt-6">
-                          <h4 className="font-semibold text-sm text-gray-700 mb-2">
-                            Order Items
-                          </h4>
-                          <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
-                            {order.details.map((detail) => (
-                              <div
-                                key={detail.id}
-                                className="flex items-center justify-between px-4 py-3"
-                              >
-                                <div>
-                                  <span className="font-medium">
-                                    {detail.product?.name || `Product #${detail.product?.id}`}
-                                  </span>
-                                  <span className="text-gray-500 ml-2">
-                                    × {detail.quantity}
-                                  </span>
-                                </div>
-                                <span className="font-medium">
-                                  {priceFmt.format(coercePrice(detail.price) * detail.quantity)}
+                          {/* Expand Icon */}
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-block transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}>
+                              ▼
+                            </span>
+                          </td>
+                          
+                          {/* Delivery ID */}
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-blue-600">#{order.id}</span>
+                            <div className="text-xs text-gray-500">
+                              {new Date(order.createdAt).toLocaleDateString("tr-TR")}
+                            </div>
+                          </td>
+                          
+                          {/* Customer ID */}
+                          <td className="px-4 py-3">
+                            <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded font-mono text-xs font-medium">
+                              #{order.user?.id || "N/A"}
+                            </span>
+                          </td>
+                          
+                          {/* Product ID(s) */}
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {order.details?.map((detail, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono text-xs"
+                                  title={detail.product?.name}
+                                >
+                                  #{detail.product?.id || "?"}
                                 </span>
+                              )) || "-"}
+                            </div>
+                          </td>
+                          
+                          {/* Quantity */}
+                          <td className="px-4 py-3">
+                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded font-medium">
+                              {totalQuantity}
+                            </span>
+                          </td>
+                          
+                          {/* Total Price */}
+                          <td className="px-4 py-3">
+                            <span className="font-bold text-green-700">
+                              {priceFmt.format(total)}
+                            </span>
+                          </td>
+                          
+                          {/* Delivery Address */}
+                          <td className="px-4 py-3">
+                            <div className="max-w-[200px] text-xs text-gray-600" title={fullAddress}>
+                              {fullAddress.length > 30 ? fullAddress.substring(0, 30) + "..." : fullAddress}
+                            </div>
+                          </td>
+                          
+                          {/* Delivery Status */}
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                              disabled={updatingId === order.id}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border-0 cursor-pointer ${getStatusStyle(order.status)} disabled:opacity-50`}
+                            >
+                              {STATUS_OPTIONS.map((s) => (
+                                <option key={s.value} value={s.value}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+
+                        {/* Expanded Details Row */}
+                        <tr>
+                          <td colSpan={8} className="p-0">
+                            <div 
+                              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                              }`}
+                            >
+                              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-5 border-b-2 border-blue-200">
+                                <div className="grid md:grid-cols-4 gap-4">
+                                  {/* Customer Details */}
+                                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h4 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                                      👤 Customer Details
+                                    </h4>
+                                    <div className="text-sm space-y-2 text-gray-600">
+                                      <p><strong>ID:</strong> <span className="font-mono">#{order.user?.id || "N/A"}</span></p>
+                                      <p><strong>Name:</strong> {order.contactName || order.user?.name || "-"}</p>
+                                      <p><strong>Email:</strong> {order.contactEmail || order.user?.email || "-"}</p>
+                                      <p><strong>Phone:</strong> {order.contactPhone || "-"}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Shipping Details */}
+                                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h4 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                                      📍 Shipping Address
+                                    </h4>
+                                    <div className="text-sm text-gray-600">
+                                      {order.shippingAddress ? (
+                                        <>
+                                          <p>{order.shippingAddress}</p>
+                                          <p>{order.shippingCity}{order.shippingCountry && `, ${order.shippingCountry}`}</p>
+                                        </>
+                                      ) : (
+                                        <p className="text-gray-400">No address provided</p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Order Items */}
+                                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h4 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                                      📦 Order Items
+                                    </h4>
+                                    <div className="space-y-2">
+                                      {order.details?.map((detail, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                                          <div>
+                                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono text-xs mr-2">
+                                              #{detail.product?.id}
+                                            </span>
+                                            <span className="font-medium">{detail.product?.name || "Unknown"}</span>
+                                            <span className="text-gray-500 ml-1">× {detail.quantity}</span>
+                                          </div>
+                                          <span className="font-medium text-green-700">
+                                            {priceFmt.format(coercePrice(detail.price) * detail.quantity)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Delivery Info */}
+                                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500">
+                                    <h4 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                                      🚚 Delivery Info
+                                    </h4>
+                                    <div className="text-sm space-y-2 text-gray-600">
+                                      <p>
+                                        <strong>Delivery ID:</strong>{" "}
+                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-mono font-bold">
+                                          #{order.id}
+                                        </span>
+                                      </p>
+                                      <p>
+                                        <strong>Product ID:</strong>{" "}
+                                        {order.details?.map((d, i) => (
+                                          <span key={i} className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-mono text-xs mr-1">
+                                            #{d.product?.id}
+                                          </span>
+                                        ))}
+                                      </p>
+                                      <p>
+                                        <strong>Quantity:</strong>{" "}
+                                        <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-medium">
+                                          {totalQuantity}
+                                        </span>
+                                      </p>
+                                      <p>
+                                        <strong>Total Price:</strong>{" "}
+                                        <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded font-bold">
+                                          {priceFmt.format(total)}
+                                        </span>
+                                      </p>
+                                      <p>
+                                        <strong>Status:</strong>{" "}
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusStyle(order.status)}`}>
+                                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                                        </span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                            </div>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

@@ -38,30 +38,18 @@ type FormData = {
   image: string;
 };
 
-const CATEGORIES = [
-  "Women",
-  "Men",
-  "Beauty",
-];
-
-// Subcategories will be dynamically generated from products
-const getSubcategoriesForCategory = (
-  products: Product[],
-  category: string
-): string[] => {
-  const subcategories = new Set<string>();
-  products
-    .filter(
-      (p) =>
-        p.category.toLowerCase() === category.toLowerCase() && p.subcategory
-    )
-    .forEach((p) => {
-      if (p.subcategory) {
-        subcategories.add(p.subcategory);
-      }
-    });
-  return Array.from(subcategories).sort();
+// Category type from API
+type CategoryFromAPI = {
+  id: number;
+  name: string;
+  description?: string;
+  parentId: number | null;
+  children?: CategoryFromAPI[];
+  isActive: boolean;
 };
+
+// Fallback categories if API fails
+const FALLBACK_CATEGORIES = ["Women", "Men", "Beauty"];
 
 const priceFmt = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -72,6 +60,10 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Categories from API
+  const [categories, setCategories] = useState<CategoryFromAPI[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +103,40 @@ export default function AdminProductsPage() {
     image: "",
   });
 
+  // Category form state
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [categoryFormData, setCategoryFormData] = useState({
+    type: "category" as "category" | "subcategory",
+    categoryName: "",
+    parentCategory: "",
+    subcategoryName: "",
+  });
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [customSubcategories, setCustomSubcategories] = useState<Record<string, string[]>>({});
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  // Delete confirmation modal state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    show: boolean;
+    productId: number | null;
+    productName: string;
+  }>({
+    show: false,
+    productId: null,
+    productName: "",
+  });
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
+
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
@@ -127,9 +153,40 @@ export default function AdminProductsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await api.get<CategoryFromAPI[]>("/categories");
+      setCategories(response || []);
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+      // Use fallback if API fails
+      setCategories(FALLBACK_CATEGORIES.map((name, i) => ({ 
+        id: i + 1, 
+        name, 
+        parentId: null, 
+        isActive: true,
+        children: [] 
+      })));
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
+
+  // Helper to get main category names
+  const mainCategoryNames = categories.map(c => c.name);
+  
+  // Helper to get subcategories for a category
+  const getSubcategoriesForCategory = (categoryName: string | undefined | null): string[] => {
+    if (!categoryName || typeof categoryName !== 'string') return [];
+    const category = categories.find(c => c.name?.toLowerCase() === categoryName.toLowerCase());
+    return category?.children?.map(sub => sub.name).filter(Boolean) as string[] || [];
+  };
 
   const handleEdit = (product: Product) => {
     // Capitalize category to match CATEGORIES constant (Women, Men, Beauty)
@@ -149,21 +206,30 @@ export default function AdminProductsPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (productId: number) => {
-    if (!confirm("Are you sure you want to delete this product?")) {
-      return;
-    }
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.productId) return;
+    
     setSubmitting(true);
+    setDeleteConfirm({ show: false, productId: null, productName: "" });
+    
     try {
-      await api.delete(`/products/${productId}`);
+      await api.delete(`/products/${deleteConfirm.productId}`);
       await fetchProducts();
-      alert("Product deleted successfully");
+      showToast(`"${deleteConfirm.productName}" deleted successfully`, "success");
     } catch (err) {
       console.error("Failed to delete product:", err);
-      alert("Failed to delete product");
+      showToast("Failed to delete product", "error");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const requestDelete = (product: Product) => {
+    setDeleteConfirm({
+      show: true,
+      productId: product.id,
+      productName: product.name,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,7 +237,7 @@ export default function AdminProductsPage() {
 
     // Validate required fields - allow 0 for price and stock (can be managed via variants)
     if (!formData.name || !formData.category) {
-      alert("Please fill in all required fields");
+      showToast("Please fill in all required fields", "error");
       return;
     }
 
@@ -180,7 +246,7 @@ export default function AdminProductsPage() {
     const stock = formData.stock ? parseInt(formData.stock, 10) : 0;
     
     if (isNaN(price) || isNaN(stock) || price < 0 || stock < 0) {
-      alert("Price and stock must be valid numbers (0 or greater)");
+      showToast("Price and stock must be valid numbers (0 or greater)", "error");
       return;
     }
 
@@ -203,11 +269,11 @@ export default function AdminProductsPage() {
       if (editingId) {
         await api.put(`/products/${editingId}`, payload);
         console.log(`✅ [FRONTEND] Product update successful for ID: ${editingId}`);
-        alert("Product updated successfully");
+        showToast("Product updated successfully", "success");
       } else {
         await api.post("/products", payload);
         console.log(`✅ [FRONTEND] Product creation successful`);
-        alert("Product created successfully");
+        showToast("Product created successfully", "success");
       }
 
       console.log(`🔄 [FRONTEND] Refreshing product list...`);
@@ -227,7 +293,7 @@ export default function AdminProductsPage() {
       });
     } catch (err) {
       console.error("❌ [FRONTEND] Failed to save product:", err);
-      alert("Failed to save product. Please check the console.");
+      showToast("Failed to save product. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -263,7 +329,7 @@ export default function AdminProductsPage() {
     e.preventDefault();
 
     if (!variantFormData.color || !variantFormData.size) {
-      alert("Please fill in color and size");
+      showToast("Please fill in color and size", "error");
       return;
     }
 
@@ -272,7 +338,7 @@ export default function AdminProductsPage() {
     const variantStock = variantFormData.stock ? parseInt(variantFormData.stock, 10) : NaN;
     
     if (isNaN(variantPrice) || isNaN(variantStock) || variantPrice < 0 || variantStock < 0) {
-      alert("Price and stock must be valid numbers (0 or greater)");
+      showToast("Price and stock must be valid numbers (0 or greater)", "error");
       return;
     }
 
@@ -288,7 +354,7 @@ export default function AdminProductsPage() {
         };
 
         await api.put(`/products/variant/${selectedVariant.id}`, variantUpdate);
-        alert("Variant updated successfully");
+        showToast("Variant updated successfully", "success");
       } else if (selectedProduct) {
         // Create new variant
         const variantCreate = {
@@ -299,7 +365,7 @@ export default function AdminProductsPage() {
         };
 
         await api.post(`/products/${selectedProduct.id}/variant`, variantCreate);
-        alert("Variant created successfully");
+        showToast("Variant created successfully", "success");
       }
 
       // Fetch updated products list
@@ -327,7 +393,7 @@ export default function AdminProductsPage() {
       });
     } catch (err) {
       console.error("Failed to save variant:", err);
-      alert("Failed to save variant. Please check the console.");
+      showToast("Failed to save variant. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -450,6 +516,39 @@ export default function AdminProductsPage() {
 
   return (
     <div className="py-8">
+      {/* Toast Notification */}
+      {toast.show && (
+        <div 
+          className="fixed top-6 right-6 z-[100]"
+          style={{ animation: "slideIn 0.3s ease-out" }}
+        >
+          <div
+            className={`flex items-center gap-3 px-5 py-4 rounded-xl shadow-2xl border backdrop-blur-sm ${
+              toast.type === "success"
+                ? "bg-green-50/95 border-green-300 text-green-800"
+                : "bg-red-50/95 border-red-300 text-red-800"
+            }`}
+          >
+            <span className="text-2xl">
+              {toast.type === "success" ? "✅" : "❌"}
+            </span>
+            <span className="font-medium">{toast.message}</span>
+            <button
+              onClick={() => setToast({ ...toast, show: false })}
+              className="ml-2 text-gray-400 hover:text-gray-600 text-xl"
+            >
+              ×
+            </button>
+          </div>
+          <style jsx>{`
+            @keyframes slideIn {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8 flex justify-between items-start">
@@ -457,24 +556,32 @@ export default function AdminProductsPage() {
             <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
             <p className="text-gray-600 mt-1">Add, edit, and manage your products</p>
           </div>
-          <button
-            onClick={() => {
-              setEditingId(null);
-              setFormData({
-                name: "",
-                category: "",
-                subcategory: "",
-                description: "",
-                price: "",
-                stock: "",
-                isActive: true,
-              });
-              setShowForm(true);
-            }}
-            className="px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition"
-          >
-            + Add Product
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowCategoryForm(true)}
+              className="px-6 py-3 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition"
+            >
+              + Add Category
+            </button>
+            <button
+              onClick={() => {
+                setEditingId(null);
+                setFormData({
+                  name: "",
+                  category: "",
+                  subcategory: "",
+                  description: "",
+                  price: "",
+                  stock: "",
+                  isActive: true,
+                });
+                setShowForm(true);
+              }}
+              className="px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition"
+            >
+              + Add Product
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -529,7 +636,7 @@ export default function AdminProductsPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="All">All Categories</option>
-            {CATEGORIES.map((cat) => (
+            {mainCategoryNames.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -542,7 +649,7 @@ export default function AdminProductsPage() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Subcategories</option>
-              {getSubcategoriesForCategory(products, selectedCategory).map(
+              {getSubcategoriesForCategory(selectedCategory).map(
                 (subcat) => (
                   <option key={subcat} value={subcat}>
                     {subcat}
@@ -696,7 +803,7 @@ export default function AdminProductsPage() {
                     required
                   >
                     <option value="">Select Category</option>
-                    {CATEGORIES.map((cat) => (
+                    {mainCategoryNames.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -715,7 +822,7 @@ export default function AdminProductsPage() {
                   >
                     <option value="">Select Subcategory</option>
                     {formData.category &&
-                      getSubcategoriesForCategory(products, formData.category).map(
+                      getSubcategoriesForCategory(formData.category).map(
                         (subcat) => (
                           <option key={subcat} value={subcat}>
                             {subcat}
@@ -957,7 +1064,7 @@ export default function AdminProductsPage() {
               </button>
               <button
                 onClick={() => {
-                  handleDelete(selectedProduct.id);
+                  requestDelete(selectedProduct);
                   setSelectedProduct(null);
                 }}
                 disabled={submitting}
@@ -1072,6 +1179,242 @@ export default function AdminProductsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            style={{ animation: "scaleIn 0.2s ease-out" }}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-5 text-center">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-4xl">🗑️</span>
+              </div>
+              <h2 className="text-xl font-bold text-white">Delete Product?</h2>
+            </div>
+            
+            {/* Content */}
+            <div className="px-6 py-6 text-center">
+              <p className="text-gray-600 mb-2">You are about to delete:</p>
+              <p className="text-lg font-semibold text-gray-900 mb-4">"{deleteConfirm.productName}"</p>
+              <p className="text-sm text-gray-500">
+                This action cannot be undone. All variants and data associated with this product will be permanently removed.
+              </p>
+            </div>
+            
+            {/* Buttons */}
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm({ show: false, productId: null, productName: "" })}
+                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={submitting}
+                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <span className="animate-spin">⏳</span> Deleting...
+                  </>
+                ) : (
+                  <>
+                    <span>🗑️</span> Yes, Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          <style jsx>{`
+            @keyframes scaleIn {
+              from { transform: scale(0.9); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Add Category Modal */}
+      {showCategoryForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 m-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Add Category</h2>
+              <button
+                onClick={() => setShowCategoryForm(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  What do you want to add?
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFormData({ ...categoryFormData, type: "category" })}
+                    className={`flex-1 py-2 px-4 rounded-lg border-2 font-medium transition ${
+                      categoryFormData.type === "category"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    📁 Category
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFormData({ ...categoryFormData, type: "subcategory" })}
+                    className={`flex-1 py-2 px-4 rounded-lg border-2 font-medium transition ${
+                      categoryFormData.type === "subcategory"
+                        ? "border-purple-500 bg-purple-50 text-purple-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    📂 Subcategory
+                  </button>
+                </div>
+              </div>
+
+              {categoryFormData.type === "category" ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category Name
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryFormData.categoryName}
+                    onChange={(e) =>
+                      setCategoryFormData({ ...categoryFormData, categoryName: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="e.g., Kids, Accessories"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Parent Category
+                    </label>
+                    <select
+                      value={categoryFormData.parentCategory}
+                      onChange={(e) =>
+                        setCategoryFormData({ ...categoryFormData, parentCategory: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Select a category</option>
+                      {mainCategoryNames.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Subcategory Name
+                    </label>
+                    <input
+                      type="text"
+                      value={categoryFormData.subcategoryName}
+                      onChange={(e) =>
+                        setCategoryFormData({ ...categoryFormData, subcategoryName: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="e.g., T-Shirts, Sneakers"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Existing Categories Preview */}
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-2">Current Categories:</p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <div key={cat.id} className="flex flex-col gap-1">
+                      <span className="px-2 py-1 bg-purple-100 border border-purple-200 rounded text-xs text-purple-700 font-medium">
+                        📁 {cat.name}
+                      </span>
+                      {cat.children && cat.children.length > 0 && (
+                        <div className="flex flex-wrap gap-1 ml-2">
+                          {cat.children.map((sub) => (
+                            <span
+                              key={sub.id}
+                              className="px-2 py-0.5 bg-white border border-gray-200 rounded text-xs text-gray-600"
+                            >
+                              {sub.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryForm(false)}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 rounded-lg font-medium hover:bg-gray-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      if (categoryFormData.type === "category") {
+                        if (categoryFormData.categoryName.trim()) {
+                          await api.post("/categories", {
+                            name: categoryFormData.categoryName.trim(),
+                          });
+                          showToast(`Category "${categoryFormData.categoryName}" added successfully!`, "success");
+                          setCategoryFormData({ ...categoryFormData, categoryName: "" });
+                          setShowCategoryForm(false);
+                          fetchCategories(); // Refresh categories
+                        }
+                      } else {
+                        if (categoryFormData.parentCategory && categoryFormData.subcategoryName.trim()) {
+                          const parent = categories.find(c => c.name === categoryFormData.parentCategory);
+                          if (parent) {
+                            await api.post("/categories", {
+                              name: categoryFormData.subcategoryName.trim(),
+                              parentId: parent.id,
+                            });
+                            showToast(`Subcategory "${categoryFormData.subcategoryName}" added to "${categoryFormData.parentCategory}" successfully!`, "success");
+                            setCategoryFormData({ ...categoryFormData, subcategoryName: "" });
+                            setShowCategoryForm(false);
+                            fetchCategories(); // Refresh categories
+                          }
+                        }
+                      }
+                    } catch (err) {
+                      console.error("Failed to add category:", err);
+                      showToast("Failed to add category. Please try again.", "error");
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition"
+                >
+                  Add {categoryFormData.type === "category" ? "Category" : "Subcategory"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

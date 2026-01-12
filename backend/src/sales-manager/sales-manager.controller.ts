@@ -57,4 +57,9 @@ export class SalesManagerController {
   applyDiscount(@Body() dto: ApplyDiscountDto) {
     return this.service.applyDiscount(dto);
   }
+
+  @Post('test-email')
+  async testEmail(@Body() body: { to: string }) {
+    return this.service.sendTestDiscountEmail(body.to);
+  }
 }

@@ -58,6 +58,7 @@ export default function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { user } = useAuth();
 
   const scrollToBottom = () => {
@@ -69,6 +70,18 @@ export default function ChatWidget() {
       scrollToBottom();
     }
   }, [messages, isOpen, conversation]);
+
+  // Auto-resize textarea height based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = "auto";
+      // Set height to scrollHeight to fit all content
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      // Scroll to bottom to show latest text
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+    }
+  }, [messageText]);
 
   // Initialize WebSocket connection (supports both authenticated and guest)
   useEffect(() => {
@@ -534,19 +547,31 @@ export default function ChatWidget() {
               >
                 📎
               </button>
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyPress={(e) => {
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  // Auto-resize height based on content
+                  setTimeout(() => {
+                    if (textareaRef.current) {
+                      textareaRef.current.style.height = "auto";
+                      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+                      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+                    }
+                  }, 0);
+                }}
+                onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     handleSendMessage();
                   }
                 }}
                 placeholder="Type a message..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={1}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-hidden min-h-[40px] w-0"
                 disabled={sending || !conversation}
+                style={{ wordWrap: "break-word", overflowWrap: "break-word" }}
               />
               <button
                 onClick={handleSendMessage}

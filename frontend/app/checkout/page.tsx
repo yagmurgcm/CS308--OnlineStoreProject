@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Toast from "@/app/components/Toast";
@@ -165,10 +165,10 @@ export default function CheckoutPage() {
   });
 
   const [payment, setPayment] = useState({
-    cardNumber: "",
-    nameOnCard: user?.name ?? "",
-    expiry: "",
-    cvc: "",
+    cardNumber: "4532 1488 0343 6467",
+    nameOnCard: user?.name ?? "John Doe",
+    expiry: "12/25",
+    cvc: "123",
   });
 
   const hasItems = items.length > 0;
@@ -186,6 +186,56 @@ export default function CheckoutPage() {
       console.error("Failed to merge guest cart before checkout", error);
     }
   };
+
+  // Auto-fill delivery details from user profile and localStorage
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadAndFill = async () => {
+      // First, try to load saved delivery details from localStorage
+      const savedDelivery = window.localStorage.getItem("checkoutDelivery");
+      let baseDelivery = {
+        fullName: "",
+        email: "",
+        phone: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        country: "",
+      };
+      
+      if (savedDelivery) {
+        try {
+          const parsed = JSON.parse(savedDelivery);
+          baseDelivery = { ...baseDelivery, ...parsed };
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      // Fetch fresh user profile from API to get homeAddress
+      let userHomeAddress = "";
+      try {
+        const profile = await api.get<{ homeAddress?: string | null }>(`/users/${user.id}`);
+        userHomeAddress = profile.homeAddress || "";
+      } catch (err) {
+        console.warn("Could not fetch user profile for auto-fill", err);
+      }
+
+      // Fill delivery form with user data
+      setDelivery({
+        fullName: user?.name ?? baseDelivery.fullName,
+        email: user?.email ?? baseDelivery.email,
+        phone: baseDelivery.phone,
+        address: baseDelivery.address || userHomeAddress || "",
+        city: baseDelivery.city,
+        postalCode: baseDelivery.postalCode,
+        country: baseDelivery.country,
+      });
+    };
+
+    loadAndFill();
+  }, [user?.id, user?.name, user?.email]);
 
   const validateDelivery = () => {
     const nextErrors: Record<string, string> = {};
@@ -266,6 +316,15 @@ export default function CheckoutPage() {
     try {
       await mergeGuestCartIfNeeded();
       await reload();
+      // Save delivery details to localStorage for next time
+      window.localStorage.setItem("checkoutDelivery", JSON.stringify({
+        address: delivery.address.trim(),
+        city: delivery.city.trim(),
+        postalCode: delivery.postalCode.trim(),
+        country: delivery.country.trim(),
+        phone: delivery.phone.trim(),
+      }));
+
       const payload = {
         fullName: delivery.fullName.trim(),
         email: delivery.email.trim(),

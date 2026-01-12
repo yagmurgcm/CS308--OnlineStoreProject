@@ -4,6 +4,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  IsOptional,
 } from 'class-validator';
 
 // Signup data validation (name, email, password)
@@ -16,14 +17,14 @@ export class SignUpDto {
   email: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(64)
-  taxId: string;
+  taxId?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(255)
-  homeAddress: string;
+  homeAddress?: string;
 
   @MinLength(6)
   password: string;

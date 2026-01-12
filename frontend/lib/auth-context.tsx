@@ -16,6 +16,7 @@ export type AuthUser = {
   email: string;
   role: string;
   accessToken: string;
+  homeAddress?: string | null;
 };
 
 type AuthUserInput = {
@@ -23,6 +24,7 @@ type AuthUserInput = {
   name?: string | null;
   email?: string | null;
   role?: string | null;
+  homeAddress?: string | null;
   accessToken: string;
 };
 
@@ -142,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const loadProfile = async () => {
       try {
-        const profile = await api.get<{ name?: string; email?: string }>(
+        const profile = await api.get<{ name?: string; email?: string; homeAddress?: string | null }>(
           `/users/${user.id}`,
         );
         if (cancelled) return;
@@ -150,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...user,
           name: profile.name ?? user.name,
           email: profile.email ?? user.email,
+          homeAddress: profile.homeAddress ?? user.homeAddress,
         };
         setUser(next);
         persistUser(next);
@@ -180,6 +183,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(null);
     persistUser(null);
+    
+    // Redirect to home page after logout
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }, [user]);
 
   const value = useMemo(

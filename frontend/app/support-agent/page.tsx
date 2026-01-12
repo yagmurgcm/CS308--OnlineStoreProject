@@ -77,6 +77,7 @@ export default function SupportAgentDashboard() {
   const [activeTab, setActiveTab] = useState<"queue" | "my">("queue");
   const socketRef = useRef<Socket | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderSummary | null>(null);
   const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
@@ -98,6 +99,18 @@ export default function SupportAgentDashboard() {
     if (!user || user.role !== "SUPPORT_AGENT") return;
     loadConversations();
   }, [user, activeTab]);
+
+  // Auto-resize textarea height based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = "auto";
+      // Set height to scrollHeight to fit all content
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      // Scroll to bottom to show latest text
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+    }
+  }, [messageText]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -185,7 +198,38 @@ export default function SupportAgentDashboard() {
         activeTab === "queue"
           ? await api.get<Conversation[]>("/support/agent/queue")
           : await api.get<Conversation[]>("/support/agent/conversations");
-      setConversations(data || []);
+      
+      // Sort by updatedAt (most recent first)
+      // Backend returns queue sorted by createdAt ASC, but we want updatedAt DESC
+      // Backend returns agent conversations sorted by updatedAt DESC, but we'll ensure it's correct
+      const sorted = (data || []).sort((a, b) => {
+        // Use updatedAt if available, otherwise createdAt
+        const dateAStr = a.updatedAt || a.createdAt;
+        const dateBStr = b.updatedAt || b.createdAt;
+        
+        if (!dateAStr || !dateBStr) return 0;
+        
+        const dateA = new Date(dateAStr).getTime();
+        const dateB = new Date(dateBStr).getTime();
+        
+        // JavaScript sort: negative = a before b, positive = b before a
+        // dateB - dateA: if B is newer (larger), return positive, so B comes before A (top)
+        // This puts most recent conversations at index 0 (top of list)
+        return dateB - dateA;
+      });
+      
+      // Double-check: ensure most recent is at the top
+      // If first item is older than last item, reverse the array
+      if (sorted.length > 1) {
+        const firstDate = new Date(sorted[0].updatedAt || sorted[0].createdAt).getTime();
+        const lastDate = new Date(sorted[sorted.length - 1].updatedAt || sorted[sorted.length - 1].createdAt).getTime();
+        if (firstDate < lastDate) {
+          // First is older than last, reverse to put newest first
+          sorted.reverse();
+        }
+      }
+      
+      setConversations(sorted);
     } catch (error) {
       console.error("Failed to load conversations", error);
     } finally {
@@ -400,16 +444,16 @@ export default function SupportAgentDashboard() {
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col">
       {/* Header */}
       <header className="bg-gradient-to-r from-green-700 to-green-600 text-white shadow-lg shrink-0">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="w-full mx-auto px-8 py-4">
           <h1 className="text-2xl font-bold">Support Agent Dashboard</h1>
           <p className="text-green-100 text-sm">Manage customer conversations</p>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 pb-4 flex-1 overflow-hidden">
+      <div className="w-full mx-auto px-8 pb-4 flex-1 overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
           {/* Left: Conversation List */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 flex flex-col">
+          <div className="bg-white rounded-lg shadow border border-gray-200 flex flex-col min-h-0">
             {/* Tabs */}
             <div className="flex border-b border-gray-200">
               <button
@@ -441,7 +485,7 @@ export default function SupportAgentDashboard() {
             </div>
 
             {/* Conversation List */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0">
               {loading ? (
                 <div className="p-4 text-center text-gray-500">Loading...</div>
               ) : conversations.length === 0 ? (
@@ -537,7 +581,7 @@ export default function SupportAgentDashboard() {
                         className={`flex ${isAgent ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[75%] rounded-lg px-3 py-2 ${
+                          className={`max-w-[70%] rounded-lg px-4 py-3 ${
                             isAgent
                               ? "bg-green-600 text-white"
                               : "bg-gray-100 text-gray-900"
@@ -619,19 +663,31 @@ export default function SupportAgentDashboard() {
                     >
                       📎
                     </button>
-                    <input
-                      type="text"
+                    <textarea
+                      ref={textareaRef}
                       value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      onKeyPress={(e) => {
+                      onChange={(e) => {
+                        setMessageText(e.target.value);
+                        // Auto-resize height based on content
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            textareaRef.current.style.height = "auto";
+                            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+                            textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+                          }
+                        }, 0);
+                      }}
+                      onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage();
                         }
                       }}
                       placeholder="Type a message..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      rows={1}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none overflow-hidden min-h-[40px] w-0"
                       disabled={sending || selectedConversation.status === "closed"}
+                      style={{ wordWrap: "break-word", overflowWrap: "break-word" }}
                     />
                     <button
                       onClick={handleSendMessage}

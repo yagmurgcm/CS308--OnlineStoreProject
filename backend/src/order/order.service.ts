@@ -223,7 +223,17 @@ export class OrderService {
       console.error('Failed to send invoice email', err);
     }
 
-    return { ...finalizedOrder, invoiceEmailSent };
+    // Return full order with details for frontend confirmation page
+    const completeOrder = await this.orderRepo.findOne({
+      where: { id: finalizedOrder.id },
+      relations: ['details', 'details.product', 'details.variant', 'user'],
+    });
+    
+    if (!completeOrder) {
+      throw new NotFoundException('Order could not be retrieved after creation');
+    }
+
+    return { ...completeOrder, invoiceEmailSent };
   }
 
   async getOrdersByUser(userId: number) {
@@ -306,6 +316,7 @@ export class OrderService {
 
   async cancelOrder(orderId: number, userId: number) {
     const order = await this.assertOrderOwnership(orderId, userId);
+    this.assertWithinReturnWindow(order); // Cancel also requires 30-day window
     return this.cancelAndRestock(orderId, order);
   }
 

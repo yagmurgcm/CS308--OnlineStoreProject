@@ -72,6 +72,15 @@ export default function DiscountsPage() {
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Price editing state
+  const [actionMode, setActionMode] = useState<"discount" | "price">("discount");
+  const [newPrice, setNewPrice] = useState<string>("");
+  
+  // Test email state
+  const [testEmail, setTestEmail] = useState<string>("");
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialized) return;
@@ -263,6 +272,79 @@ export default function DiscountsPage() {
     }
   };
 
+  const handleSetPrice = async () => {
+    setApplyError(null);
+    setApplySuccess(null);
+    if (!selectedIds.size) {
+      setApplyError("Please select at least one product.");
+      return;
+    }
+    const priceValue = parseFloat(newPrice);
+    if (isNaN(priceValue) || priceValue < 0) {
+      setApplyError("Please enter a valid price (0 or greater).");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Update each selected product's price
+      const updatePromises = Array.from(selectedIds).map((productId) =>
+        api.put(`/products/${productId}`, { price: priceValue })
+      );
+      await Promise.all(updatePromises);
+      
+      setApplySuccess(
+        `Price set to ${priceFormatter.format(priceValue)} for ${selectedIds.size} product(s).`,
+      );
+      setProducts((prev) =>
+        prev.map((product) => {
+          if (!selectedIds.has(product.id)) return product;
+          return {
+            ...product,
+            price: priceValue,
+            discountedPrice: product.discountRate && product.discountRate > 0
+              ? computeDiscountedPrice(priceValue, product.discountRate)
+              : null,
+          };
+        }),
+      );
+      setSelectedIds(new Set());
+      setNewPrice("");
+    } catch (error) {
+      console.error("Failed to set price", error);
+      setApplyError(
+        error instanceof Error ? error.message : "Failed to set price.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!testEmail || !testEmail.includes("@")) {
+      setTestEmailResult("❌ Please enter a valid email address.");
+      return;
+    }
+    setTestEmailLoading(true);
+    setTestEmailResult(null);
+    try {
+      const result = await api.post<{ to: string; ok: boolean; messageId: string | null; response: string | null }>("/sales-manager/test-email", {
+        to: testEmail,
+      });
+      if (result.ok) {
+        setTestEmailResult(`✅ Test email sent successfully! Message ID: ${result.messageId || "N/A"}`);
+      } else {
+        setTestEmailResult(`❌ Email sending failed. Check backend logs.`);
+      }
+    } catch (error) {
+      console.error("Failed to send test email", error);
+      setTestEmailResult(
+        `❌ Error: ${error instanceof Error ? error.message : "Failed to send test email."}`,
+      );
+    } finally {
+      setTestEmailLoading(false);
+    }
+  };
+
   if (!initialized || !user || user.role !== "SALES_MANAGER") {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -276,19 +358,63 @@ export default function DiscountsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-gray-500">Sales Manager</p>
-          <h1 className="text-3xl font-semibold mt-2">Discount Management</h1>
+          <h1 className="text-3xl font-semibold mt-2">Price & Discount Management</h1>
           <p className="text-gray-600 mt-3">
-            Choose a scope, select the relevant products, and apply a discount rate. Only the
-            selected items will be updated.
+            Choose a scope, select products, and either set a new price or apply a discount rate.
+            Only the selected items will be updated.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => router.push("/sales-manager")}
-          className="inline-flex items-center rounded-full border border-[var(--line)] px-5 py-2 text-sm font-medium hover:border-black"
-        >
-          ← Back to dashboard
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => router.push("/sales-manager")}
+            className="inline-flex items-center rounded-full border border-[var(--line)] px-5 py-2 text-sm font-medium hover:border-black"
+          >
+            ← Back to dashboard
+          </button>
+        </div>
+      </div>
+
+      {/* Test Email Section */}
+      <div className="rounded-2xl border border-yellow-300 bg-yellow-50/50 p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">🧪</span>
+          <h2 className="text-lg font-semibold text-gray-900">Test Email Sending</h2>
+        </div>
+        <p className="text-sm text-gray-600">
+          Test if email sending is working. Enter an email address and click "Send Test Email".
+        </p>
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="your-email@example.com"
+              className="w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-black focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleTestEmail}
+            disabled={testEmailLoading || !testEmail}
+            className="inline-flex items-center rounded-full border border-yellow-600 bg-yellow-600 text-white px-5 py-2 text-sm font-medium hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {testEmailLoading ? "Sending..." : "📧 Send Test Email"}
+          </button>
+        </div>
+        {testEmailResult && (
+          <div className={`p-3 rounded-lg text-sm ${
+            testEmailResult.includes("✅") 
+              ? "bg-green-100 text-green-800" 
+              : "bg-red-100 text-red-800"
+          }`}>
+            {testEmailResult}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-white/80 backdrop-blur p-6 space-y-6">
@@ -360,24 +486,72 @@ export default function DiscountsPage() {
             </label>
           )}
 
-          <label className="text-sm font-medium text-gray-700">
-            Discount (%)
-            <input
-              type="number"
-              min={0}
-              max={90}
-              value={discountRate}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                if (Number.isNaN(next)) {
-                  setDiscountRate(0);
-                } else {
-                  setDiscountRate(Math.min(Math.max(next, 0), 90));
-                }
-              }}
-              className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-black focus:outline-none"
-            />
-          </label>
+          {/* Action Mode Toggle */}
+          <div className="md:col-span-2 lg:col-span-3">
+            <label className="text-sm font-medium text-gray-700 block mb-2">Action Type</label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setActionMode("discount")}
+                className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition ${
+                  actionMode === "discount"
+                    ? "bg-purple-100 border-purple-500 text-purple-700"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                🏷️ Apply Discount (%)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActionMode("price")}
+                className={`flex-1 px-4 py-3 rounded-xl border-2 text-sm font-medium transition ${
+                  actionMode === "price"
+                    ? "bg-green-100 border-green-500 text-green-700"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                💰 Set Price (₺)
+              </button>
+            </div>
+          </div>
+
+          {/* Discount Rate Input */}
+          {actionMode === "discount" && (
+            <label className="text-sm font-medium text-gray-700">
+              Discount (%)
+              <input
+                type="number"
+                min={0}
+                max={90}
+                value={discountRate}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isNaN(next)) {
+                    setDiscountRate(0);
+                  } else {
+                    setDiscountRate(Math.min(Math.max(next, 0), 90));
+                  }
+                }}
+                className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-black focus:outline-none"
+              />
+            </label>
+          )}
+
+          {/* New Price Input */}
+          {actionMode === "price" && (
+            <label className="text-sm font-medium text-gray-700">
+              New Price (₺)
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={newPrice}
+                onChange={(event) => setNewPrice(event.target.value)}
+                placeholder="Enter new price"
+                className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-black focus:outline-none"
+              />
+            </label>
+          )}
         </div>
       </div>
 
@@ -425,20 +599,35 @@ export default function DiscountsPage() {
                   </th>
                   <th className="px-4 py-3">Product</th>
                   <th className="px-4 py-3">Original price</th>
-                  <th className="px-4 py-3">Discounted price</th>
+                  <th className="px-4 py-3">
+                    {actionMode === "price" ? "New price" : "Discounted price"}
+                  </th>
                   <th className="px-4 py-3">Visibility</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--line)] bg-white">
                 {filteredProducts.map((product) => {
                   const numericPrice = normalizePrice(product.price);
-                  const preview = selectedIds.has(product.id)
-                    ? (discountRate > 0
-                        ? computeDiscountedPrice(numericPrice, discountRate)
-                        : numericPrice)
-                    : product.discountedPrice != null
+                  const parsedNewPrice = parseFloat(newPrice);
+                  
+                  // Preview logic based on action mode
+                  let preview: number | null = null;
+                  if (selectedIds.has(product.id)) {
+                    if (actionMode === "price" && !isNaN(parsedNewPrice) && parsedNewPrice >= 0) {
+                      // Show new price in price mode
+                      preview = parsedNewPrice;
+                    } else if (actionMode === "discount" && discountRate > 0) {
+                      // Show discounted price in discount mode
+                      preview = computeDiscountedPrice(numericPrice, discountRate);
+                    } else {
+                      preview = numericPrice;
+                    }
+                  } else {
+                    // Not selected - show existing discount if any
+                    preview = product.discountedPrice != null
                       ? normalizePrice(product.discountedPrice as number | string)
                       : null;
+                  }
                   return (
                     <tr key={product.id}>
                       <td className="px-4 py-4 align-top">
@@ -474,17 +663,24 @@ export default function DiscountsPage() {
                         {priceFormatter.format(numericPrice)}
                       </td>
                       <td className="px-4 py-4 align-top">
-                        {preview != null ? (
+                        {preview != null && selectedIds.has(product.id) ? (
+                          <div className={`font-semibold ${actionMode === "price" ? "text-green-600" : "text-purple-600"}`}>
+                            {priceFormatter.format(preview)}
+                            <span className="ml-2 text-xs text-gray-500">
+                              {actionMode === "price" 
+                                ? "(new price)" 
+                                : `(${discountRate}% off)`
+                              }
+                            </span>
+                          </div>
+                        ) : preview != null ? (
                           <div className="font-semibold text-[#146356]">
                             {priceFormatter.format(preview)}
-                            {discountRate > 0 && selectedIds.has(product.id) && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                ({discountRate}% preview)
-                              </span>
-                            )}
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-sm">No discount</span>
+                          <span className="text-gray-400 text-sm">
+                            {actionMode === "price" ? "No change" : "No discount"}
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-4 align-top text-sm text-gray-600">
@@ -520,16 +716,27 @@ export default function DiscountsPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] px-6 py-4">
           <p className="text-sm text-gray-500">
-            Discount rate applies equally to every selected product. Customers will immediately see
-            the updated price.
+            {actionMode === "discount" 
+              ? "Discount rate applies equally to every selected product. Customers will immediately see the updated price."
+              : "New price will be set for all selected products. This overrides the base price."
+            }
           </p>
           <button
             type="button"
-            onClick={handleApplyDiscount}
-            className="inline-flex items-center rounded-full border border-black px-5 py-2 text-sm font-semibold hover:bg-black hover:text-white transition disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400"
+            onClick={actionMode === "discount" ? handleApplyDiscount : handleSetPrice}
+            className={`inline-flex items-center rounded-full border px-5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 ${
+              actionMode === "discount"
+                ? "border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
+                : "border-green-600 text-green-600 hover:bg-green-600 hover:text-white"
+            }`}
             disabled={submitting || selectedIds.size === 0}
           >
-            {submitting ? "Applying…" : "Apply Discount"}
+            {submitting 
+              ? "Applying…" 
+              : actionMode === "discount" 
+                ? "🏷️ Apply Discount" 
+                : "💰 Set Price"
+            }
           </button>
         </div>
       </div>

@@ -9,6 +9,14 @@ import { useCart } from "@/lib/cart-context";
 import UserStatus from "./UserStatus";
 import InvertToggle from "./InvertToggle";
 import { searchProducts, type ProductRecord } from "@/lib/products";
+import { api } from "@/lib/api";
+
+// Category type from API
+type CategoryFromAPI = {
+  id: number;
+  name: string;
+  children?: CategoryFromAPI[];
+};
 
 // Sign-in sheet import
 const SignInSheet = dynamic(() => import("./SignInSheet"), { ssr: false });
@@ -143,6 +151,9 @@ export default function Header() {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Dynamic categories from API
+  const [categories, setCategories] = useState<CategoryFromAPI[]>([]);
 
   const { user, logout } = useAuth();
   const isSalesManager = user?.role === "SALES_MANAGER";
@@ -159,6 +170,25 @@ export default function Header() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get<CategoryFromAPI[]>("/categories");
+        setCategories(response || []);
+      } catch (err) {
+        console.error("Failed to fetch categories for header:", err);
+        // Fallback to default categories
+        setCategories([
+          { id: 1, name: "Women" },
+          { id: 2, name: "Men" },
+          { id: 3, name: "Beauty" },
+        ]);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   // Sign-in modal open logic
   useEffect(() => {
@@ -380,15 +410,15 @@ export default function Header() {
         {/* NAVIGATION */}
         <div className="container-base h-12">
           <nav className="h-full flex items-center justify-center gap-8">
-            <Link href="/women" className="text-sm hover:underline underline-offset-4">
-              Women
-            </Link>
-            <Link href="/men" className="text-sm hover:underline underline-offset-4">
-              Men
-            </Link>
-            <Link href="/beauty" className="text-sm hover:underline underline-offset-4">
-              Beauty
-            </Link>
+            {categories.map((category) => (
+              <Link 
+                key={category.id}
+                href={`/${category.name.toLowerCase()}`} 
+                className="text-sm hover:underline underline-offset-4"
+              >
+                {category.name}
+              </Link>
+            ))}
           </nav>
         </div>
       </header>
