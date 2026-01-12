@@ -308,7 +308,7 @@ describe('OrderService cancellations and returns', () => {
     variantRepo.set(variant);
 
     const order = await orderRepo.save(
-      orderRepo.create({ user: { id: 1 } as any, status: 'processing', totalPrice: 100 }),
+      orderRepo.create({ user: { id: 1 } as any, status: 'delivered', totalPrice: 100 }),
     );
 
     await detailRepo.save(

@@ -21,11 +21,16 @@ import type { ReturnRequestStatus } from './return-request.entity';
 import { ReturnRequestItem } from './return-request-item.entity';
 import { MailService } from '../mail/mail.service';
 
-const RETURN_ELIGIBLE_STATUSES = new Set([
+const CANCEL_ELIGIBLE_STATUSES = new Set([
+  'pending',
   'processing',
   'in-transit',
   'shipped',
+]);
+
+const RETURN_ELIGIBLE_STATUSES = new Set([
   'delivered',
+  'partially_returned',
 ]);
 
 @Injectable()
@@ -328,9 +333,9 @@ export class OrderService {
     if (baseStatus === 'cancelled') {
       throw new BadRequestException('Order already cancelled');
     }
-    if (baseStatus && baseStatus !== 'processing') {
+    if (baseStatus && !CANCEL_ELIGIBLE_STATUSES.has(baseStatus)) {
       throw new BadRequestException(
-        'Only orders in processing status can be cancelled',
+        'Only undelivered orders can be cancelled',
       );
     }
 
@@ -354,9 +359,9 @@ export class OrderService {
       if (status === 'cancelled') {
         throw new BadRequestException('Order already cancelled');
       }
-      if (status !== 'processing') {
+      if (!CANCEL_ELIGIBLE_STATUSES.has(status)) {
         throw new BadRequestException(
-          'Only orders in processing status can be cancelled',
+          'Only undelivered orders can be cancelled',
         );
       }
 
@@ -455,7 +460,7 @@ export class OrderService {
     }
     if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
+        'Only delivered orders can be returned or refunded',
       );
     }
     return this.applyReturnItems(orderId, items);
@@ -474,7 +479,7 @@ export class OrderService {
     }
     if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
+        'Only delivered orders can be returned or refunded',
       );
     }
     this.assertWithinReturnWindow(order);
@@ -698,7 +703,7 @@ export class OrderService {
       const normalizedStatus = (current.status || '').toLowerCase();
       if (!RETURN_ELIGIBLE_STATUSES.has(normalizedStatus)) {
         throw new BadRequestException(
-          'Only processing, shipped, in-transit, or delivered orders can be returned or refunded',
+          'Only delivered orders can be returned or refunded',
         );
       }
 

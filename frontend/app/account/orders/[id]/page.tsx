@@ -58,9 +58,10 @@ export default function OrderDetailPage() {
   const isWithinReturnWindow = createdAt
     ? Date.now() - createdAt.getTime() <= 30 * 24 * 60 * 60 * 1000
     : true;
-  const isReturnableStatus = ["processing", "in-transit", "shipped", "delivered"].includes(
+  const isCancelableStatus = ["pending", "processing", "in-transit", "shipped"].includes(
     status,
   );
+  const isReturnableStatus = ["delivered", "partially_returned"].includes(status);
   const canRequestReturn = isReturnableStatus && isWithinReturnWindow;
 
   const returnReasons = [
@@ -102,9 +103,8 @@ export default function OrderDetailPage() {
 
   const handleCancel = async () => {
     if (!order) return;
-    const status = (order.status || "").toLowerCase();
-    if (status !== "processing") {
-      setError("Only orders in processing status can be cancelled.");
+    if (!isCancelableStatus) {
+      setError("Only undelivered orders can be cancelled.");
       return;
     }
     setActionLoading(true);
@@ -125,7 +125,7 @@ export default function OrderDetailPage() {
   const handleReturn = async () => {
     if (!order) return;
     if (!isReturnableStatus) {
-      setError("Returns are only available for processing, shipped, in-transit, or delivered orders.");
+      setError("Returns are only available after delivery.");
       return;
     }
     if (!isWithinReturnWindow) {
@@ -180,8 +180,7 @@ export default function OrderDetailPage() {
     }
   };
 
-  const isCancelable =
-    order && (order.status || "").toLowerCase() === "processing" && isWithinReturnWindow;
+  const isCancelable = order && isCancelableStatus && isWithinReturnWindow;
 
   const returnableDetails = useMemo(() => {
     return (order?.details || []).map((detail) => {
