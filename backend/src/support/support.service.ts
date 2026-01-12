@@ -15,6 +15,8 @@ import { UsersService } from '../users/users.service';
 import { Order } from '../order/order.entity';
 import { WishlistItem } from '../wishlist/wishlist-item.entity';
 import { WhatsAppService } from './whatsapp.service';
+import { join } from 'path';
+import { unlinkSync, existsSync } from 'fs';
 
 @Injectable()
 export class SupportService {
@@ -280,5 +282,104 @@ export class SupportService {
 
     conversation.status = 'closed';
     return this.conversationRepo.save(conversation);
+  }
+
+  // Add attachments to a message
+  async addAttachments(
+    messageId: number,
+    files: Express.Multer.File[],
+  ): Promise<ChatAttachment[]> {
+    const message = await this.messageRepo.findOne({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const attachments: ChatAttachment[] = [];
+
+    for (const file of files) {
+      const attachment = this.attachmentRepo.create({
+        messageId,
+        fileName: file.originalname,
+        filePath: file.filename, // Store only filename, not full path
+        fileType: file.mimetype,
+        fileSize: file.size,
+      });
+
+      const saved = await this.attachmentRepo.save(attachment);
+      attachments.push(saved);
+    }
+
+    return attachments;
+  }
+
+  // Get attachment by ID
+  async getAttachment(attachmentId: number): Promise<ChatAttachment> {
+    const attachment = await this.attachmentRepo.findOne({
+      where: { id: attachmentId },
+      relations: ['message', 'message.conversation'],
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    return attachment;
+  }
+
+  // Get full file path for an attachment
+  getAttachmentFilePath(attachment: ChatAttachment): string {
+    return join(process.cwd(), 'uploads', 'chat', attachment.filePath);
+  }
+
+  // Delete attachment
+  async deleteAttachment(attachmentId: number): Promise<void> {
+    const attachment = await this.getAttachment(attachmentId);
+    
+    // Delete file from disk
+    const filePath = this.getAttachmentFilePath(attachment);
+    if (existsSync(filePath)) {
+      unlinkSync(filePath);
+    }
+
+    await this.attachmentRepo.delete(attachmentId);
+  }
+
+  // Send message with attachments
+  async sendMessageWithAttachments(
+    conversationId: number,
+    senderId: number | null,
+    senderType: 'customer' | 'agent' | 'guest',
+    dto: SendMessageDto,
+    files?: Express.Multer.File[],
+  ): Promise<Message> {
+    // First send the message
+    const message = await this.sendMessage(conversationId, senderId, senderType, dto);
+
+    // Then add attachments if any
+    if (files && files.length > 0) {
+      await this.addAttachments(message.id, files);
+    }
+
+    // Return message with attachments
+    const fullMessage = await this.messageRepo.findOne({
+      where: { id: message.id },
+      relations: ['sender', 'attachments'],
+    });
+
+    return fullMessage || message;
+  }
+
+  // Get conversation by guest session (for guest tracking)
+  async getGuestConversation(guestSessionId: string): Promise<Conversation | null> {
+    // For now, we'll use guestEmail as session identifier
+    // In a real app, you might want to use cookies or localStorage
+    return this.conversationRepo.findOne({
+      where: { guestEmail: guestSessionId, status: In(['open', 'claimed']) },
+      relations: ['messages', 'messages.attachments'],
+      order: { updatedAt: 'DESC' },
+    });
   }
 }

@@ -18,6 +18,8 @@ interface SocketWithUser extends Socket {
   userId?: number;
   role?: string;
   conversationId?: number;
+  isGuest?: boolean;
+  guestSession?: string;
 }
 
 @WebSocketGateway({
@@ -45,28 +47,52 @@ export class SupportGateway
         client.handshake.auth?.token ||
         client.handshake.query?.token?.toString();
 
-      if (!token) {
-        client.disconnect();
-        return;
-      }
+      // Check for guest session
+      const guestSession =
+        client.handshake.auth?.guestSession ||
+        client.handshake.query?.guestSession?.toString();
 
-      // Verify JWT token
-      const payload = this.jwtService.verify(token);
-      client.userId = payload.sub;
-      client.role = payload.role;
+      if (token) {
+        // Authenticated user
+        try {
+          const payload = this.jwtService.verify(token);
+          client.userId = payload.sub;
+          client.role = payload.role;
+          client.isGuest = false;
 
-      // Track user socket
-      if (client.userId) {
-        if (!this.userSockets.has(client.userId)) {
-          this.userSockets.set(client.userId, new Set());
+          // Track user socket
+          if (client.userId) {
+            if (!this.userSockets.has(client.userId)) {
+              this.userSockets.set(client.userId, new Set());
+            }
+            this.userSockets.get(client.userId)!.add(client.id);
+          }
+
+          console.log(`Authenticated client connected: ${client.id}, userId: ${client.userId}`);
+        } catch (error) {
+          console.error('JWT verification failed:', error);
+          // Don't disconnect - allow as guest
+          client.isGuest = true;
+          client.guestSession = guestSession || `guest-${Date.now()}`;
+          console.log(`Guest client connected (invalid token): ${client.id}, session: ${client.guestSession}`);
         }
-        this.userSockets.get(client.userId)!.add(client.id);
+      } else if (guestSession) {
+        // Guest user with session
+        client.isGuest = true;
+        client.guestSession = guestSession;
+        console.log(`Guest client connected: ${client.id}, session: ${guestSession}`);
+      } else {
+        // Anonymous guest - generate session
+        client.isGuest = true;
+        client.guestSession = `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`Anonymous guest client connected: ${client.id}, session: ${client.guestSession}`);
       }
-
-      console.log(`Client connected: ${client.id}, userId: ${client.userId}`);
     } catch (error) {
-      console.error('WebSocket authentication failed:', error);
-      client.disconnect();
+      console.error('WebSocket connection error:', error);
+      // Still allow connection as guest
+      client.isGuest = true;
+      client.guestSession = `guest-${Date.now()}`;
+      console.log(`Guest client connected (error fallback): ${client.id}`);
     }
   }
 
@@ -95,24 +121,26 @@ export class SupportGateway
     @ConnectedSocket() client: SocketWithUser,
     @MessageBody() data: { conversationId: number },
   ) {
-    if (!client.userId) {
-      return { error: 'Unauthorized' };
-    }
-
+    // Allow both authenticated users and guests to join conversations
     try {
-      // Verify user has access to this conversation
-      const conversation = await this.supportService.getConversationById(
-        data.conversationId,
-        client.userId,
-        client.role === 'SUPPORT_AGENT',
-      );
+      // For guests, we skip the access control check since they may have started the conversation
+      if (!client.isGuest && client.userId) {
+        // Verify user has access to this conversation
+        await this.supportService.getConversationById(
+          data.conversationId,
+          client.userId,
+          client.role === 'SUPPORT_AGENT',
+        );
+      }
 
       client.join(`conversation:${data.conversationId}`);
       this.socketConversations.set(client.id, data.conversationId);
       client.conversationId = data.conversationId;
 
+      console.log(`Client ${client.id} joined conversation ${data.conversationId}`);
       return { success: true };
     } catch (error) {
+      console.error('Failed to join conversation:', error);
       return { error: 'Failed to join conversation' };
     }
   }
@@ -123,32 +151,35 @@ export class SupportGateway
     @ConnectedSocket() client: SocketWithUser,
     @MessageBody() dto: SendMessageDto & { conversationId: number },
   ) {
-    if (!client.userId) {
-      return { error: 'Unauthorized' };
-    }
-
     const conversationId = dto.conversationId;
     const role = client.role;
 
     let senderType: 'customer' | 'agent' | 'guest';
+    let senderId: number | null = null;
+
     if (role === 'SUPPORT_AGENT') {
       senderType = 'agent';
-    } else if (client.userId) {
+      senderId = client.userId || null;
+    } else if (client.userId && !client.isGuest) {
       senderType = 'customer';
+      senderId = client.userId;
     } else {
       senderType = 'guest';
+      senderId = null;
     }
 
     try {
       // Save message to database
       const message = await this.supportService.sendMessage(
         conversationId,
-        client.userId,
+        senderId,
         senderType,
         { content: dto.content },
       );
 
-      // Already handled by controller calling notifyNewMessage
+      // Broadcast message to all in the conversation room
+      this.notifyNewMessage(message);
+
       return { success: true, message };
     } catch (error) {
       console.error('Error sending message:', error);
