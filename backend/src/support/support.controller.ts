@@ -6,9 +6,16 @@ import {
   Param,
   Body,
   Req,
+  Res,
   UseGuards,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { SupportService } from './support.service';
 import { SupportGateway } from './support.gateway';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -17,6 +24,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { multerConfig } from './upload.config';
+import { existsSync, createReadStream } from 'fs';
 
 type RequestWithUser = {
   user?: {
@@ -68,13 +77,15 @@ export class SupportController {
     return this.supportService.getConversationById(id, userId, isAgent);
   }
 
-  // Send a message (requires auth)
+  // Send a message with optional file attachments
   @Post('conversations/:id/messages')
   @UseGuards(OptionalJwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('files', 5, multerConfig))
   async sendMessage(
     @Param('id', ParseIntPipe) conversationId: number,
     @Req() req: RequestWithUser,
     @Body() dto: SendMessageDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ) {
     const userId = req.user?.userId || null;
     const role = req.user?.role;
@@ -88,14 +99,13 @@ export class SupportController {
       senderType = 'guest';
     }
 
-    // TODO: Handle file uploads (files parameter)
-    // For now, just send the message without attachments
-
-    const message = await this.supportService.sendMessage(
+    // Send message with attachments
+    const message = await this.supportService.sendMessageWithAttachments(
       conversationId,
       userId,
       senderType,
       dto,
+      files,
     );
 
     // Notify via WebSocket
@@ -105,6 +115,39 @@ export class SupportController {
     }
 
     return message;
+  }
+
+  // Get attachment file
+  @Get('attachments/:id')
+  async getAttachment(
+    @Param('id', ParseIntPipe) attachmentId: number,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const attachment = await this.supportService.getAttachment(attachmentId);
+    const filePath = this.supportService.getAttachmentFilePath(attachment);
+
+    if (!existsSync(filePath)) {
+      throw new BadRequestException('File not found');
+    }
+
+    // Set content type
+    res.set({
+      'Content-Type': attachment.fileType,
+      'Content-Disposition': `inline; filename="${attachment.fileName}"`,
+    });
+
+    const file = createReadStream(filePath);
+    return new StreamableFile(file);
+  }
+
+  // Get guest conversation by session/email
+  @Get('guest/conversation')
+  async getGuestConversation(@Req() req: any) {
+    const guestSession = req.query.session || req.query.email;
+    if (!guestSession) {
+      return null;
+    }
+    return this.supportService.getGuestConversation(guestSession);
   }
 
   // ============ AGENT ENDPOINTS ============

@@ -9,6 +9,14 @@ import { fetchOrderById, type OrderSummary } from "@/lib/orders";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+type Attachment = {
+  id: number;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  fileSize: number;
+};
+
 type Message = {
   id: number;
   content: string;
@@ -16,6 +24,8 @@ type Message = {
   senderId: number | null;
   sender?: { id: number; name: string } | null;
   createdAt: string;
+  conversationId?: number;
+  attachments?: Attachment[];
 };
 
 type Conversation = {
@@ -66,9 +76,11 @@ export default function SupportAgentDashboard() {
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"queue" | "my">("queue");
   const socketRef = useRef<Socket | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderSummary | null>(null);
   const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -241,21 +253,62 @@ export default function SupportAgentDashboard() {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const allowed = files.filter((f) =>
+      [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "application/pdf",
+        "video/mp4",
+        "video/webm",
+      ].includes(f.type)
+    );
+    if (allowed.length !== files.length) {
+      alert("Some files were not added. Allowed: images, PDF, videos");
+    }
+    setSelectedFiles((prev) => [...prev, ...allowed].slice(0, 5));
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation || sending) return;
+    if ((!messageText.trim() && selectedFiles.length === 0) || !selectedConversation || sending) return;
 
     const text = messageText.trim();
     setMessageText("");
+    const filesToSend = [...selectedFiles];
+    setSelectedFiles([]);
     setSending(true);
 
     try {
-      await api.post(
-        `/support/conversations/${selectedConversation.id}/messages`,
-        { content: text }
+      const formData = new FormData();
+      formData.append("content", text || " ");
+
+      filesToSend.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch(
+        `${API_BASE}/support/conversations/${selectedConversation.id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${user?.accessToken}`,
+          },
+          body: formData,
+        }
       );
 
-      // Message will be received via WebSocket, no need to reload
-      // But we can reload to be safe
+      if (!response.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      // Reload conversation to get updated messages
       const updated = await api.get<Conversation>(
         `/support/conversations/${selectedConversation.id}`
       );
@@ -264,9 +317,59 @@ export default function SupportAgentDashboard() {
     } catch (error) {
       console.error("Failed to send message", error);
       alert("Failed to send message");
+      setMessageText(text);
+      setSelectedFiles(filesToSend);
     } finally {
       setSending(false);
     }
+  };
+
+  const renderAttachment = (attachment: Attachment) => {
+    const url = `${API_BASE}/support/attachments/${attachment.id}`;
+
+    if (attachment.fileType.startsWith("image/")) {
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={url}
+            alt={attachment.fileName}
+            className="max-w-full max-h-40 rounded mt-2 cursor-pointer hover:opacity-80"
+          />
+        </a>
+      );
+    }
+
+    if (attachment.fileType.startsWith("video/")) {
+      return (
+        <video controls className="max-w-full max-h-40 rounded mt-2">
+          <source src={url} type={attachment.fileType} />
+        </video>
+      );
+    }
+
+    if (attachment.fileType === "application/pdf") {
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 mt-2 text-green-600 hover:underline"
+        >
+          📄 {attachment.fileName}
+        </a>
+      );
+    }
+
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2 mt-2 text-green-600 hover:underline"
+      >
+        📎 {attachment.fileName}
+      </a>
+    );
   };
 
   const handleClose = async () => {
@@ -448,9 +551,19 @@ export default function SupportAgentDashboard() {
                                   selectedConversation.guestName ||
                                   "Customer")}
                           </div>
-                          <div className="text-sm whitespace-pre-wrap">
-                            {msg.content}
-                          </div>
+                          {msg.content && msg.content.trim() !== "" && (
+                            <div className="text-sm whitespace-pre-wrap">
+                              {msg.content}
+                            </div>
+                          )}
+                          {/* Attachments */}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="mt-1">
+                              {msg.attachments.map((att) => (
+                                <div key={att.id}>{renderAttachment(att)}</div>
+                              ))}
+                            </div>
+                          )}
                           <div
                             className={`text-xs mt-1 ${
                               isAgent ? "text-green-100" : "text-gray-500"
@@ -467,9 +580,45 @@ export default function SupportAgentDashboard() {
                   })}
                 </div>
 
+                {/* Selected Files Preview */}
+                {selectedFiles.length > 0 && (
+                  <div className="px-4 py-2 border-t border-gray-200 flex flex-wrap gap-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-sm"
+                      >
+                        <span className="truncate max-w-[100px]">{file.name}</span>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Input */}
                 <div className="p-4 border-t border-gray-200 shrink-0">
                   <div className="flex gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      multiple
+                      accept="image/*,application/pdf,video/mp4,video/webm"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                      disabled={sending || selectedConversation.status === "closed"}
+                      title="Attach files"
+                    >
+                      📎
+                    </button>
                     <input
                       type="text"
                       value={messageText}
@@ -488,7 +637,7 @@ export default function SupportAgentDashboard() {
                       onClick={handleSendMessage}
                       disabled={
                         sending ||
-                        !messageText.trim() ||
+                        (!messageText.trim() && selectedFiles.length === 0) ||
                         selectedConversation.status === "closed"
                       }
                       className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
