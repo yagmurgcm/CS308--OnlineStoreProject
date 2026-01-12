@@ -1,0 +1,73 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, dev, arda ]
+  pull_request:
+    branches: [ main, dev, arda ]
+
+jobs:
+  backend-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test -- --coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./backend/coverage/coverage-final.json
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+
+  support-service-tests:
+    name: Support Service Tests
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Support Service tests
+        run: npx jest src/support/support.service.spec.ts --verbose --coverage
+
+      - name: Show test results
+        if: always()
+        run: |
+          echo "## Support Service Test Results" >> $GITHUB_STEP_SUMMARY
+          npx jest src/support/support.service.spec.ts --verbose --json | jq -r '.testResults[] | "### \(.name)\n\(.assertionResults[] | "- \(.status | ascii_upcase): \(.title)")"' >> $GITHUB_STEP_SUMMARY || true
