@@ -102,6 +102,13 @@ export default function OrderDetailPage() {
     };
   }, [params?.id, user?.id]);
 
+  // Clear return reason if return is not available
+  useEffect(() => {
+    if (!canRequestReturn) {
+      setReturnReason("");
+    }
+  }, [canRequestReturn]);
+
   const handleCancel = async () => {
     if (!order) return;
     if (!isCancelableStatus) {
@@ -453,7 +460,8 @@ export default function OrderDetailPage() {
             <select
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm"
+              disabled={!canRequestReturn}
+              className="w-full border rounded px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
             >
               <option value="">Select a reason</option>
               {returnReasons.map((reason) => (

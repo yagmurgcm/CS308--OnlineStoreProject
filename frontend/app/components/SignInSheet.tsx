@@ -143,14 +143,19 @@ export default function SignInSheet({ open, onClose }: Props) {
                   resolvedEmail.toLowerCase() === "admin@gmail.com" ||
                   resolvedEmail.toLowerCase() === "product@gmail.com";
                 const isSalesManager = payloadRole === "SALES_MANAGER";
-                const redirectTo = isSalesManager
+                const isSupportAgent = payloadRole === "SUPPORT_AGENT";
+                const redirectTo = isSupportAgent
+                  ? "/support-agent"
+                  : isSalesManager
                   ? "/sales-manager"
                   : isAdmin
                     ? "/admin/products"
                     : (searchParams.get("redirect") || "/");
                 router.push(redirectTo);
                 setMessage(
-                  isSalesManager
+                  isSupportAgent
+                    ? "Welcome Support Agent!"
+                    : isSalesManager
                     ? "Welcome Sales Manager!"
                     : isAdmin
                       ? "Welcome Admin!"

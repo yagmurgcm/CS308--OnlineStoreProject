@@ -213,13 +213,30 @@ export default function SalesManagerReturnsPage() {
           {(request.items || []).map((item) => {
             const detail = item.orderDetail;
             const productName = detail?.product?.name || "Product";
-            const unitPrice = detail?.price ?? 0;
-            const originalPrice = detail?.product?.price ?? unitPrice;
+            
+            // Calculate unit price with discounted price if available
+            let unitPrice = Number(detail?.price ?? 0);
+            const product = detail?.product as any; // Cast to any to access discount properties
+            
+            if (product) {
+              // Check if product has discountedPrice
+              if (product.discountedPrice !== null && product.discountedPrice !== undefined) {
+                unitPrice = Number(product.discountedPrice);
+              }
+              // Or calculate from discountRate
+              else if (product.discountRate && Number(product.discountRate) > 0 && product.price) {
+                const originalPrice = Number(product.price);
+                const discountRate = Number(product.discountRate);
+                unitPrice = originalPrice * (1 - discountRate / 100);
+              }
+            }
+            
+            const originalPrice = product?.price ? Number(product.price) : unitPrice;
             const discount =
-              Number(originalPrice) > Number(unitPrice)
-                ? `${((1 - Number(unitPrice) / Number(originalPrice)) * 100).toFixed(0)}%`
+              originalPrice > unitPrice
+                ? `${Math.round(((originalPrice - unitPrice) / originalPrice) * 100)}%`
                 : "—";
-            const lineTotal = Number(unitPrice) * item.quantity;
+            const lineTotal = unitPrice * item.quantity;
             return (
               <div
                 key={item.id}

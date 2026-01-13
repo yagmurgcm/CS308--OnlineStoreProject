@@ -598,7 +598,24 @@ export class OrderService {
           order.status === 'cancelled'
             ? purchasedQty
             : Math.min(purchasedQty, detail.returnedQuantity ?? 0);
-        const unitPrice = this.coerceNumber(detail.price);
+        
+        // Calculate unit price with discounted price if available
+        let unitPrice = this.coerceNumber(detail.price);
+        const product = detail.product;
+        
+        if (product) {
+          // Check if product has discountedPrice
+          if (product.discountedPrice !== null && product.discountedPrice !== undefined) {
+            unitPrice = this.coerceNumber(product.discountedPrice);
+          }
+          // Or calculate from discountRate
+          else if (product.discountRate && this.coerceNumber(product.discountRate) > 0 && product.price) {
+            const originalPrice = this.coerceNumber(product.price);
+            const discountRate = this.coerceNumber(product.discountRate);
+            unitPrice = originalPrice * (1 - discountRate / 100);
+          }
+        }
+        
         const totalRefunded = this.roundCurrency(unitPrice * returnedQty);
         return {
           ...detail,

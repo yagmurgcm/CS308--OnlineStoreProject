@@ -95,9 +95,12 @@ export default function SignInPage() {
         resolvedEmail.toLowerCase() === "admin@gmail.com" ||
         resolvedEmail.toLowerCase() === "product@gmail.com";
       const isSalesManager = payloadRole === "SALES_MANAGER";
+      const isSupportAgent = payloadRole === "SUPPORT_AGENT";
 
       setMessage(
-        isSalesManager
+        isSupportAgent
+          ? "Welcome Support Agent!"
+          : isSalesManager
           ? "Welcome Sales Manager!"
           : isAdmin
             ? "Welcome Admin!"
@@ -112,7 +115,9 @@ export default function SignInPage() {
       });
       setEmail("");
       setPassword("");
-      const redirectTo = isSalesManager
+      const redirectTo = isSupportAgent
+        ? "/support-agent"
+        : isSalesManager
         ? "/sales-manager"
         : isAdmin
           ? "/admin/products"

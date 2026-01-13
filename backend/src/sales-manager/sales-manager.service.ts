@@ -102,20 +102,48 @@ export class SalesManagerService {
     const orders = await this.orderRepo.find({
       where: { createdAt: Between(startDate, endDate) },
       order: { createdAt: 'DESC' },
-      relations: ['user'],
+      relations: ['user', 'details', 'details.product'],
     });
 
-    return orders.map((order) => ({
-      id: order.id,
-      date: order.createdAt,
-      status: order.status,
-      total: order.totalPrice,
-      customer: {
-        id: order.user?.id ?? null,
-        name: order.contactName ?? order.user?.name ?? null,
-        email: order.contactEmail ?? order.user?.email ?? null,
-      },
-    }));
+    return orders.map((order) => {
+      // Calculate total with discounted prices
+      let calculatedTotal = 0;
+      if (order.details && order.details.length > 0) {
+        for (const detail of order.details) {
+          const product = detail.product;
+          let unitPrice = this.coerceNumber(detail.price);
+          
+          // Check if product has discountedPrice
+          if (product?.discountedPrice !== null && product?.discountedPrice !== undefined) {
+            unitPrice = this.coerceNumber(product.discountedPrice);
+          }
+          // Or calculate from discountRate
+          else if (product?.discountRate && this.coerceNumber(product.discountRate) > 0 && product?.price) {
+            const originalPrice = this.coerceNumber(product.price);
+            const discountRate = this.coerceNumber(product.discountRate);
+            unitPrice = originalPrice * (1 - discountRate / 100);
+          }
+          
+          const quantity = this.coerceNumber(detail.quantity);
+          calculatedTotal += unitPrice * quantity;
+        }
+      } else {
+        // Fallback to order.totalPrice if no details
+        calculatedTotal = this.coerceNumber(order.totalPrice);
+      }
+
+      return {
+        id: order.id,
+        date: order.createdAt,
+        status: order.status,
+        total: this.roundCurrency(calculatedTotal),
+        customer: {
+          id: order.user?.id ?? null,
+          name: order.contactName ?? order.user?.name ?? null,
+          email: order.contactEmail ?? order.user?.email ?? null,
+        },
+      };
+    });
   }
 
   async getInvoicePdf(orderId: number): Promise<Buffer> {

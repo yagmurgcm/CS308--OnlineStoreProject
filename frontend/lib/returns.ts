@@ -14,6 +14,8 @@ export type ReturnRequestItem = {
       id: number;
       name: string;
       price?: number | string;
+      discountedPrice?: number | string | null;
+      discountRate?: number | string | null;
     };
     variant?: {
       id: number;
