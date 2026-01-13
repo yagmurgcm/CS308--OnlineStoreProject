@@ -22,10 +22,7 @@ import { ReturnRequestItem } from './return-request-item.entity';
 import { MailService } from '../mail/mail.service';
 
 const CANCEL_ELIGIBLE_STATUSES = new Set([
-  'pending',
   'processing',
-  'in-transit',
-  'shipped',
 ]);
 
 const RETURN_ELIGIBLE_STATUSES = new Set([
@@ -321,7 +318,7 @@ export class OrderService {
 
   async cancelOrder(orderId: number, userId: number) {
     const order = await this.assertOrderOwnership(orderId, userId);
-    this.assertWithinReturnWindow(order); // Cancel also requires 30-day window
+    // Only "processing" status can be cancelled (no return window check needed)
     return this.cancelAndRestock(orderId, order);
   }
 
@@ -335,7 +332,7 @@ export class OrderService {
     }
     if (baseStatus && !CANCEL_ELIGIBLE_STATUSES.has(baseStatus)) {
       throw new BadRequestException(
-        'Only undelivered orders can be cancelled',
+        'Only orders with "processing" status can be cancelled',
       );
     }
 

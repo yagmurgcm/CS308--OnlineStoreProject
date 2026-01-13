@@ -58,9 +58,8 @@ export default function OrderDetailPage() {
   const isWithinReturnWindow = createdAt
     ? Date.now() - createdAt.getTime() <= 30 * 24 * 60 * 60 * 1000
     : true;
-  const isCancelableStatus = ["pending", "processing", "in-transit", "shipped"].includes(
-    status,
-  );
+  // Only "processing" status can be cancelled
+  const isCancelableStatus = status === "processing";
   // According to PDF: "it can only be refunded if it is in 'delivered' status"
   // And: "within 30 days of purchase, provided the product has been delivered"
   const isReturnableStatus = ["delivered", "partially_returned"].includes(status);
@@ -106,7 +105,7 @@ export default function OrderDetailPage() {
   const handleCancel = async () => {
     if (!order) return;
     if (!isCancelableStatus) {
-      setError("Only undelivered orders can be cancelled.");
+      setError("Only orders with 'processing' status can be cancelled.");
       return;
     }
     setActionLoading(true);
@@ -182,7 +181,8 @@ export default function OrderDetailPage() {
     }
   };
 
-  const isCancelable = order && isCancelableStatus && isWithinReturnWindow;
+  // Only "processing" status can be cancelled (no return window check needed)
+  const isCancelable = order && isCancelableStatus;
 
   const returnableDetails = useMemo(() => {
     return (order?.details || []).map((detail) => {
