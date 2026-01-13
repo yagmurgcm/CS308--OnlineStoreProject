@@ -19,6 +19,8 @@ type Product = {
   subcategory?: string;
   description?: string;
   price: number | string;
+  discountedPrice?: number | string | null;
+  discountRate?: number | string | null;
   stock: number;
   isActive: boolean;
   image?: string;
@@ -750,7 +752,20 @@ export default function AdminProductsPage() {
                         {product.subcategory || "-"}
                       </td>
                       <td className="px-4 py-2 text-xs font-medium text-gray-900">
-                        {priceFmt.format(coercePrice(product.price))}
+                        {(() => {
+                          // Use discountedPrice if available, otherwise use product.price
+                          let displayPrice = coercePrice(product.price);
+                          
+                          if (product.discountedPrice) {
+                            displayPrice = coercePrice(product.discountedPrice);
+                          } else if (product.discountRate && Number(product.discountRate) > 0) {
+                            const originalPrice = coercePrice(product.price);
+                            const discountRate = Number(product.discountRate);
+                            displayPrice = originalPrice * (1 - discountRate / 100);
+                          }
+                          
+                          return priceFmt.format(displayPrice);
+                        })()}
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <span

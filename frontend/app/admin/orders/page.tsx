@@ -10,6 +10,9 @@ type OrderDetail = {
   product?: {
     id: number;
     name: string;
+    price?: number | string;
+    discountedPrice?: number | string | null;
+    discountRate?: number | string | null;
   };
 };
 
@@ -150,7 +153,27 @@ export default function AdminOrdersPage() {
                 </thead>
                 <tbody>
                   {orders.map((order) => {
-                    const total = coercePrice(order.totalPrice);
+                    // Calculate total from order details with discounts
+                    const calculatedTotal = order.details?.reduce((sum, detail) => {
+                      const product = detail.product;
+                      let unitPrice = coercePrice(detail.price);
+                      
+                      // Check if product has discountedPrice
+                      if (product?.discountedPrice) {
+                        unitPrice = coercePrice(product.discountedPrice);
+                      } 
+                      // Or calculate from discountRate
+                      else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                        const originalPrice = coercePrice(product.price);
+                        const discountRate = Number(product.discountRate);
+                        unitPrice = originalPrice * (1 - discountRate / 100);
+                      }
+                      
+                      const lineTotal = unitPrice * detail.quantity;
+                      return sum + lineTotal;
+                    }, 0) || coercePrice(order.totalPrice);
+                    
+                    const total = calculatedTotal;
                     const totalQuantity = order.details?.reduce((a, d) => a + d.quantity, 0) || 0;
                     const fullAddress = [
                       order.shippingAddress,
@@ -287,20 +310,39 @@ export default function AdminOrdersPage() {
                                       📦 Order Items
                                     </h4>
                                     <div className="space-y-2">
-                                      {order.details?.map((detail, idx) => (
-                                        <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-                                          <div>
-                                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono text-xs mr-2">
-                                              #{detail.product?.id}
+                                      {order.details?.map((detail, idx) => {
+                                        // Calculate discounted price if available
+                                        const product = detail.product;
+                                        let unitPrice = coercePrice(detail.price);
+                                        
+                                        // Check if product has discountedPrice
+                                        if (product?.discountedPrice) {
+                                          unitPrice = coercePrice(product.discountedPrice);
+                                        } 
+                                        // Or calculate from discountRate
+                                        else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                                          const originalPrice = coercePrice(product.price);
+                                          const discountRate = Number(product.discountRate);
+                                          unitPrice = originalPrice * (1 - discountRate / 100);
+                                        }
+                                        
+                                        const lineTotal = unitPrice * detail.quantity;
+                                        
+                                        return (
+                                          <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                                            <div>
+                                              <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono text-xs mr-2">
+                                                #{detail.product?.id}
+                                              </span>
+                                              <span className="font-medium">{detail.product?.name || "Unknown"}</span>
+                                              <span className="text-gray-500 ml-1">× {detail.quantity}</span>
+                                            </div>
+                                            <span className="font-medium text-green-700">
+                                              {priceFmt.format(lineTotal)}
                                             </span>
-                                            <span className="font-medium">{detail.product?.name || "Unknown"}</span>
-                                            <span className="text-gray-500 ml-1">× {detail.quantity}</span>
                                           </div>
-                                          <span className="font-medium text-green-700">
-                                            {priceFmt.format(coercePrice(detail.price) * detail.quantity)}
-                                          </span>
-                                        </div>
-                                      ))}
+                                        );
+                                      })}
                                     </div>
                                   </div>
 

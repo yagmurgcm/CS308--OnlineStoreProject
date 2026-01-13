@@ -201,13 +201,6 @@ export default function SalesManagerReturnsPage() {
               >
                 {actionId === request.id ? "..." : "Approve"}
               </button>
-              <button
-                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm disabled:opacity-50"
-                disabled={actionId === request.id}
-                onClick={() => handleDecision(request.id, "rejected")}
-              >
-                {actionId === request.id ? "..." : "Reject"}
-              </button>
             </div>
           ) : (
             <span className="text-xs px-2 py-1 rounded-full border bg-gray-50 text-gray-700">
