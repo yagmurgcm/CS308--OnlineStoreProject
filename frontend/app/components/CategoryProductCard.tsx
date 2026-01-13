@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 import { useWishlist } from "@/store/wishlistContext";
 
 // 👇 TİP TANIMI (TAPU) - Backend'den gelen veriye uygun
@@ -36,8 +36,10 @@ export default function CategoryProductCard({
 }: {
   product: CategoryProduct;
 }) {
-  const { addItemToWishlist } = useWishlist();
-  const [isInWishlist, setIsInWishlist] = useState(false);
+  const { wishlist, addItemToWishlist, removeItemFromWishlist } = useWishlist();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const wishlistEntry = wishlist.find((item) => item.productId === product.productId);
+  const isWishlisted = Boolean(wishlistEntry);
 
   // 🛠️ BACKEND VERİSİNİ İŞLEME (String gelse bile sayıya çeviriyoruz)
   const rawRating = product.averageRating ? Number(product.averageRating) : 0;
@@ -49,9 +51,13 @@ export default function CategoryProductCard({
     product.originalPrice !== undefined &&
     product.originalPrice > product.price;
 
-  const handleAddToWishlist = () => {
-    setIsInWishlist(true);
-    setTimeout(() => setIsInWishlist(false), 400);
+  const handleWishlistToggle = () => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 400);
+    if (isWishlisted && wishlistEntry) {
+      removeItemFromWishlist(wishlistEntry.id);
+      return;
+    }
     addItemToWishlist({
       id: String(product.productId),
       productId: product.productId,
@@ -68,12 +74,12 @@ export default function CategoryProductCard({
         type="button"
         onClick={(e) => {
           e.preventDefault();
-          handleAddToWishlist();
+          handleWishlistToggle();
         }}
-        className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-300 ${isInWishlist ? "scale-110 text-red-500" : "text-neutral-400 hover:text-red-500"
+        className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-300 ${isAnimating ? "scale-110" : ""} ${isWishlisted ? "text-pink-500" : "text-neutral-400 hover:text-pink-500"
           }`}
       >
-        {isInWishlist ? "💖" : "🤍"}
+        <Heart className={isWishlisted ? "h-4 w-4 fill-current" : "h-4 w-4"} />
       </button>
 
       {/* Resim */}

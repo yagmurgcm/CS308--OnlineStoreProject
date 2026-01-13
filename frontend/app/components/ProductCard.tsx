@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useWishlist } from "@/store/wishlistContext";
-import { Star } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 
 type ProductCardProps = {
   productId: number;
@@ -38,17 +38,23 @@ export default function ProductCard({
   averageRating,
   reviewCount,
 }: ProductCardProps) {
-  const { addItemToWishlist } = useWishlist();
-  const [isInWishlist, setIsInWishlist] = useState(false);
+  const { wishlist, addItemToWishlist, removeItemFromWishlist } = useWishlist();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const wishlistEntry = wishlist.find((item) => item.productId === productId);
+  const isWishlisted = Boolean(wishlistEntry);
 
   const image = img ?? "/images/1.jpg";
   
   // Puanı sayıya çevir
   const ratingValue = Number(averageRating || 0);
 
-  const handleAddToWishlist = () => {
-    setIsInWishlist(true);
-    setTimeout(() => setIsInWishlist(false), 400);
+  const handleWishlistToggle = () => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 400);
+    if (isWishlisted && wishlistEntry) {
+      removeItemFromWishlist(wishlistEntry.id);
+      return;
+    }
     addItemToWishlist({
       id: String(productId),
       productId,
@@ -69,14 +75,15 @@ export default function ProductCard({
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          handleAddToWishlist();
+          handleWishlistToggle();
         }}
         className={`absolute z-20 right-2 top-2 flex h-8 w-8 items-center justify-center
               rounded-full bg-white shadow-sm border border-gray-100 cursor-pointer
               transition-all duration-300 
-              ${isInWishlist ? "scale-110 text-red-500" : "text-gray-400 hover:text-red-500"}`}
+              ${isAnimating ? "scale-110" : ""}
+              ${isWishlisted ? "text-pink-500" : "text-gray-400 hover:text-pink-500"}`}
       >
-        {isInWishlist ? "💖" : "🤍"}
+        <Heart className={isWishlisted ? "h-4 w-4 fill-current" : "h-4 w-4"} />
       </button>
 
       {/* RESİM */}

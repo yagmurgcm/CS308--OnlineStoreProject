@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useWishlist } from "@/store/wishlistContext";
 
 export default function WishlistsPage() {
@@ -36,13 +37,14 @@ export default function WishlistsPage() {
               🗑️
             </button>
 
-            <div
-              className="aspect-[3/4] bg-cover bg-center rounded-md mb-3"
-              style={{ backgroundImage: `url('${item.image}')` }}
-            />
-
-            <div className="text-sm text-gray-700">{item.name}</div>
-            <div className="font-semibold">₺{item.price.toFixed(2)}</div>
+            <Link href={`/products/${item.productId}`} className="block">
+              <div
+                className="aspect-[3/4] bg-cover bg-center rounded-md mb-3"
+                style={{ backgroundImage: `url('${item.image}')` }}
+              />
+              <div className="text-sm text-gray-700">{item.name}</div>
+              <div className="font-semibold">₺{item.price.toFixed(2)}</div>
+            </Link>
           </div>
         ))}
       </div>

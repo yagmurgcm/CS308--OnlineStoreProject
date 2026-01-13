@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CART_AUTH_ERROR, CartItemInput, useCart } from "@/lib/cart-context";
+import Toast from "@/app/components/Toast";
 
 type AddToCartButtonProps = {
   product: CartItemInput;
@@ -19,6 +20,7 @@ export default function AddToCartButton({
   const { addItem } = useCart();
   const [justAdded, setJustAdded] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [toastId, setToastId] = useState(0);
 
   // 🔥 DÜZELTME BURADA: (e: React.MouseEvent) parametresini ekledik
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -31,6 +33,7 @@ export default function AddToCartButton({
       await addItem(product);
       setJustAdded(true);
       window.setTimeout(() => setJustAdded(false), 1000);
+      setToastId((current) => current + 1);
     } catch (error) {
       if (error instanceof Error && error.message === CART_AUTH_ERROR) {
         router.push("/sign-in");
@@ -43,14 +46,25 @@ export default function AddToCartButton({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className={className || "btn btn-primary w-full text-sm"}
-      aria-live="polite"
-      disabled={loading}
-    >
-      {loading ? "Adding..." : justAdded ? "Added!" : (children || "Add to cart")}
-    </button>
+    <>
+      {toastId > 0 && (
+        <Toast
+          key={toastId}
+          message="Added to cart."
+          type="success"
+          onDismiss={() => setToastId(0)}
+          durationMs={2500}
+        />
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        className={className || "btn btn-primary w-full text-sm"}
+        aria-live="polite"
+        disabled={loading}
+      >
+        {loading ? "Adding..." : justAdded ? "Added!" : (children || "Add to cart")}
+      </button>
+    </>
   );
 }

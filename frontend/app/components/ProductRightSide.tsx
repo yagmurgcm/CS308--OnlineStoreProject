@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Star } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 import AddToCartButton from "../components/AddToCartButton";
 import { useWishlist } from "@/store/wishlistContext";
 import { resolvePricing } from "@/lib/products";
@@ -82,8 +82,10 @@ export default function ProductRightSide({ product }: { product: Product }) {
     }
   }, [availableColors, availableSizes]); // Dependency array'i de bu şekilde sadeleştirebilirsin
 
-  const { addItemToWishlist } = useWishlist();
-  const [isInWishlist, setIsInWishlist] = useState(false);
+  const { wishlist, addItemToWishlist, removeItemFromWishlist } = useWishlist();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const wishlistEntry = wishlist.find((item) => item.productId === product.id);
+  const isWishlisted = Boolean(wishlistEntry);
 
   // Seçili varyantı bul
   const selectedVariant = variants.find(
@@ -117,9 +119,13 @@ export default function ProductRightSide({ product }: { product: Product }) {
     if (currentStock === 0) setQuantity(1);
   }, [selectedVariant, currentStock]);
 
-  const handleAddToWishlist = () => {
-    setIsInWishlist(true);
-    setTimeout(() => setIsInWishlist(false), 400);
+  const handleWishlistToggle = () => {
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 400);
+    if (isWishlisted && wishlistEntry) {
+      removeItemFromWishlist(wishlistEntry.id);
+      return;
+    }
     addItemToWishlist({
       id: String(product.id),
       productId: product.id,
@@ -307,13 +313,15 @@ export default function ProductRightSide({ product }: { product: Product }) {
 
         <div className="flex justify-end pt-2">
           <button
-            onClick={handleAddToWishlist}
+            onClick={handleWishlistToggle}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-black transition-colors py-2 px-4 border border-transparent hover:border-gray-200"
           >
-            <span className={`text-xl ${isInWishlist ? 'text-red-600' : 'text-gray-400'}`}>
-              {isInWishlist ? "♥" : "♡"}
+            <span className={`${isWishlisted ? "text-pink-500" : "text-gray-400"} ${isAnimating ? "scale-110" : ""} transition-transform`}>
+              <Heart className={isWishlisted ? "h-5 w-5 fill-current" : "h-5 w-5"} />
             </span>
-            <span className="underline underline-offset-4">Add to Wishlist</span>
+            <span className="underline underline-offset-4">
+              {isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
+            </span>
           </button>
         </div>
       </div>
