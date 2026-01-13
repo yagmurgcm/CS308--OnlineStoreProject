@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 type ProductVariant = {
   id: number;
@@ -59,6 +60,8 @@ const priceFmt = new Intl.NumberFormat("tr-TR", {
 });
 
 export default function AdminProductsPage() {
+  const { user } = useAuth();
+  const isProductManager = user?.email?.toLowerCase() === "product@gmail.com";
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,16 +299,20 @@ export default function AdminProductsPage() {
 
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         name: formData.name,
         category: formData.category,
         subcategory: formData.subcategory || null,
         description: formData.description || null,
-        price: price,
         stock: stock,
         isActive: formData.isActive,
         image: formData.image || null,
       };
+      
+      // Product manager cannot set price - only sales manager can
+      if (!isProductManager) {
+        payload.price = price;
+      }
 
       console.log(`📤 [FRONTEND] Sending update request for product ID: ${editingId}`);
       console.log(`📝 [FRONTEND] Payload being sent:`, payload);
@@ -390,23 +397,31 @@ export default function AdminProductsPage() {
     try {
       if (selectedVariant) {
         // Update existing variant
-        const variantUpdate = {
+        const variantUpdate: any = {
           color: variantFormData.color,
           size: variantFormData.size,
-          price: variantPrice,
           stock: variantStock,
         };
+        
+        // Product manager cannot set price - only sales manager can
+        if (!isProductManager) {
+          variantUpdate.price = variantPrice;
+        }
 
         await api.put(`/products/variant/${selectedVariant.id}`, variantUpdate);
         showToast("Variant updated successfully", "success");
       } else if (selectedProduct) {
         // Create new variant
-        const variantCreate = {
+        const variantCreate: any = {
           color: variantFormData.color,
           size: variantFormData.size,
-          price: variantPrice,
           stock: variantStock,
         };
+        
+        // Product manager cannot set price - only sales manager can
+        if (!isProductManager) {
+          variantCreate.price = variantPrice;
+        }
 
         await api.post(`/products/${selectedProduct.id}/variant`, variantCreate);
         showToast("Variant created successfully", "success");
@@ -932,10 +947,17 @@ export default function AdminProductsPage() {
                     step="0.01"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isProductManager}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isProductManager ? "bg-gray-100 text-gray-600 cursor-not-allowed" : ""
+                    }`}
                     placeholder="0.00"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Base price (can be overridden by variants)</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {isProductManager 
+                      ? "Price can only be set by Sales Manager" 
+                      : "Base price (can be overridden by variants)"}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -1219,10 +1241,18 @@ export default function AdminProductsPage() {
                     onChange={(e) =>
                       setVariantFormData({ ...variantFormData, price: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isProductManager}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      isProductManager ? "bg-gray-100 text-gray-600 cursor-not-allowed" : ""
+                    }`}
                     placeholder="0.00"
-                    required
+                    required={!isProductManager}
                   />
+                  {isProductManager && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Price can only be set by Sales Manager
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-1">

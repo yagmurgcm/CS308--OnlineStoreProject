@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  Request,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { Product } from './entities/product.entity';
@@ -49,7 +50,11 @@ export class ProductController {
   // POST endpoint (add new product) - Admin only
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() product: CreateProductDto): Promise<Product> {
+  create(@Body() product: CreateProductDto, @Request() req: any): Promise<Product> {
+    // Product manager cannot set price - only sales manager can
+    if (req.user?.email?.toLowerCase() === 'product@gmail.com') {
+      delete (product as any).price;
+    }
     return this.productService.create(product as Product);
   }
 
@@ -59,9 +64,14 @@ export class ProductController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() product: UpdateProductDto,
+    @Request() req: any,
   ): Promise<Product> {
     console.log(`🚀 [BACKEND CONTROLLER] Update request received for Product ID: ${id}`);
     console.log(`📦 [BACKEND CONTROLLER] Payload:`, product);
+    // Product manager cannot set price - only sales manager can
+    if (req.user?.email?.toLowerCase() === 'product@gmail.com') {
+      delete (product as any).price;
+    }
     return this.productService.update(id, product);
   }
 
@@ -78,7 +88,12 @@ export class ProductController {
   createVariant(
     @Param('productId', ParseIntPipe) productId: number,
     @Body() variant: any,
+    @Request() req: any,
   ): Promise<any> {
+    // Product manager cannot set price - only sales manager can
+    if (req.user?.email?.toLowerCase() === 'product@gmail.com') {
+      delete variant.price;
+    }
     return this.productService.createVariant(productId, variant);
   }
 
@@ -88,7 +103,12 @@ export class ProductController {
   updateVariant(
     @Param('variantId', ParseIntPipe) variantId: number,
     @Body() variant: any,
+    @Request() req: any,
   ): Promise<any> {
+    // Product manager cannot set price - only sales manager can
+    if (req.user?.email?.toLowerCase() === 'product@gmail.com') {
+      delete variant.price;
+    }
     return this.productService.updateVariant(variantId, variant);
   }
 
