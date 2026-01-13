@@ -76,11 +76,6 @@ export default function DiscountsPage() {
   // Price editing state
   const [actionMode, setActionMode] = useState<"discount" | "price">("discount");
   const [newPrice, setNewPrice] = useState<string>("");
-  
-  // Test email state
-  const [testEmail, setTestEmail] = useState<string>("");
-  const [testEmailLoading, setTestEmailLoading] = useState(false);
-  const [testEmailResult, setTestEmailResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialized) return;
@@ -319,31 +314,6 @@ export default function DiscountsPage() {
     }
   };
 
-  const handleTestEmail = async () => {
-    if (!testEmail || !testEmail.includes("@")) {
-      setTestEmailResult("❌ Please enter a valid email address.");
-      return;
-    }
-    setTestEmailLoading(true);
-    setTestEmailResult(null);
-    try {
-      const result = await api.post<{ to: string; ok: boolean; messageId: string | null; response: string | null }>("/sales-manager/test-email", {
-        to: testEmail,
-      });
-      if (result.ok) {
-        setTestEmailResult(`✅ Test email sent successfully! Message ID: ${result.messageId || "N/A"}`);
-      } else {
-        setTestEmailResult(`❌ Email sending failed. Check backend logs.`);
-      }
-    } catch (error) {
-      console.error("Failed to send test email", error);
-      setTestEmailResult(
-        `❌ Error: ${error instanceof Error ? error.message : "Failed to send test email."}`,
-      );
-    } finally {
-      setTestEmailLoading(false);
-    }
-  };
 
   if (!initialized || !user || user.role !== "SALES_MANAGER") {
     return (
@@ -373,48 +343,6 @@ export default function DiscountsPage() {
             ← Back to dashboard
           </button>
         </div>
-      </div>
-
-      {/* Test Email Section */}
-      <div className="rounded-2xl border border-yellow-300 bg-yellow-50/50 p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🧪</span>
-          <h2 className="text-lg font-semibold text-gray-900">Test Email Sending</h2>
-        </div>
-        <p className="text-sm text-gray-600">
-          Test if email sending is working. Enter an email address and click "Send Test Email".
-        </p>
-        <div className="flex gap-3 items-end">
-          <div className="flex-1">
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={testEmail}
-              onChange={(e) => setTestEmail(e.target.value)}
-              placeholder="your-email@example.com"
-              className="w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-black focus:outline-none"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleTestEmail}
-            disabled={testEmailLoading || !testEmail}
-            className="inline-flex items-center rounded-full border border-yellow-600 bg-yellow-600 text-white px-5 py-2 text-sm font-medium hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {testEmailLoading ? "Sending..." : "📧 Send Test Email"}
-          </button>
-        </div>
-        {testEmailResult && (
-          <div className={`p-3 rounded-lg text-sm ${
-            testEmailResult.includes("✅") 
-              ? "bg-green-100 text-green-800" 
-              : "bg-red-100 text-red-800"
-          }`}>
-            {testEmailResult}
-          </div>
-        )}
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-white/80 backdrop-blur p-6 space-y-6">
