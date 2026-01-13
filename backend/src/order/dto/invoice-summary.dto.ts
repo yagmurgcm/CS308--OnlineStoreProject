@@ -2,8 +2,11 @@ export type InvoiceItemDto = {
   productName: string;
   variant: string | null;
   unitPrice: number;
+  originalPrice?: number | null;
+  discountRate?: number | null;
   quantity: number;
   lineTotal: number;
+  originalLineTotal?: number | null;
 };
 
 export type InvoiceTotalsDto = {

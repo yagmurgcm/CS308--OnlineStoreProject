@@ -100,19 +100,62 @@ export default function OrderConfirmedPage() {
         <section className="space-y-4 rounded-xl border border-[var(--line)] bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold">Items</h2>
           <div className="divide-y divide-[var(--line)]">
-            {order.details?.map((detail) => (
-              <div key={detail.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{detail.product?.name ?? "Product"}</p>
-                  <p className="text-xs text-neutral-500">
-                    Qty {detail.quantity} • Product #{detail.product?.id}
-                  </p>
+            {order.details?.map((detail) => {
+              // Use discountedPrice if available, otherwise use detail.price
+              const product = detail.product;
+              let unitPrice = Number(detail.price);
+              let originalPrice: number | null = null;
+              let discountRate: number | null = null;
+              let hasDiscount = false;
+              
+              // Check if product has discountedPrice
+              if (product?.discountedPrice) {
+                originalPrice = Number(product.price);
+                unitPrice = Number(product.discountedPrice);
+                discountRate = originalPrice > 0 
+                  ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
+                  : 0;
+                hasDiscount = discountRate > 0;
+              } 
+              // Or calculate from discountRate
+              else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                originalPrice = Number(product.price);
+                discountRate = Number(product.discountRate);
+                unitPrice = originalPrice * (1 - discountRate / 100);
+                hasDiscount = discountRate > 0;
+              }
+              
+              const lineTotal = unitPrice * detail.quantity;
+              const originalLineTotal = originalPrice ? originalPrice * detail.quantity : null;
+              
+              return (
+                <div key={detail.id} className="flex items-start justify-between py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-neutral-900">{detail.product?.name ?? "Product"}</p>
+                    <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <p className="text-xs text-neutral-500">
+                        Qty {detail.quantity} • Product #{detail.product?.id}
+                      </p>
+                      {hasDiscount && discountRate && (
+                        <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded whitespace-nowrap">
+                          {discountRate}% OFF
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right ml-4 flex-shrink-0">
+                    {hasDiscount && originalLineTotal && (
+                      <div className="text-xs text-neutral-400 mb-1">
+                        <span className="line-through">{priceFmt.format(originalLineTotal)}</span>
+                      </div>
+                    )}
+                    <span className="text-sm font-semibold text-neutral-900">
+                      {priceFmt.format(lineTotal)}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-sm font-semibold text-neutral-900">
-                  {priceFmt.format(Number(detail.price) * detail.quantity)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -125,7 +168,29 @@ export default function OrderConfirmedPage() {
             </div>
             <div className="flex items-center justify-between">
               <span>Total</span>
-              <span className="font-semibold">{priceFmt.format(Number(order.totalPrice))}</span>
+              <span className="font-semibold">
+                {priceFmt.format(
+                  order.details?.reduce((sum, detail) => {
+                    // Use discountedPrice if available, otherwise use detail.price
+                    const product = detail.product;
+                    let unitPrice = Number(detail.price);
+                    
+                    // Check if product has discountedPrice
+                    if (product?.discountedPrice) {
+                      unitPrice = Number(product.discountedPrice);
+                    } 
+                    // Or calculate from discountRate
+                    else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                      const originalPrice = Number(product.price);
+                      const discountRate = Number(product.discountRate);
+                      unitPrice = originalPrice * (1 - discountRate / 100);
+                    }
+                    
+                    const lineTotal = unitPrice * detail.quantity;
+                    return sum + lineTotal;
+                  }, 0) || Number(order.totalPrice)
+                )}
+              </span>
             </div>
             {order.contactName && (
               <div className="flex items-center justify-between">

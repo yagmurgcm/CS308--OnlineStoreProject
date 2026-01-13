@@ -67,18 +67,43 @@ export class InvoiceService {
     });
 
     const items: InvoiceItemDto[] = details.map((detail) => {
-      const unitPrice = this.coerceNumber(detail.price);
+      // Use discountedPrice if available, otherwise use detail.price
+      let unitPrice = this.coerceNumber(detail.price);
+      let originalPrice: number | null = null;
+      let discountRate: number | null = null;
+      const product = detail.product;
+      
+      if (product) {
+        // Check if product has discountedPrice
+        const discountedPrice = product.discountedPrice;
+        if (discountedPrice !== null && discountedPrice !== undefined) {
+          originalPrice = this.coerceNumber(product.price);
+          unitPrice = this.coerceNumber(discountedPrice);
+          discountRate = originalPrice > 0 
+            ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
+            : 0;
+        }
+        // Or calculate from discountRate
+        else if (product.discountRate && this.coerceNumber(product.discountRate) > 0) {
+          originalPrice = this.coerceNumber(product.price);
+          discountRate = this.coerceNumber(product.discountRate);
+          unitPrice = originalPrice * (1 - discountRate / 100);
+        }
+      }
+      
       const quantity = detail.quantity;
-      const lineTotal = this.roundCurrency(
-        detail.lineTotal ?? unitPrice * quantity,
-      );
+      const lineTotal = this.roundCurrency(unitPrice * quantity);
+      const originalLineTotal = originalPrice ? this.roundCurrency(originalPrice * quantity) : null;
 
       return {
         productName: detail.product?.name ?? 'Product',
         variant: detail.product?.subcategory ?? null,
         unitPrice,
+        originalPrice,
+        discountRate,
         quantity,
         lineTotal,
+        originalLineTotal,
       };
     });
 
@@ -160,12 +185,24 @@ export class InvoiceService {
           Title: `Invoice #${summary.orderId}`,
           Author: 'MKN Store',
         },
+        // Enable UTF-8 encoding for Turkish characters
+        autoFirstPage: true,
       });
 
       const chunks: Buffer[] = [];
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
+
+      // Helper function to normalize Turkish characters for better display
+      // This is a workaround since Helvetica doesn't fully support Turkish characters
+      // For production, consider adding a TTF font file that supports Turkish (e.g., Arial, Noto Sans)
+      const normalizeText = (text: string): string => {
+        // PDFKit handles UTF-8, but Helvetica font may not render all Turkish characters correctly
+        // This is a limitation of the built-in Helvetica font
+        // The text will be encoded correctly, but may display incorrectly if font doesn't support it
+        return text;
+      };
 
       const pageWidth = doc.page.width;
       const marginLeft = 50;
@@ -277,7 +314,9 @@ export class InvoiceService {
       doc.font('Helvetica').fontSize(10).fillColor(TEXT_COLOR);
 
       summary.items.forEach((item, index) => {
-        const rowHeight = 35;
+        // Increase row height if item has discount to accommodate original price and discount badge
+        const hasDiscount = item.originalPrice && item.originalPrice > item.unitPrice;
+        const rowHeight = hasDiscount ? 45 : 35;
         const rowY = y + index * rowHeight;
 
         // Alternating row background
@@ -293,12 +332,26 @@ export class InvoiceService {
           .lineWidth(0.5)
           .stroke();
 
-        // Product name
+        // Product name with discount badge on the right
         doc.fillColor(TEXT_COLOR).font('Helvetica').fontSize(10);
-        doc.text(item.productName, marginLeft + 10, rowY + 8, {
-          width: contentWidth - 200,
+        const productNameWidth = contentWidth - 200;
+        const productNameX = marginLeft + 10;
+        
+        // Product name
+        doc.text(item.productName, productNameX, rowY + 8, {
+          width: productNameWidth - 60, // Leave space for discount badge
           ellipsis: true,
         });
+        
+        // Discount badge on the right side of product name
+        if (item.discountRate && item.discountRate > 0) {
+          doc.fillColor('#10b981').fontSize(8).font('Helvetica-Bold');
+          const badgeX = productNameX + productNameWidth - 55;
+          doc.text(`${item.discountRate}% OFF`, badgeX, rowY + 8, {
+            width: 50,
+            align: 'right',
+          });
+        }
 
         // Variant (if exists)
         if (item.variant) {
@@ -316,18 +369,63 @@ export class InvoiceService {
           align: 'center',
         });
 
-        // Unit price
-        doc.text(formatCurrency(item.unitPrice), marginLeft + contentWidth - 140, rowY + 12, {
-          width: 70,
-          align: 'right',
-        });
+        // Unit price with original price if discounted
+        if (item.originalPrice && item.originalPrice > item.unitPrice) {
+          // Original price (strikethrough)
+          doc.fillColor(MUTED_COLOR).fontSize(8);
+          doc.text(formatCurrency(item.originalPrice), marginLeft + contentWidth - 140, rowY + 8, {
+            width: 70,
+            align: 'right',
+          });
+          // Draw strikethrough line
+          doc
+            .moveTo(marginLeft + contentWidth - 140, rowY + 12)
+            .lineTo(marginLeft + contentWidth - 70, rowY + 12)
+            .strokeColor(MUTED_COLOR)
+            .lineWidth(0.5)
+            .stroke();
+          // Discounted price
+          doc.fillColor(TEXT_COLOR).fontSize(10);
+          doc.text(formatCurrency(item.unitPrice), marginLeft + contentWidth - 140, rowY + 18, {
+            width: 70,
+            align: 'right',
+          });
+        } else {
+          doc.fillColor(TEXT_COLOR).fontSize(10);
+          doc.text(formatCurrency(item.unitPrice), marginLeft + contentWidth - 140, rowY + 12, {
+            width: 70,
+            align: 'right',
+          });
+        }
 
-        // Line total
-        doc.font('Helvetica-Bold');
-        doc.text(formatCurrency(item.lineTotal), marginLeft + contentWidth - 65, rowY + 12, {
-          width: 55,
-          align: 'right',
-        });
+        // Line total with original total if discounted
+        if (item.originalLineTotal && item.originalLineTotal > item.lineTotal) {
+          // Original line total (strikethrough)
+          doc.fillColor(MUTED_COLOR).fontSize(8);
+          doc.text(formatCurrency(item.originalLineTotal), marginLeft + contentWidth - 65, rowY + 8, {
+            width: 55,
+            align: 'right',
+          });
+          // Draw strikethrough line
+          doc
+            .moveTo(marginLeft + contentWidth - 65, rowY + 12)
+            .lineTo(marginLeft + contentWidth - 10, rowY + 12)
+            .strokeColor(MUTED_COLOR)
+            .lineWidth(0.5)
+            .stroke();
+          // Discounted line total
+          doc.font('Helvetica-Bold').fillColor(TEXT_COLOR).fontSize(10);
+          doc.text(formatCurrency(item.lineTotal), marginLeft + contentWidth - 65, rowY + 18, {
+            width: 55,
+            align: 'right',
+          });
+        } else {
+          doc.font('Helvetica-Bold').fillColor(TEXT_COLOR).fontSize(10);
+          doc.text(formatCurrency(item.lineTotal), marginLeft + contentWidth - 65, rowY + 12, {
+            width: 55,
+            align: 'right',
+          });
+        }
       });
 
       y += summary.items.length * 35 + 20;

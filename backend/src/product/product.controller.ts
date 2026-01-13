@@ -91,4 +91,11 @@ export class ProductController {
   ): Promise<any> {
     return this.productService.updateVariant(variantId, variant);
   }
+
+  // DELETE endpoint (delete variant by id) - Admin only
+  @UseGuards(JwtAuthGuard)
+  @Delete('variant/:variantId')
+  removeVariant(@Param('variantId', ParseIntPipe) variantId: number): Promise<void> {
+    return this.productService.removeVariant(variantId);
+  }
 }

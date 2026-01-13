@@ -61,6 +61,8 @@ export default function OrderDetailPage() {
   const isCancelableStatus = ["pending", "processing", "in-transit", "shipped"].includes(
     status,
   );
+  // According to PDF: "it can only be refunded if it is in 'delivered' status"
+  // And: "within 30 days of purchase, provided the product has been delivered"
   const isReturnableStatus = ["delivered", "partially_returned"].includes(status);
   const canRequestReturn = isReturnableStatus && isWithinReturnWindow;
 
@@ -277,30 +279,67 @@ export default function OrderDetailPage() {
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="md:col-span-2 space-y-3">
-          {returnableDetails.map((detail) => (
-            <div
-              key={detail.id}
-              className="p-4 border border-gray-200 rounded-lg flex flex-col gap-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-medium text-gray-900">
-                    {detail.product?.name || "Product"}
+          {returnableDetails.map((detail) => {
+            // Calculate discount info
+            const product = detail.product as any;
+            let unitPrice = Number(detail.price);
+            let originalPrice: number | null = null;
+            let discountRate: number | null = null;
+            let hasDiscount = false;
+            
+            if (product?.discountedPrice) {
+              originalPrice = Number(product.price);
+              unitPrice = Number(product.discountedPrice);
+              discountRate = originalPrice > 0 
+                ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
+                : 0;
+              hasDiscount = discountRate > 0;
+            } else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+              originalPrice = Number(product.price);
+              discountRate = Number(product.discountRate);
+              unitPrice = originalPrice * (1 - discountRate / 100);
+              hasDiscount = discountRate > 0;
+            }
+            
+            const lineTotal = unitPrice * detail.quantity;
+            const originalLineTotal = originalPrice ? originalPrice * detail.quantity : null;
+            
+            return (
+              <div
+                key={detail.id}
+                className="p-4 border border-gray-200 rounded-lg flex flex-col gap-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <div className="font-medium text-gray-900">
+                        {detail.product?.name || "Product"}
+                      </div>
+                      {hasDiscount && discountRate && (
+                        <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded whitespace-nowrap">
+                          {discountRate}% OFF
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {detail.variant?.color ? `Color: ${detail.variant.color}` : ""}
+                      {detail.variant?.size ? ` • Size: ${detail.variant.size}` : ""}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Purchased: {detail.quantity} | Returned: {detail.returned}
+                      {detail.pendingReturnQuantity && detail.pendingReturnQuantity > 0
+                        ? ` | Pending: ${detail.pendingReturnQuantity}`
+                        : ""}
+                    </div>
+                    <div className="text-sm text-gray-800 mt-1">
+                      {hasDiscount && originalLineTotal && (
+                        <div className="text-xs text-gray-400 mb-1">
+                          <span className="line-through">{priceFmt.format(originalLineTotal)}</span>
+                        </div>
+                      )}
+                      <div className="font-semibold">{priceFmt.format(lineTotal)}</div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {detail.variant?.color ? `Color: ${detail.variant.color}` : ""}
-                    {detail.variant?.size ? ` • Size: ${detail.variant.size}` : ""}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    Purchased: {detail.quantity} | Returned: {detail.returned}
-                    {detail.pendingReturnQuantity && detail.pendingReturnQuantity > 0
-                      ? ` | Pending: ${detail.pendingReturnQuantity}`
-                      : ""}
-                  </div>
-                  <div className="text-sm text-gray-800">
-                    {priceFmt.format(Number(detail.price) * detail.quantity)}
-                  </div>
-                </div>
                 <div className="text-right">
                   <label className="text-xs text-gray-500 block mb-1">Return qty</label>
                   <div className="inline-flex items-center border rounded overflow-hidden">
@@ -356,7 +395,8 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="space-y-3">
@@ -364,7 +404,27 @@ export default function OrderDetailPage() {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Total</span>
               <span className="font-semibold">
-                {priceFmt.format(Number(order.totalPrice))}
+                {priceFmt.format(
+                  order.details?.reduce((sum, detail) => {
+                    // Use discountedPrice if available, otherwise use detail.price
+                    const product = detail.product as any;
+                    let unitPrice = Number(detail.price);
+                    
+                    // Check if product has discountedPrice
+                    if (product?.discountedPrice) {
+                      unitPrice = Number(product.discountedPrice);
+                    } 
+                    // Or calculate from discountRate
+                    else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                      const originalPrice = Number(product.price);
+                      const discountRate = Number(product.discountRate);
+                      unitPrice = originalPrice * (1 - discountRate / 100);
+                    }
+                    
+                    const lineTotal = unitPrice * detail.quantity;
+                    return sum + lineTotal;
+                  }, 0) || Number(order.totalPrice)
+                )}
               </span>
             </div>
             <div className="text-sm text-gray-600">

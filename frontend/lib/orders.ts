@@ -5,6 +5,8 @@ export type OrderProduct = {
   name: string;
   price: number | string;
   image?: string | null;
+  discountedPrice?: number | string | null;
+  discountRate?: number | string | null;
 };
 
 export type OrderDetail = {

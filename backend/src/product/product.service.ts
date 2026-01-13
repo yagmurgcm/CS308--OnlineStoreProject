@@ -153,9 +153,35 @@ export class ProductService {
 
   // Delete product
   async remove(id: number): Promise<void> {
+    // Check if product exists
+    const product = await this.productRepository.findOne({
+      where: { id },
+    });
+    
+    if (!product) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    // Delete all variants first (to avoid foreign key constraint errors)
+    // Use productId column directly since it's the foreign key
+    await this.variantRepository
+      .createQueryBuilder()
+      .delete()
+      .where('productId = :id', { id })
+      .execute();
+
+    // Then delete the product
     const result = await this.productRepository.delete(id);
     if (result.affected === 0) {
       throw new NotFoundException(`Product #${id} not found`);
+    }
+  }
+
+  // Delete variant
+  async removeVariant(variantId: number): Promise<void> {
+    const result = await this.variantRepository.delete(variantId);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Variant #${variantId} not found`);
     }
   }
 

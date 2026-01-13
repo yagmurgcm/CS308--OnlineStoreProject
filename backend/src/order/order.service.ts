@@ -460,9 +460,11 @@ export class OrderService {
     }
     if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only delivered orders can be returned or refunded',
+        'This order cannot be returned',
       );
     }
+    // Check 30-day return window
+    this.assertWithinReturnWindow(order);
     return this.applyReturnItems(orderId, items);
   }
 
@@ -479,9 +481,11 @@ export class OrderService {
     }
     if (!RETURN_ELIGIBLE_STATUSES.has(status)) {
       throw new BadRequestException(
-        'Only delivered orders can be returned or refunded',
+        'This order cannot be returned',
       );
     }
+    // Check 30-day return window
+    this.assertWithinReturnWindow(order);
     this.assertWithinReturnWindow(order);
 
     if (!items || items.length === 0) {
@@ -703,9 +707,11 @@ export class OrderService {
       const normalizedStatus = (current.status || '').toLowerCase();
       if (!RETURN_ELIGIBLE_STATUSES.has(normalizedStatus)) {
         throw new BadRequestException(
-          'Only delivered orders can be returned or refunded',
+          'This order cannot be returned',
         );
       }
+      // Check 30-day return window
+      this.assertWithinReturnWindow(current);
 
       for (const item of items) {
         if (!item || item.quantity <= 0) {

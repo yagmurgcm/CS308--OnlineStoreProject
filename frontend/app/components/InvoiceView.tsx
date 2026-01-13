@@ -78,13 +78,9 @@ export function InvoiceView({ order }: InvoiceViewProps) {
               })}
             </p>
           )}
-          {emailSent ? (
+          {emailSent && (
             <p className="text-sm text-emerald-700">
               Invoice emailed to {recipientEmail || "your inbox"}.
-            </p>
-          ) : (
-            <p className="text-sm text-amber-700">
-              Invoice created. Email could not be sent.
             </p>
           )}
         </div>
@@ -114,46 +110,107 @@ export function InvoiceView({ order }: InvoiceViewProps) {
           <span className="text-right">Line total</span>
         </div>
 
-        <div className="divide-y divide-[var(--line)]">
-          {order.details?.map((detail) => {
-            const unitPrice = coercePrice(detail.price);
-            const lineTotal = unitPrice * detail.quantity;
-            return (
-              <div
-                key={detail.id}
-                className="grid grid-cols-[2fr_1fr_1fr] items-center gap-2 py-3 text-sm"
-              >
-                <div className="space-y-1">
-                  {detail.product?.id ? (
-                    <Link
-                      href={`/products/${detail.product.id}`}
-                      className="font-medium text-neutral-900 hover:text-blue-600 hover:underline transition-colors"
-                    >
-                      {detail.product.name || "Product"}
-                    </Link>
-                  ) : (
-                    <p className="font-medium text-neutral-900">
-                      {detail.product?.name || "Product"}
-                    </p>
-                  )}
-                  {detail.product?.id && (
-                    <p className="text-xs text-neutral-500">Product #{detail.product.id}</p>
-                  )}
-                </div>
-                <div className="text-right text-neutral-700">{detail.quantity}</div>
-                <div className="text-right font-semibold text-neutral-900">
-                  {priceFmt.format(lineTotal)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+         <div className="divide-y divide-[var(--line)]">
+           {order.details?.map((detail) => {
+             // Use discountedPrice if available, otherwise use detail.price
+             const product = detail.product;
+             let unitPrice = coercePrice(detail.price);
+             let originalPrice: number | null = null;
+             let discountRate: number | null = null;
+             let hasDiscount = false;
+             
+             // Check if product has discountedPrice
+             if (product?.discountedPrice) {
+               originalPrice = coercePrice(product.price);
+               unitPrice = coercePrice(product.discountedPrice);
+               discountRate = originalPrice > 0 
+                 ? Math.round(((originalPrice - unitPrice) / originalPrice) * 100)
+                 : 0;
+               hasDiscount = discountRate > 0;
+             } 
+             // Or calculate from discountRate
+             else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+               originalPrice = coercePrice(product.price);
+               discountRate = Number(product.discountRate);
+               unitPrice = originalPrice * (1 - discountRate / 100);
+               hasDiscount = discountRate > 0;
+             }
+             
+             const lineTotal = unitPrice * detail.quantity;
+             const originalLineTotal = originalPrice ? originalPrice * detail.quantity : null;
+             
+             return (
+               <div
+                 key={detail.id}
+                 className="grid grid-cols-[2fr_1fr_1fr] items-start gap-2 py-3 text-sm"
+               >
+                 <div className="space-y-1 min-w-0">
+                   <div className="flex items-center gap-2 flex-wrap">
+                     {detail.product?.id ? (
+                       <Link
+                         href={`/products/${detail.product.id}`}
+                         className="font-medium text-neutral-900 hover:text-blue-600 hover:underline transition-colors"
+                       >
+                         {detail.product.name || "Product"}
+                       </Link>
+                     ) : (
+                       <p className="font-medium text-neutral-900">
+                         {detail.product?.name || "Product"}
+                       </p>
+                     )}
+                     {hasDiscount && discountRate && (
+                       <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded whitespace-nowrap">
+                         {discountRate}% OFF
+                       </span>
+                     )}
+                   </div>
+                   {detail.product?.id && (
+                     <p className="text-xs text-neutral-500">Product #{detail.product.id}</p>
+                   )}
+                 </div>
+                 <div className="text-right text-neutral-700">{detail.quantity}</div>
+                 <div className="text-right">
+                   {hasDiscount && originalLineTotal && (
+                     <div className="text-xs text-neutral-400 mb-1">
+                       <span className="line-through">{priceFmt.format(originalLineTotal)}</span>
+                     </div>
+                   )}
+                   <div className="font-semibold text-neutral-900">
+                     {priceFmt.format(lineTotal)}
+                   </div>
+                 </div>
+               </div>
+             );
+           })}
+         </div>
 
-        <div className="border-t border-[var(--line)] pt-4">
-          <div className="flex items-center justify-between text-base font-semibold">
-            <span>Total</span>
-            <span>{priceFmt.format(totalPrice)}</span>
-          </div>
+         <div className="border-t border-[var(--line)] pt-4">
+           <div className="flex items-center justify-between text-base font-semibold">
+             <span>Total</span>
+             <span>
+               {priceFmt.format(
+                 order.details?.reduce((sum, detail) => {
+                   // Use discountedPrice if available, otherwise use detail.price
+                   const product = detail.product;
+                   let unitPrice = coercePrice(detail.price);
+                   
+                   // Check if product has discountedPrice
+                   if (product?.discountedPrice) {
+                     unitPrice = coercePrice(product.discountedPrice);
+                   } 
+                   // Or calculate from discountRate
+                   else if (product?.discountRate && Number(product.discountRate) > 0 && product?.price) {
+                     const originalPrice = coercePrice(product.price);
+                     const discountRate = Number(product.discountRate);
+                     unitPrice = originalPrice * (1 - discountRate / 100);
+                   }
+                   
+                   const lineTotal = unitPrice * detail.quantity;
+                   return sum + lineTotal;
+                 }, 0) || totalPrice
+               )}
+             </span>
+           </div>
           <p className="mt-1 text-xs text-neutral-500">
             Status: {order.status}. Need help? Contact support and include your invoice number.
           </p>

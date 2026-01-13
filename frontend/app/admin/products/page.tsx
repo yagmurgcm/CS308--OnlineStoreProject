@@ -209,16 +209,58 @@ export default function AdminProductsPage() {
   const handleDeleteConfirm = async () => {
     if (!deleteConfirm.productId) return;
     
+    const productId = deleteConfirm.productId;
+    const productName = deleteConfirm.productName;
+    
     setSubmitting(true);
     setDeleteConfirm({ show: false, productId: null, productName: "" });
     
     try {
-      await api.delete(`/products/${deleteConfirm.productId}`);
+      await api.delete(`/products/${productId}`);
       await fetchProducts();
-      showToast(`"${deleteConfirm.productName}" deleted successfully`, "success");
+      // Refresh selected product if it was deleted
+      if (selectedProduct && selectedProduct.id === productId) {
+        setSelectedProduct(null);
+      }
+      showToast(`"${productName}" and all its variants deleted successfully`, "success");
     } catch (err) {
       console.error("Failed to delete product:", err);
-      showToast("Failed to delete product", "error");
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete product. It may be referenced in orders or reviews.";
+      showToast(errorMessage, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteVariant = async (variant: ProductVariant, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent row click event
+    
+    if (!confirm(`Are you sure you want to delete variant: ${variant.color} / ${variant.size}?`)) {
+      return;
+    }
+    
+    setSubmitting(true);
+    try {
+      await api.delete(`/products/variant/${variant.id}`);
+      
+      // Refresh products list
+      await fetchProducts();
+      
+      // Refresh selected product if it's currently open
+      if (selectedProduct) {
+        const response = await api.get<{ items: Product[] }>("/products?limit=1000");
+        const updatedProducts = response?.items || [];
+        const refreshed = updatedProducts.find((p) => p.id === selectedProduct.id);
+        if (refreshed) {
+          setSelectedProduct(refreshed);
+        }
+      }
+      
+      showToast(`Variant ${variant.color} / ${variant.size} deleted successfully`, "success");
+    } catch (err) {
+      console.error("Failed to delete variant:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete variant.";
+      showToast(errorMessage, "error");
     } finally {
       setSubmitting(false);
     }
@@ -1000,16 +1042,19 @@ export default function AdminProductsPage() {
                           <th className="px-4 py-2 text-left font-semibold">Size</th>
                           <th className="px-4 py-2 text-left font-semibold">Price</th>
                           <th className="px-4 py-2 text-left font-semibold">Stock</th>
+                          <th className="px-4 py-2 text-left font-semibold">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {selectedProduct.variants.map((variant) => (
                           <tr
                             key={variant.id}
-                            className="hover:bg-blue-50 cursor-pointer transition"
-                            onClick={() => handleEditVariant(variant)}
+                            className="hover:bg-blue-50 transition"
                           >
-                            <td className="px-4 py-3">
+                            <td 
+                              className="px-4 py-3 cursor-pointer"
+                              onClick={() => handleEditVariant(variant)}
+                            >
                               <span className="inline-block w-6 h-6 rounded border"
                                 style={{
                                   backgroundColor:
@@ -1021,11 +1066,22 @@ export default function AdminProductsPage() {
                               />
                               {" "}{variant.color}
                             </td>
-                            <td className="px-4 py-3">{variant.size}</td>
-                            <td className="px-4 py-3 font-medium">
+                            <td 
+                              className="px-4 py-3 cursor-pointer"
+                              onClick={() => handleEditVariant(variant)}
+                            >
+                              {variant.size}
+                            </td>
+                            <td 
+                              className="px-4 py-3 font-medium cursor-pointer"
+                              onClick={() => handleEditVariant(variant)}
+                            >
                               {priceFmt.format(coercePrice(variant.price))}
                             </td>
-                            <td className="px-4 py-3">
+                            <td 
+                              className="px-4 py-3 cursor-pointer"
+                              onClick={() => handleEditVariant(variant)}
+                            >
                               <span
                                 className={`px-2 py-1 rounded-full text-xs font-medium ${variant.stock > 0
                                     ? "bg-green-100 text-green-800"
@@ -1034,6 +1090,15 @@ export default function AdminProductsPage() {
                               >
                                 {variant.stock}
                               </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={(e) => handleDeleteVariant(variant, e)}
+                                disabled={submitting}
+                                className="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg font-medium hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                🗑️ Delete
+                              </button>
                             </td>
                           </tr>
                         ))}

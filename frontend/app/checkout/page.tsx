@@ -148,7 +148,7 @@ export default function CheckoutPage() {
 
   const [delivery, setDelivery] = useState({
     fullName: "",
-    email: user?.email ?? "",
+    email: "",
     phone: "",
     address: "",
     city: "",
@@ -165,10 +165,10 @@ export default function CheckoutPage() {
   });
 
   const [payment, setPayment] = useState({
-    cardNumber: "4532 1488 0343 6467",
-    nameOnCard: user?.name ?? "John Doe",
-    expiry: "12/25",
-    cvc: "123",
+    cardNumber: "",
+    nameOnCard: "",
+    expiry: "",
+    cvc: "",
   });
 
   const hasItems = items.length > 0;
@@ -192,46 +192,44 @@ export default function CheckoutPage() {
     if (!user?.id) return;
 
     const loadAndFill = async () => {
-      // First, try to load saved delivery details from localStorage
-      const savedDelivery = window.localStorage.getItem("checkoutDelivery");
-      let baseDelivery = {
-        fullName: "",
+      // Fetch fresh user profile from API to get all account information FIRST
+      let profileData = {
+        name: "",
         email: "",
-        phone: "",
-        address: "",
-        city: "",
-        postalCode: "",
-        country: "",
+        homeAddress: "",
       };
-      
-      if (savedDelivery) {
-        try {
-          const parsed = JSON.parse(savedDelivery);
-          baseDelivery = { ...baseDelivery, ...parsed };
-        } catch {
-          // ignore parse errors
-        }
-      }
-
-      // Fetch fresh user profile from API to get homeAddress
-      let userHomeAddress = "";
       try {
-        const profile = await api.get<{ homeAddress?: string | null }>(`/users/${user.id}`);
-        userHomeAddress = profile.homeAddress || "";
+        const profile = await api.get<{ 
+          name?: string | null; 
+          email?: string | null; 
+          homeAddress?: string | null;
+        }>(`/users/${user.id}`);
+        profileData = {
+          name: profile.name || "",
+          email: profile.email || "",
+          homeAddress: profile.homeAddress || "",
+        };
       } catch (err) {
         console.warn("Could not fetch user profile for auto-fill", err);
       }
 
-      // Fill delivery form with user data
+      // Fill delivery form with user data from account information ONLY
+      // If information is not in Account Information, leave it empty
+      const finalName = profileData.name || user?.name || "";
+      const finalEmail = profileData.email || user?.email || "";
+      const finalAddress = profileData.homeAddress || "";
+      
       setDelivery({
-        fullName: user?.name ?? baseDelivery.fullName,
-        email: user?.email ?? baseDelivery.email,
-        phone: baseDelivery.phone,
-        address: baseDelivery.address || userHomeAddress || "",
-        city: baseDelivery.city,
-        postalCode: baseDelivery.postalCode,
-        country: baseDelivery.country,
+        fullName: finalName, // From Account Information
+        email: finalEmail,
+        phone: "", // Always empty - user must fill manually
+        address: finalAddress,
+        city: "", // Always empty - user must fill manually
+        postalCode: "", // Always empty - user must fill manually
+        country: "Turkey", // Default to Turkey
       });
+
+      // Payment fields remain empty - user must fill manually
     };
 
     loadAndFill();
