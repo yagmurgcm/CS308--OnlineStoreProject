@@ -5,6 +5,8 @@ import { Repository } from 'typeorm';
 import { GetProductsQueryDto } from './dto/get-products-query.dto';
 import { Product } from './entities/product.entity';
 import { ProductVariant } from './product-variant.entity';
+import { Review } from '../reviews/review.entity';
+import { OrderDetail } from '../order/order-detail.entity';
 
 type PagedProducts = {
   items: Product[];
@@ -20,6 +22,10 @@ export class ProductService {
     private productRepository: Repository<Product>,
     @InjectRepository(ProductVariant)
     private variantRepository: Repository<ProductVariant>,
+    @InjectRepository(Review)
+    private reviewRepository: Repository<Review>,
+    @InjectRepository(OrderDetail)
+    private orderDetailRepository: Repository<OrderDetail>,
   ) { }
 
   // List and filter products with pagination and sorting
@@ -162,19 +168,37 @@ export class ProductService {
       throw new NotFoundException(`Product #${id} not found`);
     }
 
-    // Delete all variants first (to avoid foreign key constraint errors)
-    // Use productId column directly since it's the foreign key
-    await this.variantRepository
-      .createQueryBuilder()
-      .delete()
-      .where('productId = :id', { id })
-      .execute();
+    // Use transaction to safely delete product, variants, reviews, and update order details
+    await this.productRepository.manager.transaction(async (manager) => {
+      const productRepo = manager.getRepository(Product);
+      const variantRepo = manager.getRepository(ProductVariant);
+      const reviewRepo = manager.getRepository(Review);
+      const orderDetailRepo = manager.getRepository(OrderDetail);
 
-    // Then delete the product
-    const result = await this.productRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Product #${id} not found`);
-    }
+      // Set productId to NULL in order details (preserve order history)
+      await orderDetailRepo.update(
+        { productId: id },
+        { productId: null },
+      );
+
+      // Delete all reviews for this product
+      await reviewRepo.delete({ productId: id });
+
+      // Get all variant IDs for this product
+      const variants = await variantRepo.find({
+        where: { product: { id } },
+        select: ['id'],
+      });
+
+      // Delete all variants (this will cascade delete cart items)
+      if (variants.length > 0) {
+        const variantIds = variants.map(v => v.id);
+        await variantRepo.delete(variantIds);
+      }
+
+      // Delete the product
+      await productRepo.delete(id);
+    });
   }
 
   // Delete variant

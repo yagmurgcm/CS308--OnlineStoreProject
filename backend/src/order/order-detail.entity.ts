@@ -16,17 +16,17 @@ export class OrderDetail {
   @JoinColumn({ name: 'orderId' })
   order: Order;
 
-  @Column()
-  productId: number;
+  @Column({ nullable: true })
+  productId: number | null;
 
-  @ManyToOne(() => Product, { eager: true })
+  @ManyToOne(() => Product, { eager: true, onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'productId' })
-  product: Product;
+  product: Product | null;
 
   @Column({ nullable: true })
   variantId: number | null;
 
-  @ManyToOne(() => ProductVariant, { eager: true })
+  @ManyToOne(() => ProductVariant, { eager: true, onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'variantId' })
   variant: ProductVariant | null;
 

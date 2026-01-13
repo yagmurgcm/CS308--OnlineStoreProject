@@ -38,10 +38,16 @@ export class Product {
   @Column({ default: true })
   isActive: boolean;
 
-  @OneToMany(() => ProductVariant, (variant) => variant.product)
+  @OneToMany(() => ProductVariant, (variant) => variant.product, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
   variants: ProductVariant[];
 
-  @OneToMany(() => Review, (review) => review.product)
+  @OneToMany(() => Review, (review) => review.product, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
   reviews: Review[];
 
   @Column('decimal', { precision: 3, scale: 1, default: 0 })

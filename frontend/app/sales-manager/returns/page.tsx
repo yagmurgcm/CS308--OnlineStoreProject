@@ -195,11 +195,18 @@ export default function SalesManagerReturnsPage() {
           {request.status === "pending" ? (
             <div className="flex gap-2">
               <button
-                className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm disabled:opacity-50 hover:bg-green-700"
                 disabled={actionId === request.id}
                 onClick={() => handleDecision(request.id, "approved")}
               >
                 {actionId === request.id ? "..." : "Approve"}
+              </button>
+              <button
+                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm disabled:opacity-50 hover:bg-red-700"
+                disabled={actionId === request.id}
+                onClick={() => handleDecision(request.id, "rejected")}
+              >
+                {actionId === request.id ? "..." : "Reject"}
               </button>
             </div>
           ) : (
